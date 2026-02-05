@@ -82,6 +82,7 @@ pnpm check      # Format, lint, and typecheck (run before commits)
   export * from "./types";
   ```
 
+- **Avoid barrel-only files**: Don't create `index.ts` files that only re-export from child modules. Import directly from the specific module instead (e.g., `import { useGamepad } from '../hooks/useGamepad'` not `from '../hooks'`).
 - **JSDoc**: Skip `@param`/`@returns` tags (TypeScript provides types); use inline comments if needed
 - **Loading indicators**: Delay by ~1 second to avoid flash for fast operations
 - **Intl API**: Prefer `Intl.DateTimeFormat`, `Intl.NumberFormat`, etc. over manual formatting for dates, numbers, and currencies
