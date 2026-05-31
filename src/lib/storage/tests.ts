@@ -44,4 +44,21 @@ describe("storage repository", () => {
     await deleteEvent("a");
     expect(await getAllEvents()).toEqual([]);
   });
+
+  it("backfills amount/direction defaults for legacy events missing them", async () => {
+    const legacy = {
+      id: "legacy",
+      title: "Old",
+      date: "2026-05-14",
+      categoryId: "work",
+      recurrence: null,
+      overrides: [],
+      createdAt: "t",
+      updatedAt: "t",
+    };
+    await putEvent(legacy as unknown as CalendarEvent);
+    const [loaded] = await getAllEvents();
+    expect(loaded.amount).toBe(0);
+    expect(loaded.direction).toBe("deposit");
+  });
 });

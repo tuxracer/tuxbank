@@ -5,6 +5,12 @@ import { StorageError } from "./types";
 
 export * from "./types";
 
+const withTransactionDefaults = (event: CalendarEvent): CalendarEvent => ({
+  ...event,
+  amount: typeof event.amount === "number" ? event.amount : 0,
+  direction: event.direction === "withdrawal" ? "withdrawal" : "deposit",
+});
+
 const DB_NAME = "cyber-calendar";
 const DB_VERSION = 1;
 const STORE = "events";
@@ -37,7 +43,7 @@ export const getAllEvents = async (): Promise<CalendarEvent[]> => {
   try {
     const db = await getDb();
     const rows = await db.getAll(STORE);
-    return rows.filter(isCalendarEvent);
+    return rows.filter(isCalendarEvent).map(withTransactionDefaults);
   } catch (error) {
     if (error instanceof StorageError) throw error;
     throw new StorageError("READ_FAILED", error);
