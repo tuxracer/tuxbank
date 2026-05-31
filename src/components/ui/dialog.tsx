@@ -50,16 +50,27 @@ function DialogOverlay({
 function DialogContent({
   className,
   children,
+  description,
   showCloseButton = true,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
+  description?: React.ReactNode;
   showCloseButton?: boolean;
 }) {
+  // Radix requires every dialog to either render a `<DialogDescription>` or
+  // explicitly opt out via `aria-describedby={undefined}`, otherwise it logs a
+  // dev warning. When `description` is provided we render a screen-reader-only
+  // description and let Radix auto-link it; when it's absent we opt out so an
+  // undescribed dialog is valid without warning. (For a *visible* description,
+  // author `<DialogDescription>` directly in the dialog's header instead.)
+  const hasDescription = description != null;
+
   return (
     <DialogPortal>
       <DialogOverlay />
       <DialogPrimitive.Content
         data-slot="dialog-content"
+        {...(hasDescription ? {} : { "aria-describedby": undefined })}
         className={cn(
           "fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-xl bg-popover p-4 text-sm text-popover-foreground ring-1 ring-foreground/10 duration-100 outline-none sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
           className,
@@ -67,6 +78,11 @@ function DialogContent({
         {...props}
       >
         {children}
+        {hasDescription && (
+          <DialogDescription className="sr-only">
+            {description}
+          </DialogDescription>
+        )}
         {showCloseButton && (
           <DialogPrimitive.Close data-slot="dialog-close" asChild>
             <Button
