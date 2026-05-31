@@ -6,6 +6,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { addMonths, format, startOfMonth } from "date-fns";
@@ -16,7 +17,7 @@ import type {
   CategoryColor,
   Occurrence,
 } from "@/types";
-import { PRESET_CATEGORIES } from "@/types";
+import { categoryKey } from "@/types";
 import { buildMonthGrid, type DateCell } from "@/lib/dateGrid";
 import {
   buildFollowingSeries,
@@ -32,6 +33,9 @@ import {
   getAllEvents,
   isStorageError,
   putEvent,
+  getAllCategories,
+  putCategory,
+  deleteCategory as dbDeleteCategory,
 } from "@/lib/storage";
 import { computeRunningBalances } from "@/lib/balance";
 
@@ -46,6 +50,8 @@ type CalendarContextValue = {
   occurrencesByDate: Partial<Record<string, Occurrence[]>>;
   balancesByDate: Record<string, number>;
   categories: readonly Category[];
+  usedCategories: Category[];
+  categoryUsageCount: Record<string, number>;
   activeColors: Set<CategoryColor>;
   storageAvailable: boolean;
   loaded: boolean;
@@ -66,6 +72,12 @@ type CalendarContextValue = {
     scope: EditScope,
     occurrenceDate: string,
   ) => Promise<void>;
+  createCategory: (name: string, color: CategoryColor) => Promise<Category>;
+  updateCategory: (
+    id: string,
+    patch: { name?: string; color?: CategoryColor },
+  ) => Promise<void>;
+  deleteCategory: (id: string) => Promise<void>;
 };
 
 const ALL_COLORS: CategoryColor[] = [
@@ -82,8 +94,6 @@ const monthFormatter = new Intl.DateTimeFormat(undefined, {
   year: "numeric",
 });
 
-const getCategory = makeCategoryResolver(PRESET_CATEGORIES);
-
 const CalendarContext = createContext<CalendarContextValue | null>(null);
 
 export const CalendarProvider = ({
@@ -95,18 +105,38 @@ export const CalendarProvider = ({
     startOfMonth(new Date()),
   );
   const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const categoriesRef = useRef<Category[]>([]);
   const [storageAvailable, setStorageAvailable] = useState<boolean>(true);
   const [loaded, setLoaded] = useState<boolean>(false);
   const [activeColors, setActiveColors] = useState<Set<CategoryColor>>(
     () => new Set(ALL_COLORS),
   );
 
+  const setCategoriesWithRef = useCallback(
+    (updater: (prev: Category[]) => Category[]) => {
+      setCategories((prev) => {
+        const next = updater(prev);
+        categoriesRef.current = next;
+        return next;
+      });
+    },
+    [],
+  );
+
+  const getCategory = useMemo(
+    () => makeCategoryResolver(categories),
+    [categories],
+  );
+
   useEffect(() => {
     let active = true;
-    getAllEvents()
-      .then((loadedEvents) => {
+    Promise.all([getAllEvents(), getAllCategories()])
+      .then(([loadedEvents, loadedCategories]) => {
         if (!active) return;
         setEvents(loadedEvents);
+        categoriesRef.current = loadedCategories;
+        setCategories(loadedCategories);
         setLoaded(true);
       })
       .catch((error) => {
@@ -144,11 +174,11 @@ export const CalendarProvider = ({
       getCategory,
     ).filter((o) => activeColors.has(o.category.color));
     return groupBy(occ, (o) => o.date) as Partial<Record<string, Occurrence[]>>;
-  }, [events, cells, activeColors]);
+  }, [events, cells, activeColors, getCategory]);
 
   const balancesByDate = useMemo(
     () => computeRunningBalances(events, cells, getCategory),
-    [events, cells],
+    [events, cells, getCategory],
   );
 
   const createEvent = useCallback(
@@ -245,6 +275,60 @@ export const CalendarProvider = ({
     [events, persist],
   );
 
+  const usedCategories = useMemo(() => {
+    const seen = new Map<string, Category>();
+    for (const e of events) seen.set(e.categoryId, getCategory(e.categoryId));
+    return [...seen.values()];
+  }, [events, getCategory]);
+
+  const categoryUsageCount = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const e of events)
+      counts[e.categoryId] = (counts[e.categoryId] ?? 0) + 1;
+    return counts;
+  }, [events]);
+
+  const createCategory = useCallback(
+    async (name: string, color: CategoryColor): Promise<Category> => {
+      const id = categoryKey(name);
+      const existing = categoriesRef.current.find((c) => c.id === id);
+      if (existing) return existing;
+      const category: Category = { id, name: name.trim(), color };
+      categoriesRef.current = [...categoriesRef.current, category];
+      setCategoriesWithRef(() => categoriesRef.current);
+      await persist(() => putCategory(category));
+      return category;
+    },
+    [persist, setCategoriesWithRef],
+  );
+
+  const updateCategory = useCallback(
+    async (id: string, patch: { name?: string; color?: CategoryColor }) => {
+      const current = categoriesRef.current.find((c) => c.id === id);
+      if (!current) return;
+      const next: Category = {
+        ...current,
+        ...patch,
+        name: patch.name?.trim() ?? current.name,
+      };
+      categoriesRef.current = categoriesRef.current.map((c) =>
+        c.id === id ? next : c,
+      );
+      setCategoriesWithRef(() => categoriesRef.current);
+      await persist(() => putCategory(next));
+    },
+    [persist, setCategoriesWithRef],
+  );
+
+  const deleteCategory = useCallback(
+    async (id: string) => {
+      categoriesRef.current = categoriesRef.current.filter((c) => c.id !== id);
+      setCategoriesWithRef(() => categoriesRef.current);
+      await persist(() => dbDeleteCategory(id));
+    },
+    [persist, setCategoriesWithRef],
+  );
+
   const value: CalendarContextValue = {
     visibleMonth,
     monthLabel: monthFormatter.format(visibleMonth),
@@ -253,7 +337,9 @@ export const CalendarProvider = ({
     events,
     occurrencesByDate,
     balancesByDate,
-    categories: PRESET_CATEGORIES,
+    categories,
+    usedCategories,
+    categoryUsageCount,
     activeColors,
     storageAvailable,
     loaded,
@@ -271,6 +357,9 @@ export const CalendarProvider = ({
     createEvent,
     updateEvent,
     deleteEvent,
+    createCategory,
+    updateCategory,
+    deleteCategory,
   };
 
   return (

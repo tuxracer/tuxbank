@@ -50,7 +50,7 @@ const buildDefaults = (props: EventDialogProps): EventFormValues => {
   return {
     title: "",
     date: defaultDate,
-    categoryId: categories[0].id,
+    categoryId: categories[0]?.id ?? "",
     amount: 0,
     direction: "deposit",
     notes: "",

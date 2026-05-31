@@ -92,6 +92,59 @@ describe("CalendarContext", () => {
     expect(result.current.balancesByDate["2026-05-07"]).toBe(0);
   });
 
+  it("manages categories: create (dedupe by key), update propagates, delete -> Uncategorized", async () => {
+    const { result } = renderHook(() => useCalendar(), { wrapper });
+    await waitFor(() => expect(result.current.loaded).toBe(true));
+
+    let created: { id: string } | undefined;
+    await act(async () => {
+      created = await result.current.createCategory("Groceries", "green");
+      await result.current.createCategory("groceries", "magenta"); // same key -> no dup
+    });
+    expect(
+      result.current.categories.filter((c) => c.id === "groceries"),
+    ).toHaveLength(1);
+
+    await act(async () => {
+      result.current.goToDate(new Date(2026, 4, 1));
+      await result.current.createEvent({
+        title: "Food",
+        date: "2026-05-08",
+        categoryId: created!.id,
+        notes: undefined,
+        amount: 20,
+        direction: "withdrawal",
+        recurrence: null,
+      });
+    });
+    await waitFor(() =>
+      expect(
+        result.current.occurrencesByDate["2026-05-08"]?.[0]?.category.name,
+      ).toBe("Groceries"),
+    );
+
+    await act(async () => {
+      await result.current.updateCategory("groceries", {
+        name: "Food & Drink",
+      });
+    });
+    await waitFor(() =>
+      expect(
+        result.current.occurrencesByDate["2026-05-08"]?.[0]?.category.name,
+      ).toBe("Food & Drink"),
+    );
+
+    await act(async () => {
+      await result.current.deleteCategory("groceries");
+    });
+    await waitFor(() =>
+      expect(
+        result.current.occurrencesByDate["2026-05-08"]?.[0]?.category.name,
+      ).toBe("Uncategorized"),
+    );
+    expect(result.current.categoryUsageCount["groceries"]).toBe(1);
+  });
+
   it("deletes one occurrence of a recurring series", async () => {
     const { result } = renderHook(() => useCalendar(), { wrapper });
     await waitFor(() => expect(result.current.loaded).toBe(true));
