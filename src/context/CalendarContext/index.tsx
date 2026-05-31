@@ -33,6 +33,7 @@ import {
   isStorageError,
   putEvent,
 } from "@/lib/storage";
+import { computeRunningBalances } from "@/lib/balance";
 
 export type EditScope = "this" | "following" | "all";
 
@@ -43,6 +44,7 @@ type CalendarContextValue = {
   todayISO: string;
   events: CalendarEvent[];
   occurrencesByDate: Partial<Record<string, Occurrence[]>>;
+  balancesByDate: Record<string, number>;
   categories: readonly Category[];
   activeColors: Set<CategoryColor>;
   storageAvailable: boolean;
@@ -143,6 +145,11 @@ export const CalendarProvider = ({
     ).filter((o) => activeColors.has(o.category.color));
     return groupBy(occ, (o) => o.date) as Partial<Record<string, Occurrence[]>>;
   }, [events, cells, activeColors]);
+
+  const balancesByDate = useMemo(
+    () => computeRunningBalances(events, cells, getCategory),
+    [events, cells],
+  );
 
   const createEvent = useCallback(
     async (input: EventInput) => {
@@ -245,6 +252,7 @@ export const CalendarProvider = ({
     todayISO,
     events,
     occurrencesByDate,
+    balancesByDate,
     categories: PRESET_CATEGORIES,
     activeColors,
     storageAvailable,

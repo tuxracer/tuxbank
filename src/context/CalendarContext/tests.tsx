@@ -71,6 +71,27 @@ describe("CalendarContext", () => {
     );
   });
 
+  it("exposes a running balance per day from event deposits/withdrawals", async () => {
+    const { result } = renderHook(() => useCalendar(), { wrapper });
+    await waitFor(() => expect(result.current.loaded).toBe(true));
+    await act(async () => {
+      result.current.goToDate(new Date(2026, 4, 1));
+      await result.current.createEvent({
+        title: "Paycheck",
+        date: "2026-05-08",
+        categoryId: "work",
+        notes: undefined,
+        amount: 1000,
+        direction: "deposit",
+        recurrence: null,
+      });
+    });
+    await waitFor(() =>
+      expect(result.current.balancesByDate["2026-05-08"]).toBe(1000),
+    );
+    expect(result.current.balancesByDate["2026-05-07"]).toBe(0);
+  });
+
   it("deletes one occurrence of a recurring series", async () => {
     const { result } = renderHook(() => useCalendar(), { wrapper });
     await waitFor(() => expect(result.current.loaded).toBe(true));
