@@ -70,6 +70,14 @@ export const isRecurrenceFreq = (value: unknown): value is RecurrenceFreq =>
 export const isCategoryColor = (value: unknown): value is CategoryColor =>
   isString(value) && CATEGORY_COLORS.includes(value as CategoryColor);
 
+export const isCategory = (value: unknown): value is Category =>
+  isPlainObject(value) &&
+  isString(value.id) &&
+  isString(value.name) &&
+  isCategoryColor(value.color);
+
+export const categoryKey = (name: string): string => name.trim().toLowerCase();
+
 export const isCalendarEvent = (value: unknown): value is CalendarEvent =>
   isPlainObject(value) &&
   isString(value.id) &&
