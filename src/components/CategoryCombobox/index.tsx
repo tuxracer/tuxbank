@@ -73,8 +73,16 @@ const CategoryCombobox = ({
     choose(category.id);
   };
 
+  const handleOpenChange = (next: boolean) => {
+    if (!next) {
+      setQuery("");
+      setNewColor("cyan");
+    }
+    setOpen(next);
+  };
+
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
         <button
           type="button"
