@@ -33,6 +33,7 @@ const DayCell = ({
       role="gridcell"
       tabIndex={0}
       aria-label={dateLabel}
+      aria-current={isToday ? "date" : undefined}
       className={classes.join(" ")}
       onClick={() => onSelectDate(cell.iso)}
       onKeyDown={(e) => {

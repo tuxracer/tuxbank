@@ -15,6 +15,7 @@ type MonthGridProps = {
   occurrencesByDate: Partial<Record<string, Occurrence[]>>;
   onSelectDate: (iso: string) => void;
   onSelectOccurrence: (occurrence: Occurrence) => void;
+  gridLabel?: string;
 };
 
 const MonthGrid = ({
@@ -23,6 +24,7 @@ const MonthGrid = ({
   occurrencesByDate,
   onSelectDate,
   onSelectOccurrence,
+  gridLabel,
 }: MonthGridProps) => (
   <div className="flex min-h-0 flex-1 flex-col gap-1.5">
     <div className="grid grid-cols-7 gap-1.5" role="row">
@@ -39,6 +41,7 @@ const MonthGrid = ({
     <div
       className="grid min-h-0 flex-1 grid-cols-7 grid-rows-6 gap-1.5"
       role="grid"
+      aria-label={gridLabel}
     >
       {cells.map((cell) => (
         <DayCell

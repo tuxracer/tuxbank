@@ -43,6 +43,18 @@ const CalendarScreen = () => {
   );
 
   const openCreate = (date: string) => setEditor({ mode: "create", date });
+
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    if (
+      e.target instanceof HTMLInputElement ||
+      e.target instanceof HTMLTextAreaElement
+    )
+      return;
+    if (e.key === "PageUp") cal.goToPrevMonth();
+    if (e.key === "PageDown") cal.goToNextMonth();
+    if (e.key.toLowerCase() === "n" && !editor && !scope)
+      openCreate(todayISO());
+  };
   const openEdit = (occurrence: Occurrence) => {
     const event = cal.events.find((e) => e.id === occurrence.eventId);
     if (event) setEditor({ mode: "edit", occurrence, event });
@@ -103,7 +115,10 @@ const CalendarScreen = () => {
   };
 
   return (
-    <main className="cy-scanlines flex h-[100dvh] flex-col gap-3 p-3.5">
+    <main
+      className="cy-scanlines flex h-[100dvh] flex-col gap-3 p-3.5"
+      onKeyDown={onKeyDown}
+    >
       {cal.loaded && !cal.storageAvailable && (
         <div className="cy-mono border border-[color:var(--cy-magenta)] px-4 py-2 text-xs text-[color:var(--cy-magenta)]">
           ◢ LOCAL STORAGE UNAVAILABLE — changes won&apos;t be saved this
@@ -129,6 +144,7 @@ const CalendarScreen = () => {
         occurrencesByDate={cal.occurrencesByDate}
         onSelectDate={openCreate}
         onSelectOccurrence={openEdit}
+        gridLabel={`Calendar for ${cal.monthLabel}`}
       />
 
       {cal.loaded && totalOccurrences === 0 && (
