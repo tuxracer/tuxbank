@@ -12,7 +12,7 @@ const dayLabeler = new Intl.DateTimeFormat(undefined, {
 type MonthGridProps = {
   cells: DateCell[];
   todayISO: string;
-  occurrencesByDate: Record<string, Occurrence[]>;
+  occurrencesByDate: Partial<Record<string, Occurrence[]>>;
   onSelectDate: (iso: string) => void;
   onSelectOccurrence: (occurrence: Occurrence) => void;
 };
