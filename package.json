@@ -4,8 +4,9 @@
   "private": true,
   "packageManager": "pnpm@10.33.0",
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
+    "copy-sqlite": "node scripts/copy-sqlite-wasm.mjs",
+    "dev": "pnpm run copy-sqlite && next dev",
+    "build": "pnpm run copy-sqlite && next build",
     "start": "next start",
     "test": "vitest run",
     "test:watch": "vitest",

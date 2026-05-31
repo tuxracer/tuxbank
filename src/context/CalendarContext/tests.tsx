@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { act, renderHook, waitFor } from "@testing-library/react";
-import { resetDbForTests } from "@/lib/storage";
+import { resetDbForTests } from "@/lib/storage/connection/testing";
 import { CalendarProvider, useCalendar } from "./index";
 
 const wrapper = ({ children }: { children: React.ReactNode }) => (

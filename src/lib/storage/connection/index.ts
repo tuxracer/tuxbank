@@ -1,6 +1,5 @@
 import { StorageError } from "../types";
 import type { ConnectionStatus, DbConnection } from "../types";
-import { createMemoryConnection } from "./memoryConnection";
 import { createWorkerConnection } from "./workerConnection";
 
 let connectionPromise: Promise<DbConnection> | null = null;
@@ -34,7 +33,11 @@ export const getConnection = (): Promise<DbConnection> => {
   return connectionPromise;
 };
 
-/** Test-only: install a fresh in-memory connection so each test starts clean. */
-export const resetDbForTests = async (): Promise<void> => {
-  testConnection = await createMemoryConnection();
+/**
+ * Test-only hook (called from connection/testing.ts). Kept here so the
+ * in-memory connection — which imports the @sqlite.org/sqlite-wasm package — is
+ * never reachable from the browser bundle (only test files import testing.ts).
+ */
+export const setTestConnection = (connection: DbConnection): void => {
+  testConnection = connection;
 };

@@ -238,7 +238,7 @@ A bold, cohesive **Cyberpunk 2077–inspired** treatment. This section is the ca
 
 ## 11. Architecture & Project Structure
 
-Client-side layered architecture; UI ← state (Context) ← pure logic (recurrence, dateGrid) ← storage (IndexedDB).
+Client-side layered architecture; UI ← state (Context) ← pure logic (recurrence, dateGrid) ← storage (SQLite-WASM in a Web Worker; see §"Persistence: client-side SQLite").
 
 Per `CLAUDE.md` module conventions — each module is a **directory** named after its primary export, containing `index.ts(x)` and, as needed, `types.ts`, `consts.ts`, `tests.ts`; `index` re-exports the module's types/consts. Import from the module, not its internal files. No barrel-only files.
 
@@ -374,26 +374,30 @@ the database lives entirely in the browser.
   (`fake-indexeddb` removed); `resetDbForTests()` recreates a fresh `:memory:`
   database per test.
 
-### Known limitation — production build bundling (TODO)
+### Build & bundling (Turbopack)
 
-`next build` (Turbopack) currently **fails** to bundle the app for the browser.
 `@sqlite.org/sqlite-wasm`'s only browser entry (`dist/index.mjs`) statically
 imports the Worker1 promiser (`sqlite3-worker1.mjs`), which calls
 `new Worker(new URL(proxyUri, import.meta.url))` with a **dynamic** URL Turbopack
-cannot statically resolve. We do not use the Worker1 API. Unit tests (in-memory)
-are unaffected and pass; only the browser build/run is blocked.
+cannot statically bundle. We do not use the Worker1 API, so we keep the package
+out of the build graph entirely:
 
-Planned fix:
-1. In `worker.ts`, load sqlite-wasm at runtime from `public/sqlite/` via
-   `import(/* turbopackIgnore: true */ "/sqlite/index.mjs")` so Turbopack never
-   analyzes the Worker1 dynamic import. Add a small script to copy the package's
+1. **Runtime load, not static import.** `connection/worker.ts` loads sqlite-wasm
+   at runtime via `import(/* turbopackIgnore: true */ "/sqlite/index.mjs")`; the
+   `sqlite3InitModule` type is recovered with a type-only `import()` (erased at
+   compile time). Turbopack therefore never analyzes the Worker1 dynamic import.
+2. **Vendored assets.** `scripts/copy-sqlite-wasm.mjs` copies the package's
    `dist/{index.mjs,sqlite3-worker1.mjs,sqlite3-opfs-async-proxy.js,sqlite3.wasm}`
-   into `public/sqlite/` on `predev`/`prebuild`.
-2. Ensure **no browser-reachable module imports the npm package**: move
-   `resetDbForTests` into a test-only `connection/testing.ts`, stop re-exporting
-   it from `storage/index.ts`, and import it from there in the test files so
-   `memoryConnection.ts` (which imports the npm package) is never pulled into the
-   browser bundle.
-3. Verify with `pnpm build` + a browser session: create an event, reload to
-   confirm OPFS persistence, and open a second tab to confirm the lock overlay
-   and automatic handoff.
+   into `public/sqlite/`. It runs via the `copy-sqlite` script, chained ahead of
+   `dev` and `build` (`pnpm run copy-sqlite && next …`). `public/sqlite/` is
+   git-ignored (regenerated from `node_modules`) and excluded from ESLint.
+3. **No npm package in the browser bundle.** The test-only in-memory connection
+   (`memoryConnection.ts`, which *does* import the package) is reached only
+   through `connection/testing.ts`; `resetDbForTests` lives there and is imported
+   directly by test files, not re-exported from `storage/index.ts`. So no
+   browser-reachable module imports `@sqlite.org/sqlite-wasm`.
+
+`pnpm build` compiles successfully and `pnpm check` / `pnpm test` (99 tests on
+the real in-memory engine) pass. Remaining manual verification (a real browser
+session): create an event and reload to confirm OPFS persistence, and open a
+second tab to confirm the lock overlay and automatic handoff.

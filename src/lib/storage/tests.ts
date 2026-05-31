@@ -4,12 +4,12 @@ import {
   getAllEvents,
   putEvent,
   deleteEvent,
-  resetDbForTests,
   getAllCategories,
   putCategory,
   deleteCategory,
   seedCategoriesFromEvents,
 } from "./index";
+import { resetDbForTests } from "./connection/testing";
 
 const make = (id: string): CalendarEvent => ({
   id,

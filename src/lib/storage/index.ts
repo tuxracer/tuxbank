@@ -20,7 +20,7 @@ import {
 
 export * from "./consts";
 export * from "./types";
-export { resetDbForTests, onConnectionStatus } from "./connection";
+export { onConnectionStatus } from "./connection";
 
 const toStorageError = (
   error: unknown,

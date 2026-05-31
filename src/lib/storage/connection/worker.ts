@@ -1,7 +1,15 @@
-import sqlite3InitModule from "@sqlite.org/sqlite-wasm";
 import { DB_FILENAME, LOCK_NAME, POOL_DIR, VFS_NAME } from "../consts";
 import type { SyncDb } from "../types";
 import { initSyncDb } from "./sqliteDb";
+
+// sqlite-wasm is loaded at runtime from public/sqlite/ (copied by
+// scripts/copy-sqlite-wasm.mjs) rather than imported statically. Its package
+// entry pulls in the Worker1 promiser, whose `new Worker(new URL(<dynamic>,
+// import.meta.url))` Turbopack cannot statically bundle. The `turbopackIgnore`
+// comment + runtime URL keep it out of the build graph. The type is recovered
+// via a type-only `import()` (erased at compile time, so nothing is bundled).
+type Sqlite3InitFn = (typeof import("@sqlite.org/sqlite-wasm"))["default"];
+const SQLITE_WASM_URL = "/sqlite/index.mjs";
 
 // Structural view of the dedicated worker global. TS environment annotation
 // only — external message data is still validated by shape before use.
@@ -16,7 +24,9 @@ let sync: SyncDb | null = null;
 
 const initSqlite = async () => {
   try {
-    return await sqlite3InitModule();
+    const mod = await import(/* turbopackIgnore: true */ SQLITE_WASM_URL);
+    const init: Sqlite3InitFn = mod.default;
+    return await init();
   } catch (error) {
     ctx.postMessage({
       type: "status",

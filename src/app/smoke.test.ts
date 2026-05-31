@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { getAllEvents, resetDbForTests } from "@/lib/storage";
+import { getAllEvents } from "@/lib/storage";
+import { resetDbForTests } from "@/lib/storage/connection/testing";
 
 describe("test harness", () => {
   it("runs vitest", () => {
