@@ -46,6 +46,7 @@ type CalendarContextValue = {
   categories: readonly Category[];
   activeColors: Set<CategoryColor>;
   storageAvailable: boolean;
+  loaded: boolean;
   goToPrevMonth: () => void;
   goToNextMonth: () => void;
   goToToday: () => void;
@@ -92,7 +93,8 @@ export const CalendarProvider = ({
     startOfMonth(new Date()),
   );
   const [events, setEvents] = useState<CalendarEvent[]>([]);
-  const [storageAvailable, setStorageAvailable] = useState<boolean>(false);
+  const [storageAvailable, setStorageAvailable] = useState<boolean>(true);
+  const [loaded, setLoaded] = useState<boolean>(false);
   const [activeColors, setActiveColors] = useState<Set<CategoryColor>>(
     () => new Set(ALL_COLORS),
   );
@@ -100,15 +102,16 @@ export const CalendarProvider = ({
   useEffect(() => {
     let active = true;
     getAllEvents()
-      .then((loaded) => {
-        if (active) {
-          setEvents(loaded);
-          setStorageAvailable(true);
-        }
+      .then((loadedEvents) => {
+        if (!active) return;
+        setEvents(loadedEvents);
+        setLoaded(true);
       })
       .catch((error) => {
-        if (active && isStorageError(error) && error.code === "UNAVAILABLE")
+        if (!active) return;
+        if (isStorageError(error) && error.code === "UNAVAILABLE")
           setStorageAvailable(false);
+        setLoaded(true);
       });
     return () => {
       active = false;
@@ -243,6 +246,7 @@ export const CalendarProvider = ({
     categories: PRESET_CATEGORIES,
     activeColors,
     storageAvailable,
+    loaded,
     goToPrevMonth: () => setVisibleMonth((m) => addMonths(m, -1)),
     goToNextMonth: () => setVisibleMonth((m) => addMonths(m, 1)),
     goToToday: () => setVisibleMonth(startOfMonth(new Date())),

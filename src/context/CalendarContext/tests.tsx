@@ -14,7 +14,7 @@ describe("CalendarContext", () => {
 
   it("creates a one-off event and exposes it as an occurrence", async () => {
     const { result } = renderHook(() => useCalendar(), { wrapper });
-    await waitFor(() => expect(result.current.storageAvailable).toBe(true));
+    await waitFor(() => expect(result.current.loaded).toBe(true));
 
     await act(async () => {
       await result.current.createEvent({
@@ -36,7 +36,7 @@ describe("CalendarContext", () => {
 
   it("deletes one occurrence of a recurring series", async () => {
     const { result } = renderHook(() => useCalendar(), { wrapper });
-    await waitFor(() => expect(result.current.storageAvailable).toBe(true));
+    await waitFor(() => expect(result.current.loaded).toBe(true));
 
     let id = "";
     await act(async () => {
