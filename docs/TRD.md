@@ -1,4 +1,6 @@
-# PRD — Full-Page Cyberpunk Calendar
+# TRD — Full-Page Cyberpunk Calendar
+
+> Technical Reference Document. See [CLAUDE.md](../CLAUDE.md) for project conventions.
 
 **Status:** Draft for review · **Date:** 2026-05-30 · **Owner:** Derek Petersen
 
