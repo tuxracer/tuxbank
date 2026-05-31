@@ -1,24 +1,37 @@
-# Project Name
+# tuxbank
 
-See [README.md](README.md) for installation prerequisites, API documentation, and usage examples. See [docs/TRD.md](docs/TRD.md) for technical details.
+A single-user, full-page **month calendar** web app with a **Cyberpunk 2077–inspired** UI. All-day, date-based events — each with an amount and a deposit/withdrawal direction — are created, edited, and deleted entirely in the browser and persist in **IndexedDB** (no backend, no accounts). Events can recur, and recurring events edit/delete at three scopes (this occurrence / this and following / the whole series).
 
-**Repository URL**: https://github.com/tuxracer/REPOSITORY-NAME-HERE
+See [docs/TRD.md](docs/TRD.md) for the full technical reference.
 
-## Source Structure
+**Repository URL**: https://github.com/tuxracer/claude-md
 
-Each module is a directory named after its primary export, containing `index.ts` and optionally `consts.ts` for module-specific constants, `types.ts` for type definitions and type guards, and `tests.ts` for related tests.
+## Architecture
+
+Client-only Next.js App Router app — **no backend, no API routes**. Data flows `src/app/page.tsx` → `CalendarProvider` → `src/lib/*` → IndexedDB.
+
+- **`src/app/`** — App Router entry (`layout.tsx`, `page.tsx`) and `globals.css` (Tailwind + cyberpunk theme).
+- **`src/context/CalendarContext/`** — app-wide state via React context; consume with the `useCalendar()` hook (events, categories, CRUD, recurrence-scope handling).
+- **`src/components/`** — UI: `MonthGrid`, `DayCell`, `EventChip`, `EventDialog`, `CategoryCombobox`, `ManageCategoriesDialog`, `RecurrenceScopeDialog`, … · shadcn primitives in `src/components/ui/`.
+- **`src/lib/`** — React-free domain logic: `storage` (IndexedDB via idb), `recurrence` (expand/edit/delete series + occurrence overrides), `dateGrid` (month-grid construction), `balance` (running balance from deposits/withdrawals).
+- **`src/types/`** — shared types + guards (`CalendarEvent`, `Category`, `Recurrence`, `isCalendarEvent`, …).
+- **`src/utils/`** — small shared helpers (e.g. `formatCurrency`).
+
+Each module is a directory named after its primary export, containing `index.ts` and optionally `consts.ts` (constants), `types.ts` (types + guards), and `tests.ts`.
 
 ## Commands
 
 ```bash
-pnpm dev        # Next.js dev server (Turbopack) at http://localhost:3000
-pnpm build      # Production build (next build)
-pnpm start      # Serve the production build (next start)
-pnpm test       # Run tests (vitest run)
-pnpm check      # Format, lint, and typecheck (run before commits)
+pnpm dev         # Next.js dev server (Turbopack) at http://localhost:3000
+pnpm build       # Production build (next build)
+pnpm start       # Serve the production build (next start)
+pnpm test        # Run tests once (vitest run)
+pnpm test:watch  # Run tests in watch mode
+pnpm check       # Verify formatting + lint + typecheck (run before commits)
+pnpm format      # Auto-fix formatting (prettier --write)
 ```
 
-**Important**: Always run `pnpm run check` before commits to ensure code is properly formatted, linted, and type-safe. Do not run formatting, linting, or typechecking separately.
+**Important**: Always run `pnpm run check` before commits to ensure code is properly formatted, linted, and type-safe. Do not run formatting, linting, or typechecking separately. `check` only *verifies* formatting (`prettier --check`); if it flags formatting issues, run `pnpm format` to auto-fix.
 
 **Documentation**: When making major changes (architecture, new modules, API changes, file structure), update [docs/TRD.md](docs/TRD.md) to keep the technical reference accurate.
 
@@ -26,7 +39,7 @@ pnpm check      # Format, lint, and typecheck (run before commits)
 
 - **Next.js 16** (App Router, Turbopack) + **React 19** + **TypeScript** (ESM)
 - **Tailwind CSS v4** + **shadcn/ui** (Radix); shadcn primitives live in `src/components/ui/`
-- **react-hook-form** + **zod** (event editor) · **date-fns** · **IndexedDB** via **idb** (no backend)
+- **react-hook-form** + **zod** (event editor) · **date-fns** · **remeda** (array/object utils) · **IndexedDB** via **idb** (no backend)
 - Tests: **vitest** + **@testing-library/react** + **fake-indexeddb**
 
 ## Gotchas
@@ -43,30 +56,31 @@ pnpm check      # Format, lint, and typecheck (run before commits)
 - **Arrow functions**: Use `const foo = () => { ... }` (enforced by ESLint, auto-fixable)
 - **Reserve `use` prefix for React hooks**: The `useFoo` naming convention is reserved for React hooks. For boolean options or flags, use names like `systemFont`, `enableCache`, or `withValidation` instead of `useSystemFont`, `useCache`, or `useValidation`
 - **Named imports**: Use `import { pipe, filter } from 'remeda'` not `import * as R` (tree-shaking)
-- **React context over prop drilling**: For app-wide state that's needed across many components (e.g., capabilities, settings), use React context instead of passing props through multiple levels. See `src/ui/AppCapabilities` for an example. This keeps component interfaces clean and avoids threading props through intermediate components that don't use them.
+- **React context over prop drilling**: For app-wide state that's needed across many components (e.g., events, categories, settings), use React context instead of passing props through multiple levels. See `src/context/CalendarContext` for an example, consumed via the `useCalendar()` hook. This keeps component interfaces clean and avoids threading props through intermediate components that don't use them.
 - **Remeda utilities**: Prefer for array/object manipulation over manual loops where it improves readability without hurting performance (e.g., `flatMap` to flatten nested loops, `find` for searching, `sortBy` for sorting)
 - **Named constants**: Use `const HEADER_SIZE = 16` not magic numbers
 - **Numeric separators**: Use underscore separators for numbers 1000 and above for readability (`1_500`, `44_100`, `100_000`)
 - **Local dates, not UTC**: derive "today" / all-day calendar dates with date-fns `format(new Date(), "yyyy-MM-dd")`. Never `new Date().toISOString()` for a calendar date (UTC → off-by-one in behind-UTC zones)
-- **DRY (Don't Repeat Yourself)**: When a pattern appears 3+ times, extract it into a helper function. Place shared utilities in `src/utils/` (e.g., `src/utils/findLibrary/index.ts`). This improves readability and maintainability without impacting performance
+- **DRY (Don't Repeat Yourself)**: When a pattern appears 3+ times, extract it into a helper function. Place shared utilities in `src/utils/` (e.g., `src/utils/formatCurrency/index.ts`). This improves readability and maintainability without impacting performance
 - **Module structure**: Always create modules as directories with `index.ts`, never as single `moduleName.ts` files. Name the directory after the primary export (class, function, or concept). This provides a consistent location for related files:
 
   ```
   # GOOD - directory structure allows for growth
-  src/
-    TitleScreen/
-      index.ts       # exports showTitleScreen()
+  src/lib/
+    storage/
+      index.ts       # exports getAllEvents(), putEvent(), …
       tests.ts       # tests for the module
-      consts.ts      # LOGO, PROMPT_TEXT, etc.
-    Game/
-      index.ts       # exports Game class
-      consts.ts      # TICK_RATE, MAX_SPEED, etc.
-      types.ts       # GameState, GameConfig interfaces
+      types.ts       # storage-specific types + guards
+    recurrence/
+      index.ts       # exports expandEvent(), expandEvents(), …
+      consts.ts      # RECURRENCE_LABELS, etc.
+      types.ts       # CategoryResolver, etc.
+      tests.ts
 
   # BAD - single files have nowhere for related code to go
-  src/
-    TitleScreen.ts
-    Game.ts
+  src/lib/
+    storage.ts
+    recurrence.ts
   ```
 
   Standard files within a module directory:
@@ -80,43 +94,40 @@ pnpm check      # Format, lint, and typecheck (run before commits)
 
   ```typescript
   // GOOD - import from the module
-  import { TICK_RATE, GameState } from "../Game";
+  import { expandEvent, RECURRENCE_LABELS } from "../lib/recurrence";
 
   // BAD - importing directly from internal module files
-  import { TICK_RATE } from "../Game/consts";
-  import type { GameState } from "../Game/types";
+  import { expandEvent } from "../lib/recurrence/index";
+  import { RECURRENCE_LABELS } from "../lib/recurrence/consts";
   ```
 
-  In `Game/index.ts`:
+  In `recurrence/index.ts`:
 
   ```typescript
   export * from "./consts";
   export * from "./types";
   ```
 
-- **Avoid barrel-only files**: Don't create `index.ts` files that only re-export from child modules. Import directly from the specific module instead (e.g., `import { useGamepad } from '../hooks/useGamepad'` not `from '../hooks'`).
+- **Avoid barrel-only files**: Don't create `index.ts` files that only re-export from child modules. Import directly from the specific module instead (e.g., `import { formatCurrency } from '../utils/formatCurrency'` not `from '../utils'`).
 - **JSDoc**: Skip `@param`/`@returns` tags (TypeScript provides types); use inline comments if needed
 - **Loading indicators**: Delay by ~1 second to avoid flash for fast operations
 - **Intl API**: Prefer `Intl.DateTimeFormat`, `Intl.NumberFormat`, etc. over manual formatting for dates, numbers, and currencies
-- **Explicit conditionals for derived values**: When a value like `useTrueColor` is derived from another value like `limitColors`, use the source value in conditionals, not the derived value. This makes the logic clearer and avoids confusion:
+- **Explicit conditionals for derived values**: When a value like `isWithdrawal` is derived from another value like `direction`, branch on the source value, not the derived one. This makes the logic clearer and avoids confusion:
 
   ```typescript
-  // GOOD - explicit about what each branch handles
-  if (this.limitColors === 16) {
-    /* ANSI 16 */
-  } else if (this.limitColors === 256) {
-    /* ANSI 256 */
+  // GOOD - branch on the source value
+  if (event.direction === "deposit") {
+    balance += event.amount;
   } else {
-    /* True color (limitColors === 0) */
+    balance -= event.amount; // "withdrawal"
   }
 
-  // BAD - confusing because useTrueColor is derived from limitColors
-  if (this.limitColors === 16) {
-    /* ANSI 16 */
-  } else if (this.useTrueColor) {
-    /* True color */
-  } else {
-    /* ANSI 256 */
+  // BAD - mixes the source value with a value derived from it
+  const isWithdrawal = event.direction === "withdrawal";
+  if (event.direction === "deposit") {
+    balance += event.amount;
+  } else if (isWithdrawal) {
+    balance -= event.amount; // redundant — just use `direction`
   }
   ```
 
@@ -134,19 +145,19 @@ pnpm check      # Format, lint, and typecheck (run before commits)
   config.name = value as string;
   ```
 
-  For union types (e.g., `"kitty" | "terminal" | "ascii"`), create a type guard that validates the actual values, not just the primitive type:
+  For union types (e.g., `"cyan" | "magenta" | "yellow" | "green" | "orange"`), create a type guard that validates the actual values, not just the primitive type:
 
   ```typescript
   // GOOD - validates the value is one of the allowed options
-  import { isPostProcessingMode } from "../VideoConfig";
+  import { isCategoryColor } from "../types";
 
-  if (isPostProcessingMode(value)) {
-    config.video_postprocessing_mode = value; // No cast needed
+  if (isCategoryColor(value)) {
+    category.color = value; // No cast needed
   }
 
   // BAD - isString only checks primitive type, not valid union values
   if (isString(value)) {
-    config.video_postprocessing_mode = value as PostProcessingMode; // Still a blind cast!
+    category.color = value as CategoryColor; // Still a blind cast!
   }
   ```
 
@@ -154,23 +165,24 @@ pnpm check      # Format, lint, and typecheck (run before commits)
 
   ```typescript
   // GOOD - uses the named type
-  import type { VideoDriver } from "../frontend/config";
+  import type { CategoryColor } from "../types";
 
-  const VIDEO_DRIVERS: readonly VideoDriver[] = [
-    "kitty",
-    "terminal",
-    "ascii",
-    "emoji",
+  const CATEGORY_COLORS: readonly CategoryColor[] = [
+    "cyan",
+    "magenta",
+    "yellow",
+    "green",
+    "orange",
   ];
 
-  export const isVideoDriver = (value: unknown): value is VideoDriver => {
-    return isString(value) && VIDEO_DRIVERS.includes(value as VideoDriver);
+  export const isCategoryColor = (value: unknown): value is CategoryColor => {
+    return isString(value) && CATEGORY_COLORS.includes(value as CategoryColor);
   };
 
   // BAD - hardcodes the union type (duplicates the type definition)
-  export const isVideoDriver = (
+  export const isCategoryColor = (
     value: unknown
-  ): value is "kitty" | "terminal" | "ascii" | "emoji" => {
+  ): value is "cyan" | "magenta" | "yellow" | "green" | "orange" => {
     // ...
   };
   ```
@@ -215,16 +227,15 @@ pnpm check      # Format, lint, and typecheck (run before commits)
 
   ```typescript
   // BAD - tests implementation detail, provides no value
-  it("should have expected default value", () => {
-    expect(MAX_FRAMES_BEHIND).toBe(60);
+  it("should have expected default interval", () => {
+    expect(DEFAULT_INTERVAL).toBe(1);
   });
 
   // GOOD - tests actual behavior that depends on the constant
-  it("should trigger catchup when too far behind", () => {
-    // Simulate being far behind and verify the sync behavior
-    for (let i = 0; i < 70; i++) {
-      syncManager.advanceFrame();
-    }
-    expect(syncManager.needsCatchup).toBe(true);
+  it("stops generating occurrences after endsOn", () => {
+    const occurrences = expandEvent(weeklyEvent, rangeStart, rangeEnd);
+    expect(
+      occurrences.every((o) => o.date <= weeklyEvent.recurrence.endsOn),
+    ).toBe(true);
   });
   ```
