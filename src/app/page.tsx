@@ -12,6 +12,7 @@ import CalendarToolbar from "@/components/CalendarToolbar";
 import MonthGrid from "@/components/MonthGrid";
 import EventDialog from "@/components/EventDialog";
 import RecurrenceScopeDialog from "@/components/RecurrenceScopeDialog";
+import ManageCategoriesDialog from "@/components/ManageCategoriesDialog";
 
 type EditorState =
   | { mode: "create"; date: string }
@@ -185,6 +186,16 @@ const CalendarScreen = () => {
           onOpenChange={(open) => !open && setScope(null)}
         />
       )}
+
+      <ManageCategoriesDialog
+        open={manageOpen}
+        categories={cal.categories}
+        usageCountById={cal.categoryUsageCount}
+        onRename={(id, name) => void cal.updateCategory(id, { name })}
+        onRecolor={(id, color) => void cal.updateCategory(id, { color })}
+        onDelete={(id) => void cal.deleteCategory(id)}
+        onOpenChange={setManageOpen}
+      />
     </main>
   );
 };
