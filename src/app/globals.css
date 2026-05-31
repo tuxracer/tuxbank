@@ -341,14 +341,29 @@ body {
   clip-path: polygon(0 0, 100% 0, 100% 100%, 6px 100%, 0 calc(100% - 6px));
 }
 
-/* Applied to shadcn DialogContent. Do NOT set `position` here: this block is
-   unlayered, so it would override Tailwind's `fixed` centering utility and push
-   the portaled dialog off-screen (leaving only the blurred overlay visible).
-   Keep this to visual props (background/border/shadow/clip-path) only. */
+/* Applied to shadcn DialogContent / PopoverContent. Do NOT set `position` here:
+   this block is unlayered, so it would override Tailwind's `fixed` centering
+   utility and push the portaled dialog off-screen (leaving only the blurred
+   overlay visible). Keep this to visual props only.
+
+   Shape and border are deliberately split so the border can be a uniform
+   stroke: `::before` is the dark panel fill clipped to the chamfered shape,
+   while the cyan border is drawn by <CyberFrame> as an SVG vector stroke. A CSS
+   clip-path fill rasterizes its 45° chamfer edges brighter than its straight
+   edges, so it can't render an even border — an SVG stroke can. `.cy-dialog`
+   itself stays transparent (overriding shadcn's bg/shadow) and is intentionally
+   NOT clipped, so the child SVG stroke isn't clipped away at the edges. The 20px
+   chamfer here must match CHAMFER in CyberFrame. */
 .cy-dialog {
+  background: transparent;
+  box-shadow: none;
+}
+.cy-dialog::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
   background: linear-gradient(180deg, #0b1019, #080b12);
-  border: 1px solid var(--cy-cyan);
-  box-shadow: 0 0 30px rgba(0, 240, 255, 0.25);
   clip-path: polygon(
     0 0,
     calc(100% - 20px) 0,

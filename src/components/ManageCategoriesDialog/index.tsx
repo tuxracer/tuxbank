@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { CyberFrame } from "@/components/CyberFrame";
 
 import { PALETTE } from "./consts";
 import type { ManageCategoriesDialogProps } from "./types";
@@ -45,6 +46,7 @@ const ManageCategoriesDialog = ({
       }}
     >
       <DialogContent className="cy-dialog border-0 sm:max-w-md">
+        <CyberFrame />
         <DialogHeader>
           <DialogTitle className="cy-display uppercase tracking-wide">
             Manage Categories

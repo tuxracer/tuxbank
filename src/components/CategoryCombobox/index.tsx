@@ -15,6 +15,7 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
+import { CyberFrame } from "@/components/CyberFrame";
 
 import { PALETTE } from "./consts";
 import type { CategoryComboboxProps } from "./types";
@@ -92,6 +93,7 @@ const CategoryCombobox = ({
         </button>
       </PopoverTrigger>
       <PopoverContent className="cy-dialog w-64 border-0 p-0">
+        <CyberFrame />
         <Command shouldFilter={false}>
           <CommandInput
             placeholder="Search or create…"

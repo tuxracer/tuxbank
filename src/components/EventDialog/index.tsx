@@ -16,6 +16,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { eventFormSchema, toEventInput, type EventFormValues } from "./schema";
 import CategoryCombobox from "@/components/CategoryCombobox";
+import { CyberFrame } from "@/components/CyberFrame";
 
 import type { EventDialogProps } from "./types";
 
@@ -89,6 +90,7 @@ const EventDialog = (props: EventDialogProps) => {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="cy-dialog border-0 sm:max-w-md">
+        <CyberFrame />
         <DialogHeader>
           <DialogTitle className="cy-display uppercase tracking-wide">
             {mode === "create" ? "New Event" : "Edit Event"}
