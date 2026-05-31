@@ -36,6 +36,7 @@ import {
   getAllCategories,
   putCategory,
   deleteCategory as dbDeleteCategory,
+  onConnectionStatus,
 } from "@/lib/storage";
 import { computeRunningBalances } from "@/lib/balance";
 
@@ -64,6 +65,7 @@ export const CalendarProvider = ({
   const [categories, setCategories] = useState<Category[]>([]);
   const categoriesRef = useRef<Category[]>([]);
   const [storageAvailable, setStorageAvailable] = useState<boolean>(true);
+  const [storageLocked, setStorageLocked] = useState<boolean>(false);
   const [loaded, setLoaded] = useState<boolean>(false);
   const [hiddenCategoryIds, setHiddenCategoryIds] = useState<Set<string>>(
     () => new Set(),
@@ -92,6 +94,15 @@ export const CalendarProvider = ({
   const getCategory = useMemo(
     () => makeCategoryResolver(categories),
     [categories],
+  );
+
+  useEffect(
+    () =>
+      onConnectionStatus((status) => {
+        setStorageLocked(status === "waiting-locked");
+        if (status === "unavailable") setStorageAvailable(false);
+      }),
+    [],
   );
 
   useEffect(() => {
@@ -333,6 +344,7 @@ export const CalendarProvider = ({
     categoryUsageCount,
     activeCategoryIds,
     storageAvailable,
+    storageLocked,
     loaded,
     goToPrevMonth: () => setVisibleMonth((m) => addMonths(m, -1)),
     goToNextMonth: () => setVisibleMonth((m) => addMonths(m, 1)),

@@ -36,6 +36,12 @@ describe("CalendarContext", () => {
     });
   });
 
+  it("defaults storageLocked to false with a working connection", async () => {
+    const { result } = renderHook(() => useCalendar(), { wrapper });
+    await waitFor(() => expect(result.current.loaded).toBe(true));
+    expect(result.current.storageLocked).toBe(false);
+  });
+
   it("hides occurrences whose category is toggled off", async () => {
     const { result } = renderHook(() => useCalendar(), { wrapper });
     await waitFor(() => expect(result.current.loaded).toBe(true));
