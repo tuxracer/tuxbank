@@ -1,0 +1,126 @@
+import {
+  addDays,
+  addMonths,
+  addWeeks,
+  addYears,
+  differenceInCalendarDays,
+  differenceInCalendarMonths,
+  differenceInCalendarYears,
+  format,
+  parseISO,
+} from "date-fns";
+import type {
+  CalendarEvent,
+  Category,
+  Occurrence,
+  OccurrenceOverride,
+  RecurrenceFreq,
+} from "@/types";
+import { UNKNOWN_CATEGORY } from "@/types";
+import type { CategoryResolver } from "./types";
+
+export * from "./types";
+
+const MAX_ITER = 1000;
+
+const STEP: Record<RecurrenceFreq, (anchor: Date, amount: number) => Date> = {
+  daily: addDays,
+  weekly: addWeeks,
+  monthly: addMonths,
+  yearly: addYears,
+};
+
+const UNITS_BETWEEN: Record<
+  RecurrenceFreq,
+  (anchor: Date, target: Date) => number
+> = {
+  daily: (a, t) => differenceInCalendarDays(t, a),
+  weekly: (a, t) => Math.floor(differenceInCalendarDays(t, a) / 7),
+  monthly: (a, t) => differenceInCalendarMonths(t, a),
+  yearly: (a, t) => differenceInCalendarYears(t, a),
+};
+
+// date-fns clamps overflowing days (Jan 31 + 1mo -> Feb 28). Detect clamping and skip.
+const landsOnAnchorDay = (
+  candidate: Date,
+  anchor: Date,
+  freq: RecurrenceFreq,
+): boolean =>
+  freq === "monthly" || freq === "yearly"
+    ? candidate.getDate() === anchor.getDate()
+    : true;
+
+export const makeCategoryResolver = (
+  categories: readonly Category[],
+): CategoryResolver => {
+  const byId = new Map(categories.map((c) => [c.id, c]));
+  return (categoryId) => byId.get(categoryId) ?? UNKNOWN_CATEGORY;
+};
+
+const indexOverrides = (
+  overrides: OccurrenceOverride[],
+): Record<string, OccurrenceOverride> =>
+  Object.fromEntries(overrides.map((o) => [o.occurrenceDate, o]));
+
+export const expandEvent = (
+  event: CalendarEvent,
+  windowStartISO: string,
+  windowEndISO: string,
+  getCategory: CategoryResolver,
+): Occurrence[] => {
+  if (!event.recurrence) {
+    if (event.date < windowStartISO || event.date > windowEndISO) return [];
+    return [
+      {
+        eventId: event.id,
+        date: event.date,
+        title: event.title,
+        category: getCategory(event.categoryId),
+        notes: event.notes,
+        isRecurring: false,
+      },
+    ];
+  }
+
+  const { freq, interval, endsOn } = event.recurrence;
+  const anchor = parseISO(event.date);
+  const windowStart = parseISO(windowStartISO);
+  const hardEndISO = endsOn && endsOn < windowEndISO ? endsOn : windowEndISO;
+  const overrides = indexOverrides(event.overrides);
+
+  const approxUnits = UNITS_BETWEEN[freq](anchor, windowStart);
+  let i = Math.max(0, Math.floor(approxUnits / interval) - 1);
+
+  const result: Occurrence[] = [];
+  for (let guard = 0; guard < MAX_ITER; guard += 1, i += 1) {
+    const candidate = STEP[freq](anchor, i * interval);
+    const iso = format(candidate, "yyyy-MM-dd");
+    if (iso > hardEndISO) break;
+    if (iso < windowStartISO) continue;
+    if (!landsOnAnchorDay(candidate, anchor, freq)) continue;
+
+    const override = overrides[iso];
+    if (override?.cancelled) continue;
+
+    const categoryId = override?.patch?.categoryId ?? event.categoryId;
+    result.push({
+      eventId: event.id,
+      date: iso,
+      title: override?.patch?.title ?? event.title,
+      category: getCategory(categoryId),
+      notes: override?.patch?.notes ?? event.notes,
+      isRecurring: true,
+    });
+  }
+  return result;
+};
+
+export const expandEvents = (
+  events: CalendarEvent[],
+  windowStartISO: string,
+  windowEndISO: string,
+  getCategory: CategoryResolver,
+): Occurrence[] =>
+  events.flatMap((e) =>
+    expandEvent(e, windowStartISO, windowEndISO, getCategory),
+  );
