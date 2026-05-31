@@ -97,4 +97,19 @@ describe("MonthGrid", () => {
     expect(screen.getByTitle("Event 1")).toBeInTheDocument();
     expect(screen.queryByTitle("Event 4")).not.toBeInTheDocument();
   });
+
+  it("colors a negative balance with the negative sign class", () => {
+    render(
+      <MonthGrid
+        cells={buildMonthGrid(new Date(2026, 4, 1))}
+        todayISO="2026-05-14"
+        occurrencesByDate={{}}
+        balancesByDate={{ "2026-05-14": -2000, "2026-05-15": 500 }}
+        onSelectDate={vi.fn()}
+        onSelectOccurrence={vi.fn()}
+      />,
+    );
+    expect(screen.getByText("-$2,000.00")).toHaveClass("cy-balance-neg");
+    expect(screen.getByText("$500.00")).not.toHaveClass("cy-balance-neg");
+  });
 });
