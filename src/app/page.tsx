@@ -131,7 +131,7 @@ const CalendarScreen = () => {
         onSelectOccurrence={openEdit}
       />
 
-      {totalOccurrences === 0 && (
+      {cal.loaded && totalOccurrences === 0 && (
         <p className="cy-mono text-center text-xs text-[color:var(--cy-muted)]">
           ◢ No events this month — click a day or &ldquo;+ New Event&rdquo; to
           begin.
