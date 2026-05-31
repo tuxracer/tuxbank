@@ -25,7 +25,7 @@ import type { CategoryResolver } from "./types";
 export * from "./types";
 export * from "./consts";
 
-const MAX_ITER = 1000;
+const MAX_ITER = 1_000_000;
 
 const STEP: Record<RecurrenceFreq, (anchor: Date, amount: number) => Date> = {
   daily: addDays,
