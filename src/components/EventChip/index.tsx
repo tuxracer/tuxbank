@@ -1,5 +1,7 @@
 import type { Occurrence } from "@/types";
 import { NEON_HEX } from "@/types";
+import { formatSignedCompact } from "@/utils/formatCurrency";
+import { signedAmount } from "@/lib/balance";
 
 type EventChipProps = {
   occurrence: Occurrence;
@@ -8,6 +10,7 @@ type EventChipProps = {
 
 const EventChip = ({ occurrence, onSelect }: EventChipProps) => {
   const hex = NEON_HEX[occurrence.category.color];
+  const delta = signedAmount(occurrence.direction, occurrence.amount);
   return (
     <button
       type="button"
@@ -21,6 +24,7 @@ const EventChip = ({ occurrence, onSelect }: EventChipProps) => {
     >
       {occurrence.isRecurring && <span aria-label="repeats">↻</span>}
       <span className="truncate">{occurrence.title}</span>
+      <span className="cy-mono ml-auto pl-1">{formatSignedCompact(delta)}</span>
     </button>
   );
 };
