@@ -7,6 +7,6 @@ export const migrate = (db: SyncDb): void => {
   const current =
     typeof rows[0]?.user_version === "number" ? rows[0].user_version : 0;
   if (current >= SCHEMA_VERSION) return;
-  db.run(SCHEMA_SQL);
+  db.tx([{ sql: SCHEMA_SQL }]);
   db.run(`PRAGMA user_version = ${SCHEMA_VERSION}`);
 };
