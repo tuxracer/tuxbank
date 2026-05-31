@@ -171,6 +171,7 @@ const CalendarScreen = () => {
           onOpenChange={(open) => !open && setEditor(null)}
           onSubmit={handleSubmit}
           onDelete={handleDelete}
+          onCreateCategory={cal.createCategory}
         />
       )}
 

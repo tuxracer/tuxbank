@@ -25,7 +25,7 @@ const PALETTE: CategoryColor[] = [
 ];
 
 type CategoryComboboxProps = {
-  categories: Category[];
+  categories: readonly Category[];
   value: string; // selected categoryId, "" if none
   onChange: (categoryId: string) => void;
   onCreateCategory: (

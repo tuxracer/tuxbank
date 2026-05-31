@@ -14,6 +14,7 @@ const baseProps = {
   onOpenChange: vi.fn(),
   onSubmit: vi.fn(),
   onDelete: vi.fn(),
+  onCreateCategory: vi.fn(),
 };
 
 describe("EventDialog", () => {

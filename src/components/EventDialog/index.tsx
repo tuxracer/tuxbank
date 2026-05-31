@@ -3,7 +3,12 @@
 import { useEffect } from "react";
 import { useForm, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import type { Category, Occurrence, CalendarEvent } from "@/types";
+import type {
+  Category,
+  CategoryColor,
+  Occurrence,
+  CalendarEvent,
+} from "@/types";
 import type { EventInput } from "@/lib/recurrence";
 import {
   Dialog,
@@ -17,6 +22,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { eventFormSchema, toEventInput, type EventFormValues } from "./schema";
+import CategoryCombobox from "@/components/CategoryCombobox";
 
 type EventDialogProps = {
   open: boolean;
@@ -28,6 +34,10 @@ type EventDialogProps = {
   onOpenChange: (open: boolean) => void;
   onSubmit: (input: EventInput) => void;
   onDelete: () => void;
+  onCreateCategory: (
+    name: string,
+    color: CategoryColor,
+  ) => Promise<Category> | Category;
 };
 
 const buildDefaults = (props: EventDialogProps): EventFormValues => {
@@ -69,6 +79,7 @@ const EventDialog = (props: EventDialogProps) => {
     onOpenChange,
     onSubmit,
     onDelete,
+    onCreateCategory,
   } = props;
   const form = useForm<EventFormValues>({
     // zodResolver with z.coerce.number() infers input as unknown for interval;
@@ -81,6 +92,7 @@ const EventDialog = (props: EventDialogProps) => {
     handleSubmit,
     reset,
     watch,
+    setValue,
     formState: { errors },
   } = form;
 
@@ -133,17 +145,19 @@ const EventDialog = (props: EventDialogProps) => {
 
           <div className="flex flex-col gap-1">
             <Label htmlFor="categoryId">Category</Label>
-            <select
-              id="categoryId"
-              className="cy-btn px-3 py-2 text-sm"
-              {...register("categoryId")}
-            >
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
+            <CategoryCombobox
+              categories={categories}
+              value={watch("categoryId")}
+              onChange={(id) =>
+                setValue("categoryId", id, { shouldValidate: true })
+              }
+              onCreateCategory={onCreateCategory}
+            />
+            {errors.categoryId && (
+              <p className="text-xs text-[color:var(--cy-magenta)]">
+                {errors.categoryId.message}
+              </p>
+            )}
           </div>
 
           <div className="flex gap-2">
