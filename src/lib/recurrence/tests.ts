@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import type { CalendarEvent } from "@/types";
 import { PRESET_CATEGORIES } from "@/types";
-import { expandEvent, makeCategoryResolver } from "./index";
+import { expandEvent, expandEvents, makeCategoryResolver } from "./index";
 
 const getCategory = makeCategoryResolver(PRESET_CATEGORIES);
 
@@ -106,6 +106,90 @@ describe("expandEvent", () => {
     ]);
     expect(occ.find((o) => o.date === "2026-05-18")?.title).toBe(
       "Standup (moved room)",
+    );
+  });
+});
+
+describe("expandEvent — additional coverage", () => {
+  it("expands a daily event across the window", () => {
+    const daily = {
+      ...base,
+      date: "2026-05-01",
+      recurrence: { freq: "daily" as const, interval: 1, endsOn: null },
+    };
+    expect(datesOf(daily, "2026-05-01", "2026-05-05")).toEqual([
+      "2026-05-01",
+      "2026-05-02",
+      "2026-05-03",
+      "2026-05-04",
+      "2026-05-05",
+    ]);
+  });
+
+  it("honors interval for daily events", () => {
+    const every3 = {
+      ...base,
+      date: "2026-05-01",
+      recurrence: { freq: "daily" as const, interval: 3, endsOn: null },
+    };
+    expect(datesOf(every3, "2026-05-01", "2026-05-10")).toEqual([
+      "2026-05-01",
+      "2026-05-04",
+      "2026-05-07",
+      "2026-05-10",
+    ]);
+  });
+
+  it("honors interval for monthly events", () => {
+    const everyOtherMonth = {
+      ...base,
+      date: "2026-01-15",
+      recurrence: { freq: "monthly" as const, interval: 2, endsOn: null },
+    };
+    expect(datesOf(everyOtherMonth, "2026-01-01", "2026-05-31")).toEqual([
+      "2026-01-15",
+      "2026-03-15",
+      "2026-05-15",
+    ]);
+  });
+
+  it("re-resolves category when an override patches categoryId", () => {
+    const ev = {
+      ...base,
+      recurrence: { freq: "weekly" as const, interval: 1, endsOn: null },
+      overrides: [
+        { occurrenceDate: "2026-05-11", patch: { categoryId: "health" } },
+      ],
+    };
+    const occ = expandEvent(ev, "2026-05-01", "2026-05-31", getCategory);
+    expect(occ.find((o) => o.date === "2026-05-11")?.category.id).toBe(
+      "health",
+    );
+    expect(occ.find((o) => o.date === "2026-05-04")?.category.id).toBe("work");
+  });
+});
+
+describe("expandEvents", () => {
+  it("flattens occurrences across multiple events", () => {
+    const a = {
+      ...base,
+      id: "a",
+      date: "2026-05-04",
+      recurrence: { freq: "weekly" as const, interval: 1, endsOn: null },
+    };
+    const b = { ...base, id: "b", date: "2026-05-08", recurrence: null };
+    const occ = expandEvents([a, b], "2026-05-01", "2026-05-14", getCategory);
+    expect(occ.map((o) => o.date).sort()).toEqual([
+      "2026-05-04",
+      "2026-05-08",
+      "2026-05-11",
+    ]);
+    expect(occ.filter((o) => o.eventId === "a")).toHaveLength(2);
+  });
+
+  it("returns an empty array for no events", () => {
+    expect(expandEvents([], "2026-05-01", "2026-05-31", getCategory)).toEqual(
+      [],
     );
   });
 });
