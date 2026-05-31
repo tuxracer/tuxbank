@@ -279,7 +279,10 @@ export const CalendarProvider = ({
 
   const usedCategories = useMemo(() => {
     const seen = new Map<string, Category>();
-    for (const e of events) seen.set(e.categoryId, getCategory(e.categoryId));
+    for (const e of events) {
+      const cat = getCategory(e.categoryId);
+      if (!seen.has(cat.id)) seen.set(cat.id, cat);
+    }
     return [...seen.values()];
   }, [events, getCategory]);
 

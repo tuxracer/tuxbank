@@ -141,6 +141,48 @@ describe("CalendarContext", () => {
     expect(result.current.categoryUsageCount["groceries"]).toBe(1);
   });
 
+  it("collapses multiple orphaned categories into a single Uncategorized entry", async () => {
+    const { result } = renderHook(() => useCalendar(), { wrapper });
+    await waitFor(() => expect(result.current.loaded).toBe(true));
+    await act(async () => {
+      const a = await result.current.createCategory("Groceries", "green");
+      const b = await result.current.createCategory("Rent", "magenta");
+      result.current.goToDate(new Date(2026, 4, 1));
+      await result.current.createEvent({
+        title: "Food",
+        date: "2026-05-08",
+        categoryId: a.id,
+        notes: undefined,
+        amount: 10,
+        direction: "withdrawal",
+        recurrence: null,
+      });
+      await result.current.createEvent({
+        title: "Apt",
+        date: "2026-05-09",
+        categoryId: b.id,
+        notes: undefined,
+        amount: 20,
+        direction: "withdrawal",
+        recurrence: null,
+      });
+    });
+    await waitFor(() => expect(result.current.usedCategories.length).toBe(2));
+    await act(async () => {
+      await result.current.deleteCategory("groceries");
+      await result.current.deleteCategory("rent");
+    });
+    // both events now orphaned → exactly ONE Uncategorized entry, and ids are unique
+    await waitFor(() => {
+      const unknownCount = result.current.usedCategories.filter(
+        (c) => c.id === "unknown",
+      ).length;
+      expect(unknownCount).toBe(1);
+    });
+    const ids = result.current.usedCategories.map((c) => c.id);
+    expect(new Set(ids).size).toBe(ids.length); // no duplicate ids
+  });
+
   it("deletes one occurrence of a recurring series", async () => {
     const { result } = renderHook(() => useCalendar(), { wrapper });
     await waitFor(() => expect(result.current.loaded).toBe(true));
