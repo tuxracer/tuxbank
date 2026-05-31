@@ -64,7 +64,7 @@ A single person managing their own schedule of **all-day, date-based events** �
 - A **HUD status line** shows decorative/real system context (e.g., app name, `LOCAL_DB::INDEXEDDB`, record count).
 
 ### 4.2 Events
-- An event has: **title** (required), **date** (required, single all-day date), **category** (required; from a preset palette), **notes** (optional), and an optional **recurrence** rule.
+- An event has: **title** (required), **date** (required, single all-day date), **category** (required; from a preset palette), an **amount** (required, > 0) with a **deposit/withdrawal direction** (required), **notes** (optional), and an optional **recurrence** rule.
 - Events are **all-day and single-day** — no times, no multi-day spans.
 - Day cells render events as **color-coded neon chips**. Recurring occurrences show a **↻** marker.
 - When a day has more chips than fit, it collapses to **"+N more"**, which opens a **day popover** listing all of that day's events.
@@ -89,8 +89,11 @@ A single person managing their own schedule of **all-day, date-based events** �
 - Changing an event's **date** is supported for **one-off events** and **whole-series** edits only; per-occurrence date moves are out of scope for v1.
 
 ### 4.6 Persistence
-- All events persist in **IndexedDB** and reload on app start.
+- All events persist in **IndexedDB** and reload on app start. Events stored before the amount/direction fields existed are normalized to `$0` deposit on read.
 - No data leaves the device. Clearing browser data clears the calendar.
+
+### 4.7 Account balance
+- Each event is a transaction (deposit or withdrawal). Each day cell shows the **cumulative running balance**: starts at `0`, equals all deposits minus withdrawals up to and including that day, and carries continuously across months. Computed by the pure `src/lib/balance` engine (`computeRunningBalances`) — a per-event carry-in for transactions before the visible window plus the windowed per-day net, accumulated forward (recurrence iteration is uncapped so long/infinite series sum correctly). Balances render cyan when ≥ 0 and magenta when negative; the toolbar HUD shows the end-of-window balance. The balance reflects **all** events regardless of the active category filter.
 
 ---
 
