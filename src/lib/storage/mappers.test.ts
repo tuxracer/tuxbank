@@ -121,7 +121,10 @@ describe("event mappers", () => {
 describe("override mappers", () => {
   it("maps a cancellation to columns", () => {
     expect(
-      overrideToColumns("e1", { occurrenceDate: "2026-05-08", cancelled: true }),
+      overrideToColumns("e1", {
+        occurrenceDate: "2026-05-08",
+        cancelled: true,
+      }),
     ).toEqual(["e1", "2026-05-08", 1, null, null, null]);
   });
 
@@ -166,10 +169,12 @@ describe("category mappers", () => {
     expect(rowToCategory({ id: "c1", name: "X", color: "teal" })).toBeNull();
   });
   it("maps a valid category row", () => {
-    expect(rowToCategory({ id: "c1", name: "Rent", color: "magenta" })).toEqual({
-      id: "c1",
-      name: "Rent",
-      color: "magenta",
-    });
+    expect(rowToCategory({ id: "c1", name: "Rent", color: "magenta" })).toEqual(
+      {
+        id: "c1",
+        name: "Rent",
+        color: "magenta",
+      },
+    );
   });
 });

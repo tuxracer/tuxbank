@@ -17,7 +17,7 @@ export const createWorkerConnection = (
   const pending = new Map<number, Pending>();
 
   let resolveReady = (): void => {};
-  let rejectReady = (_error: StorageError): void => {};
+  let rejectReady: (error: StorageError) => void = () => {};
   const ready = new Promise<void>((resolve, reject) => {
     resolveReady = resolve;
     rejectReady = reject;

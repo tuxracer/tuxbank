@@ -1,17 +1,32 @@
-import { openDB, type IDBPDatabase } from "idb";
+import { groupBy } from "remeda";
 import type { CalendarEvent, Category } from "@/types";
-import { isCalendarEvent, isCategory, PRESET_CATEGORIES } from "@/types";
-import { StorageError } from "./types";
-import { DB_NAME, DB_VERSION, STORE, CATEGORY_STORE } from "./consts";
+import { PRESET_CATEGORIES } from "@/types";
+import { StorageError, type StorageErrorCode } from "./types";
+import { getConnection } from "./connection";
+import {
+  DELETE_OVERRIDES_SQL,
+  INSERT_OVERRIDE_SQL,
+  UPSERT_CATEGORY_SQL,
+  UPSERT_EVENT_SQL,
+} from "./consts";
+import {
+  categoryToRow,
+  eventToColumns,
+  overrideToColumns,
+  rowToCategory,
+  rowToEvent,
+  rowToOverride,
+} from "./mappers";
 
 export * from "./consts";
 export * from "./types";
+export { resetDbForTests, onConnectionStatus } from "./connection";
 
-const withTransactionDefaults = (event: CalendarEvent): CalendarEvent => ({
-  ...event,
-  amount: typeof event.amount === "number" ? event.amount : 0,
-  direction: event.direction === "withdrawal" ? "withdrawal" : "deposit",
-});
+const toStorageError = (
+  error: unknown,
+  code: StorageErrorCode,
+): StorageError =>
+  error instanceof StorageError ? error : new StorageError(code, error);
 
 const LEGACY_CATEGORY_BY_ID = new Map(PRESET_CATEGORIES.map((c) => [c.id, c]));
 
@@ -31,117 +46,78 @@ export const seedCategoriesFromEvents = (
   return [...byId.values()];
 };
 
-let dbPromise: Promise<IDBPDatabase> | null = null;
-
-const getDb = (): Promise<IDBPDatabase> => {
-  if (typeof indexedDB === "undefined") {
-    return Promise.reject(new StorageError("UNAVAILABLE"));
-  }
-  if (!dbPromise) {
-    dbPromise = openDB(DB_NAME, DB_VERSION, {
-      async upgrade(db, _oldVersion, _newVersion, tx) {
-        if (!db.objectStoreNames.contains(STORE)) {
-          db.createObjectStore(STORE, { keyPath: "id" });
-        }
-        if (!db.objectStoreNames.contains(CATEGORY_STORE)) {
-          db.createObjectStore(CATEGORY_STORE, { keyPath: "id" });
-          const rows = await tx.objectStore(STORE).getAll();
-          for (const cat of seedCategoriesFromEvents(
-            rows.filter(isCalendarEvent),
-          )) {
-            await tx.objectStore(CATEGORY_STORE).put(cat);
-          }
-        }
-      },
-      blocked() {},
-    }).catch((cause) => {
-      dbPromise = null;
-      throw new StorageError("UNAVAILABLE", cause);
-    });
-  }
-  return dbPromise;
-};
-
 export const getAllEvents = async (): Promise<CalendarEvent[]> => {
   try {
-    const db = await getDb();
-    const rows = await db.getAll(STORE);
-    return rows.filter(isCalendarEvent).map(withTransactionDefaults);
+    const conn = await getConnection();
+    const [eventRows, overrideRows] = await Promise.all([
+      conn.selectAll("SELECT * FROM events"),
+      conn.selectAll("SELECT * FROM event_overrides"),
+    ]);
+    const overridesByEvent = groupBy(overrideRows, (r) => String(r.event_id));
+    return eventRows
+      .map((row) =>
+        rowToEvent(
+          row,
+          (overridesByEvent[String(row.id)] ?? []).map(rowToOverride),
+        ),
+      )
+      .filter((event): event is CalendarEvent => event !== null);
   } catch (error) {
-    if (error instanceof StorageError) throw error;
-    throw new StorageError("READ_FAILED", error);
+    throw toStorageError(error, "READ_FAILED");
   }
 };
 
 export const putEvent = async (event: CalendarEvent): Promise<void> => {
   try {
-    const db = await getDb();
-    await db.put(STORE, event);
+    const conn = await getConnection();
+    await conn.tx([
+      { sql: UPSERT_EVENT_SQL, bind: eventToColumns(event) },
+      { sql: DELETE_OVERRIDES_SQL, bind: [event.id] },
+      ...event.overrides.map((override) => ({
+        sql: INSERT_OVERRIDE_SQL,
+        bind: overrideToColumns(event.id, override),
+      })),
+    ]);
   } catch (error) {
-    if (error instanceof StorageError) throw error;
-    const code =
-      error instanceof DOMException && error.name === "QuotaExceededError"
-        ? "QUOTA_EXCEEDED"
-        : "WRITE_FAILED";
-    throw new StorageError(code, error);
+    throw toStorageError(error, "WRITE_FAILED");
   }
 };
 
 export const deleteEvent = async (id: string): Promise<void> => {
   try {
-    const db = await getDb();
-    await db.delete(STORE, id);
+    const conn = await getConnection();
+    await conn.run("DELETE FROM events WHERE id = ?", [id]);
   } catch (error) {
-    if (error instanceof StorageError) throw error;
-    throw new StorageError("WRITE_FAILED", error);
+    throw toStorageError(error, "WRITE_FAILED");
   }
 };
 
 export const getAllCategories = async (): Promise<Category[]> => {
   try {
-    const db = await getDb();
-    const rows = await db.getAll(CATEGORY_STORE);
-    return rows.filter(isCategory);
+    const conn = await getConnection();
+    const rows = await conn.selectAll("SELECT * FROM categories");
+    return rows
+      .map(rowToCategory)
+      .filter((category): category is Category => category !== null);
   } catch (error) {
-    if (error instanceof StorageError) throw error;
-    throw new StorageError("READ_FAILED", error);
+    throw toStorageError(error, "READ_FAILED");
   }
 };
 
 export const putCategory = async (category: Category): Promise<void> => {
   try {
-    const db = await getDb();
-    await db.put(CATEGORY_STORE, category);
+    const conn = await getConnection();
+    await conn.run(UPSERT_CATEGORY_SQL, categoryToRow(category));
   } catch (error) {
-    if (error instanceof StorageError) throw error;
-    const code =
-      error instanceof DOMException && error.name === "QuotaExceededError"
-        ? "QUOTA_EXCEEDED"
-        : "WRITE_FAILED";
-    throw new StorageError(code, error);
+    throw toStorageError(error, "WRITE_FAILED");
   }
 };
 
 export const deleteCategory = async (id: string): Promise<void> => {
   try {
-    const db = await getDb();
-    await db.delete(CATEGORY_STORE, id);
+    const conn = await getConnection();
+    await conn.run("DELETE FROM categories WHERE id = ?", [id]);
   } catch (error) {
-    if (error instanceof StorageError) throw error;
-    throw new StorageError("WRITE_FAILED", error);
+    throw toStorageError(error, "WRITE_FAILED");
   }
-};
-
-/** Test-only: close and delete the database so each test starts clean. */
-export const resetDbForTests = async (): Promise<void> => {
-  if (dbPromise) {
-    (await dbPromise).close();
-    dbPromise = null;
-  }
-  await new Promise<void>((resolve, reject) => {
-    const req = indexedDB.deleteDatabase(DB_NAME);
-    req.onsuccess = () => resolve();
-    req.onerror = () => reject(req.error);
-    req.onblocked = () => resolve();
-  });
 };

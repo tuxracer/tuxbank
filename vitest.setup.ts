@@ -1,5 +1,4 @@
 import "@testing-library/jest-dom/vitest";
-import "fake-indexeddb/auto";
 
 // jsdom stubs for cmdk/Radix components
 if (typeof window !== "undefined") {

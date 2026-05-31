@@ -1,7 +1,10 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import type { CalendarEvent } from "@/types";
-import { getAllEvents, putEvent, deleteEvent, resetDbForTests } from "./index";
 import {
+  getAllEvents,
+  putEvent,
+  deleteEvent,
+  resetDbForTests,
   getAllCategories,
   putCategory,
   deleteCategory,
@@ -67,6 +70,66 @@ describe("storage repository", () => {
     expect(loaded.amount).toBe(0);
     expect(loaded.direction).toBe("deposit");
   });
+
+  it("round-trips a recurring event with endsOn", async () => {
+    const recurring: CalendarEvent = {
+      ...make("r"),
+      recurrence: { freq: "weekly", interval: 2, endsOn: "2026-12-31" },
+    };
+    await putEvent(recurring);
+    const [loaded] = await getAllEvents();
+    expect(loaded.recurrence).toEqual({
+      freq: "weekly",
+      interval: 2,
+      endsOn: "2026-12-31",
+    });
+  });
+
+  it("round-trips occurrence overrides (cancelled and patched)", async () => {
+    const event: CalendarEvent = {
+      ...make("o"),
+      recurrence: { freq: "weekly", interval: 1, endsOn: null },
+      overrides: [
+        { occurrenceDate: "2026-05-21", cancelled: true },
+        { occurrenceDate: "2026-05-28", patch: { title: "Moved" } },
+      ],
+    };
+    await putEvent(event);
+    const [loaded] = await getAllEvents();
+    expect(loaded.overrides).toContainEqual({
+      occurrenceDate: "2026-05-21",
+      cancelled: true,
+    });
+    expect(loaded.overrides).toContainEqual({
+      occurrenceDate: "2026-05-28",
+      patch: { title: "Moved" },
+    });
+  });
+
+  it("cascade-deletes overrides when the event is deleted", async () => {
+    const event: CalendarEvent = {
+      ...make("c"),
+      recurrence: { freq: "daily", interval: 1, endsOn: null },
+      overrides: [{ occurrenceDate: "2026-05-15", cancelled: true }],
+    };
+    await putEvent(event);
+    await deleteEvent("c");
+    // Re-create with same id; overrides must be gone, not resurrected.
+    await putEvent({ ...make("c") });
+    const [loaded] = await getAllEvents();
+    expect(loaded.overrides).toEqual([]);
+  });
+
+  it("rejects a write that violates a STRICT CHECK constraint", async () => {
+    // Categories have no normalization layer, so a bad color reaches the DB.
+    await expect(
+      putCategory({
+        id: "x",
+        name: "X",
+        color: "teal",
+      } as unknown as Parameters<typeof putCategory>[0]),
+    ).rejects.toThrow();
+  });
 });
 
 describe("categories store", () => {
@@ -106,41 +169,5 @@ describe("categories store", () => {
       color: "cyan",
     });
     expect(seeded.filter((c) => c.id === "finance")).toHaveLength(1);
-  });
-
-  it("seeds the categories store from existing events on the v2 upgrade", async () => {
-    await new Promise<void>((resolve, reject) => {
-      const req = indexedDB.open("cyber-calendar", 1);
-      req.onupgradeneeded = () =>
-        req.result.createObjectStore("events", { keyPath: "id" });
-      req.onsuccess = () => {
-        const db = req.result;
-        const tx = db.transaction("events", "readwrite");
-        tx.objectStore("events").put({
-          id: "e1",
-          title: "Old",
-          date: "2026-05-01",
-          categoryId: "finance",
-          amount: 0,
-          direction: "deposit",
-          recurrence: null,
-          overrides: [],
-          createdAt: "",
-          updatedAt: "",
-        });
-        tx.oncomplete = () => {
-          db.close();
-          resolve();
-        };
-        tx.onerror = () => reject(tx.error);
-      };
-      req.onerror = () => reject(req.error);
-    });
-    const cats = await getAllCategories();
-    expect(cats).toContainEqual({
-      id: "finance",
-      name: "Finance",
-      color: "yellow",
-    });
   });
 });

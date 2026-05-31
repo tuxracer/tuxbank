@@ -79,8 +79,3 @@ VALUES (?,?,?,?,?,?)`;
 export const UPSERT_CATEGORY_SQL = `
 INSERT INTO categories (id, name, color) VALUES (?,?,?)
 ON CONFLICT(id) DO UPDATE SET name=excluded.name, color=excluded.color`;
-
-export const DB_NAME = "cyber-calendar";
-export const DB_VERSION = 2;
-export const STORE = "events";
-export const CATEGORY_STORE = "categories";

@@ -44,7 +44,9 @@ export const rowToEvent = (
           typeof row.recurrence_interval === "number"
             ? row.recurrence_interval
             : 1,
-        endsOn: isString(row.recurrence_ends_on) ? row.recurrence_ends_on : null,
+        endsOn: isString(row.recurrence_ends_on)
+          ? row.recurrence_ends_on
+          : null,
       }
     : null;
 
