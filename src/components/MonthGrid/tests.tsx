@@ -58,6 +58,20 @@ describe("MonthGrid", () => {
     );
   });
 
+  it("renders the running balance for a day when provided", () => {
+    render(
+      <MonthGrid
+        cells={buildMonthGrid(new Date(2026, 4, 1))}
+        todayISO="2026-05-14"
+        occurrencesByDate={{}}
+        balancesByDate={{ "2026-05-14": 4200 }}
+        onSelectDate={vi.fn()}
+        onSelectOccurrence={vi.fn()}
+      />,
+    );
+    expect(screen.getByText("$4,200.00")).toBeInTheDocument();
+  });
+
   it("shows at most 3 chips and collapses the rest into +N more", () => {
     const occ = (i: number): Occurrence => ({
       eventId: `e${i}`,

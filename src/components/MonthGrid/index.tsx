@@ -17,6 +17,7 @@ type MonthGridProps = {
   cells: DateCell[];
   todayISO: string;
   occurrencesByDate: Partial<Record<string, Occurrence[]>>;
+  balancesByDate?: Record<string, number>;
   gridLabel?: string;
   onSelectDate: (iso: string) => void;
   onSelectOccurrence: (occurrence: Occurrence) => void;
@@ -33,6 +34,7 @@ const MonthGrid = ({
   cells,
   todayISO,
   occurrencesByDate,
+  balancesByDate = {},
   gridLabel,
   onSelectDate,
   onSelectOccurrence,
@@ -106,6 +108,7 @@ const MonthGrid = ({
             isToday={cell.iso === todayISO}
             tabIndex={index === resolvedActiveIndex ? 0 : -1}
             occurrences={occurrencesByDate[cell.iso] ?? []}
+            balance={balancesByDate[cell.iso] ?? 0}
             dateLabel={dayLabeler.format(cell.date)}
             onSelectDate={onSelectDate}
             onSelectOccurrence={onSelectOccurrence}

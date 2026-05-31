@@ -400,3 +400,14 @@ body {
     animation: none !important;
   }
 }
+
+.cy-balance {
+  font-family: var(--font-mono), monospace;
+  font-size: 10px;
+  color: var(--cy-cyan);
+  text-shadow: 0 0 8px rgba(0, 240, 255, 0.45);
+}
+.cy-balance-neg {
+  color: var(--cy-magenta);
+  text-shadow: 0 0 8px rgba(255, 42, 109, 0.5);
+}

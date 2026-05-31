@@ -2,6 +2,7 @@ import type { Occurrence } from "@/types";
 import type { DateCell } from "@/lib/dateGrid";
 import EventChip from "@/components/EventChip";
 import DayEventsPopover from "@/components/DayEventsPopover";
+import { formatCurrency } from "@/utils/formatCurrency";
 
 const MAX_VISIBLE_CHIPS = 3;
 
@@ -10,6 +11,7 @@ type DayCellProps = {
   isToday: boolean;
   tabIndex: number;
   occurrences: Occurrence[];
+  balance: number;
   dateLabel: string;
   onSelectDate: (iso: string) => void;
   onSelectOccurrence: (occurrence: Occurrence) => void;
@@ -20,6 +22,7 @@ const DayCell = ({
   isToday,
   tabIndex,
   occurrences,
+  balance,
   dateLabel,
   onSelectDate,
   onSelectOccurrence,
@@ -63,6 +66,11 @@ const DayCell = ({
           />
         )}
       </div>
+      <span
+        className={`cy-balance mt-auto self-end ${balance < 0 ? "cy-balance-neg" : ""}`}
+      >
+        {formatCurrency(balance)}
+      </span>
     </div>
   );
 };
