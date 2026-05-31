@@ -36,36 +36,32 @@ describe("CalendarContext", () => {
     });
   });
 
-  it("hides occurrences whose category color is filtered out", async () => {
+  it("hides occurrences whose category is toggled off", async () => {
     const { result } = renderHook(() => useCalendar(), { wrapper });
     await waitFor(() => expect(result.current.loaded).toBe(true));
-
+    let id = "";
     await act(async () => {
+      const c = await result.current.createCategory("Work", "cyan");
+      id = c.id;
       result.current.goToDate(new Date(2026, 4, 1));
       await result.current.createEvent({
-        title: "Work thing",
+        title: "Standup",
         date: "2026-05-08",
-        categoryId: "work",
-        amount: 100,
-        direction: "deposit",
+        categoryId: id,
         notes: undefined,
+        amount: 0,
+        direction: "deposit",
         recurrence: null,
       });
     });
     await waitFor(() =>
       expect(result.current.occurrencesByDate["2026-05-08"]).toBeDefined(),
     );
-
-    await act(async () => {
-      result.current.toggleColor("cyan"); // "work" preset is cyan
-    });
+    await act(async () => result.current.toggleCategory(id));
     await waitFor(() =>
       expect(result.current.occurrencesByDate["2026-05-08"]).toBeUndefined(),
     );
-
-    await act(async () => {
-      result.current.toggleColor("cyan");
-    });
+    await act(async () => result.current.toggleCategory(id));
     await waitFor(() =>
       expect(result.current.occurrencesByDate["2026-05-08"]).toBeDefined(),
     );

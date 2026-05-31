@@ -52,14 +52,14 @@ type CalendarContextValue = {
   categories: readonly Category[];
   usedCategories: Category[];
   categoryUsageCount: Record<string, number>;
-  activeColors: Set<CategoryColor>;
+  activeCategoryIds: Set<string>;
   storageAvailable: boolean;
   loaded: boolean;
   goToPrevMonth: () => void;
   goToNextMonth: () => void;
   goToToday: () => void;
   goToDate: (date: Date) => void;
-  toggleColor: (color: CategoryColor) => void;
+  toggleCategory: (id: string) => void;
   createEvent: (input: EventInput) => Promise<void>;
   updateEvent: (
     id: string,
@@ -80,13 +80,6 @@ type CalendarContextValue = {
   deleteCategory: (id: string) => Promise<void>;
 };
 
-const ALL_COLORS: CategoryColor[] = [
-  "cyan",
-  "magenta",
-  "yellow",
-  "green",
-  "orange",
-];
 const newId = (): string => crypto.randomUUID();
 const nowISO = (): string => new Date().toISOString();
 const monthFormatter = new Intl.DateTimeFormat(undefined, {
@@ -109,8 +102,8 @@ export const CalendarProvider = ({
   const categoriesRef = useRef<Category[]>([]);
   const [storageAvailable, setStorageAvailable] = useState<boolean>(true);
   const [loaded, setLoaded] = useState<boolean>(false);
-  const [activeColors, setActiveColors] = useState<Set<CategoryColor>>(
-    () => new Set(ALL_COLORS),
+  const [hiddenCategoryIds, setHiddenCategoryIds] = useState<Set<string>>(
+    () => new Set(),
   );
 
   const setCategoriesWithRef = useCallback(
@@ -123,6 +116,15 @@ export const CalendarProvider = ({
     },
     [],
   );
+
+  const toggleCategory = useCallback((id: string) => {
+    setHiddenCategoryIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
 
   const getCategory = useMemo(
     () => makeCategoryResolver(categories),
@@ -172,9 +174,9 @@ export const CalendarProvider = ({
       windowStart,
       windowEnd,
       getCategory,
-    ).filter((o) => activeColors.has(o.category.color));
+    ).filter((o) => !hiddenCategoryIds.has(o.category.id));
     return groupBy(occ, (o) => o.date) as Partial<Record<string, Occurrence[]>>;
-  }, [events, cells, activeColors, getCategory]);
+  }, [events, cells, hiddenCategoryIds, getCategory]);
 
   const balancesByDate = useMemo(
     () => computeRunningBalances(events, cells, getCategory),
@@ -281,6 +283,16 @@ export const CalendarProvider = ({
     return [...seen.values()];
   }, [events, getCategory]);
 
+  const activeCategoryIds = useMemo(
+    () =>
+      new Set(
+        usedCategories
+          .map((c) => c.id)
+          .filter((cid) => !hiddenCategoryIds.has(cid)),
+      ),
+    [usedCategories, hiddenCategoryIds],
+  );
+
   const categoryUsageCount = useMemo(() => {
     const counts: Record<string, number> = {};
     for (const e of events)
@@ -340,20 +352,14 @@ export const CalendarProvider = ({
     categories,
     usedCategories,
     categoryUsageCount,
-    activeColors,
+    activeCategoryIds,
     storageAvailable,
     loaded,
     goToPrevMonth: () => setVisibleMonth((m) => addMonths(m, -1)),
     goToNextMonth: () => setVisibleMonth((m) => addMonths(m, 1)),
     goToToday: () => setVisibleMonth(startOfMonth(new Date())),
     goToDate: (date) => setVisibleMonth(startOfMonth(date)),
-    toggleColor: (color) =>
-      setActiveColors((prev) => {
-        const next = new Set(prev);
-        if (next.has(color)) next.delete(color);
-        else next.add(color);
-        return next;
-      }),
+    toggleCategory,
     createEvent,
     updateEvent,
     deleteEvent,

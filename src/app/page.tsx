@@ -30,6 +30,7 @@ const CalendarScreen = () => {
   const cal = useCalendar();
   const [editor, setEditor] = useState<EditorState | null>(null);
   const [scope, setScope] = useState<ScopeState | null>(null);
+  const [manageOpen, setManageOpen] = useState(false);
 
   const totalOccurrences = useMemo(
     () =>
@@ -127,12 +128,13 @@ const CalendarScreen = () => {
       <CalendarToolbar
         monthLabel={cal.monthLabel}
         recordCount={cal.events.length}
-        categories={cal.categories}
-        activeColors={cal.activeColors}
+        usedCategories={cal.usedCategories}
+        activeCategoryIds={cal.activeCategoryIds}
         onPrev={cal.goToPrevMonth}
         onNext={cal.goToNextMonth}
         onToday={cal.goToToday}
-        onToggleColor={cal.toggleColor}
+        onToggleCategory={cal.toggleCategory}
+        onManageCategories={() => setManageOpen(true)}
         onNewEvent={() => openCreate(cal.todayISO)}
         endBalance={
           cal.balancesByDate[cal.cells[cal.cells.length - 1].iso] ?? 0

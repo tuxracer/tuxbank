@@ -1,4 +1,4 @@
-import type { Category, CategoryColor } from "@/types";
+import type { Category } from "@/types";
 import { NEON_HEX } from "@/types";
 import { formatCurrency } from "@/utils/formatCurrency";
 
@@ -6,12 +6,13 @@ type CalendarToolbarProps = {
   monthLabel: string;
   recordCount: number;
   endBalance: number;
-  categories: readonly Category[];
-  activeColors: Set<CategoryColor>;
+  usedCategories: Category[];
+  activeCategoryIds: Set<string>;
   onPrev: () => void;
   onNext: () => void;
   onToday: () => void;
-  onToggleColor: (color: CategoryColor) => void;
+  onToggleCategory: (id: string) => void;
+  onManageCategories: () => void;
   onNewEvent: () => void;
 };
 
@@ -19,12 +20,13 @@ const CalendarToolbar = ({
   monthLabel,
   recordCount,
   endBalance,
-  categories,
-  activeColors,
+  usedCategories,
+  activeCategoryIds,
   onPrev,
   onNext,
   onToday,
-  onToggleColor,
+  onToggleCategory,
+  onManageCategories,
   onNewEvent,
 }: CalendarToolbarProps) => (
   <header className="flex flex-col gap-3">
@@ -32,7 +34,7 @@ const CalendarToolbar = ({
       <span>
         {"SYS"}
         <span className="dim">{"//"}</span>
-        {"CAL.EXE  "}
+        {"CAL.EXE  "}
         <span className="on">{"◢ ONLINE"}</span>
       </span>
       <span className="dim">
@@ -75,8 +77,8 @@ const CalendarToolbar = ({
           role="group"
           aria-label="Filter by category"
         >
-          {categories.map((c) => {
-            const active = activeColors.has(c.color);
+          {usedCategories.map((c) => {
+            const active = activeCategoryIds.has(c.id);
             const hex = NEON_HEX[c.color];
             return (
               <button
@@ -84,7 +86,7 @@ const CalendarToolbar = ({
                 type="button"
                 aria-pressed={active}
                 title={c.name}
-                onClick={() => onToggleColor(c.color)}
+                onClick={() => onToggleCategory(c.id)}
                 className="cy-mono flex items-center gap-1.5 border px-2 py-1 text-[10px] uppercase"
                 style={{ borderColor: hex, opacity: active ? 1 : 0.35 }}
               >
@@ -100,6 +102,13 @@ const CalendarToolbar = ({
             );
           })}
         </div>
+        <button
+          type="button"
+          className="cy-btn px-3 py-1.5 text-xs"
+          onClick={onManageCategories}
+        >
+          ◢ CATEGORIES
+        </button>
         <button
           type="button"
           className="cy-cta px-5 py-2 text-sm"
