@@ -1,9 +1,177 @@
+"use client";
+
+import { useMemo, useState } from "react";
+import type { CalendarEvent, Occurrence } from "@/types";
+import type { EventInput } from "@/lib/recurrence";
+import {
+  CalendarProvider,
+  useCalendar,
+  type EditScope,
+} from "@/context/CalendarContext";
+import CalendarToolbar from "@/components/CalendarToolbar";
+import MonthGrid from "@/components/MonthGrid";
+import EventDialog from "@/components/EventDialog";
+import RecurrenceScopeDialog from "@/components/RecurrenceScopeDialog";
+
+type EditorState =
+  | { mode: "create"; date: string }
+  | { mode: "edit"; occurrence: Occurrence; event: CalendarEvent };
+
+type ScopeState =
+  | {
+      action: "edit";
+      input: EventInput;
+      event: CalendarEvent;
+      occurrenceDate: string;
+    }
+  | { action: "delete"; event: CalendarEvent; occurrenceDate: string };
+
+const todayISO = (): string => new Date().toISOString().slice(0, 10);
+
+const CalendarScreen = () => {
+  const cal = useCalendar();
+  const [editor, setEditor] = useState<EditorState | null>(null);
+  const [scope, setScope] = useState<ScopeState | null>(null);
+
+  const totalOccurrences = useMemo(
+    () =>
+      Object.values(cal.occurrencesByDate).reduce(
+        (n, list) => n + (list?.length ?? 0),
+        0,
+      ),
+    [cal.occurrencesByDate],
+  );
+
+  const openCreate = (date: string) => setEditor({ mode: "create", date });
+  const openEdit = (occurrence: Occurrence) => {
+    const event = cal.events.find((e) => e.id === occurrence.eventId);
+    if (event) setEditor({ mode: "edit", occurrence, event });
+  };
+
+  const handleSubmit = (input: EventInput) => {
+    if (!editor) return;
+    if (editor.mode === "create") {
+      void cal.createEvent(input);
+      setEditor(null);
+      return;
+    }
+    if (!editor.event.recurrence) {
+      void cal.updateEvent(
+        editor.event.id,
+        input,
+        "all",
+        editor.occurrence.date,
+      );
+      setEditor(null);
+      return;
+    }
+    setScope({
+      action: "edit",
+      input,
+      event: editor.event,
+      occurrenceDate: editor.occurrence.date,
+    });
+    setEditor(null);
+  };
+
+  const handleDelete = () => {
+    if (!editor || editor.mode !== "edit") return;
+    if (!editor.event.recurrence) {
+      void cal.deleteEvent(editor.event.id, "all", editor.occurrence.date);
+      setEditor(null);
+      return;
+    }
+    setScope({
+      action: "delete",
+      event: editor.event,
+      occurrenceDate: editor.occurrence.date,
+    });
+    setEditor(null);
+  };
+
+  const confirmScope = (chosen: EditScope) => {
+    if (!scope) return;
+    if (scope.action === "edit")
+      void cal.updateEvent(
+        scope.event.id,
+        scope.input,
+        chosen,
+        scope.occurrenceDate,
+      );
+    else void cal.deleteEvent(scope.event.id, chosen, scope.occurrenceDate);
+    setScope(null);
+  };
+
+  return (
+    <main className="cy-scanlines flex h-[100dvh] flex-col gap-3 p-3.5">
+      {cal.loaded && !cal.storageAvailable && (
+        <div className="cy-mono border border-[color:var(--cy-magenta)] px-4 py-2 text-xs text-[color:var(--cy-magenta)]">
+          ◢ LOCAL STORAGE UNAVAILABLE — changes won&apos;t be saved this
+          session.
+        </div>
+      )}
+
+      <CalendarToolbar
+        monthLabel={cal.monthLabel}
+        recordCount={cal.events.length}
+        categories={cal.categories}
+        activeColors={cal.activeColors}
+        onPrev={cal.goToPrevMonth}
+        onNext={cal.goToNextMonth}
+        onToday={cal.goToToday}
+        onToggleColor={cal.toggleColor}
+        onNewEvent={() => openCreate(todayISO())}
+      />
+
+      <MonthGrid
+        cells={cal.cells}
+        todayISO={cal.todayISO}
+        occurrencesByDate={cal.occurrencesByDate}
+        onSelectDate={openCreate}
+        onSelectOccurrence={openEdit}
+      />
+
+      {totalOccurrences === 0 && (
+        <p className="cy-mono text-center text-xs text-[color:var(--cy-muted)]">
+          ◢ No events this month — click a day or &ldquo;+ New Event&rdquo; to
+          begin.
+        </p>
+      )}
+
+      {editor && (
+        <EventDialog
+          open
+          mode={editor.mode}
+          categories={cal.categories}
+          defaultDate={
+            editor.mode === "create" ? editor.date : editor.occurrence.date
+          }
+          initialOccurrence={
+            editor.mode === "edit" ? editor.occurrence : undefined
+          }
+          sourceEvent={editor.mode === "edit" ? editor.event : undefined}
+          onOpenChange={(open) => !open && setEditor(null)}
+          onSubmit={handleSubmit}
+          onDelete={handleDelete}
+        />
+      )}
+
+      {scope && (
+        <RecurrenceScopeDialog
+          open
+          action={scope.action}
+          onConfirm={confirmScope}
+          onOpenChange={(open) => !open && setScope(null)}
+        />
+      )}
+    </main>
+  );
+};
+
 const Page = () => (
-  <main className="cy-scanlines flex h-[100dvh] items-center justify-center">
-    <h1 className="cy-display text-4xl text-[color:var(--cy-cyan)]">
-      CAL.EXE // ONLINE
-    </h1>
-  </main>
+  <CalendarProvider>
+    <CalendarScreen />
+  </CalendarProvider>
 );
 
 export default Page;
