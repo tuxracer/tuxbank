@@ -21,6 +21,8 @@ describe("CalendarContext", () => {
         title: "Dentist",
         date: "2026-05-08",
         categoryId: "health",
+        amount: 100,
+        direction: "deposit",
         notes: undefined,
         recurrence: null,
       });
@@ -44,6 +46,8 @@ describe("CalendarContext", () => {
         title: "Work thing",
         date: "2026-05-08",
         categoryId: "work",
+        amount: 100,
+        direction: "deposit",
         notes: undefined,
         recurrence: null,
       });
@@ -78,6 +82,8 @@ describe("CalendarContext", () => {
         title: "Standup",
         date: "2026-05-04",
         categoryId: "work",
+        amount: 100,
+        direction: "deposit",
         notes: undefined,
         recurrence: { freq: "weekly", interval: 1, endsOn: null },
       });

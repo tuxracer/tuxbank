@@ -17,6 +17,7 @@ import type {
   OccurrenceOverride,
   Recurrence,
   RecurrenceFreq,
+  TransactionDirection,
 } from "@/types";
 import { UNKNOWN_CATEGORY } from "@/types";
 import type { CategoryResolver } from "./types";
@@ -79,6 +80,8 @@ export const expandEvent = (
         date: event.date,
         title: event.title,
         category: getCategory(event.categoryId),
+        amount: event.amount,
+        direction: event.direction,
         notes: event.notes,
         isRecurring: false,
       },
@@ -111,6 +114,8 @@ export const expandEvent = (
       date: iso,
       title: override?.patch?.title ?? event.title,
       category: getCategory(categoryId),
+      amount: event.amount,
+      direction: event.direction,
       notes: override?.patch?.notes ?? event.notes,
       isRecurring: true,
     });
@@ -133,6 +138,8 @@ export type EventInput = {
   title: string;
   date: string;
   categoryId: string;
+  amount: number;
+  direction: TransactionDirection;
   notes?: string;
   recurrence: Recurrence | null;
 };
@@ -189,6 +196,8 @@ export const buildFollowingSeries = (
   title: input.title,
   date: fromDate,
   categoryId: input.categoryId,
+  amount: input.amount,
+  direction: input.direction,
   notes: input.notes,
   recurrence: input.recurrence,
   overrides: event.overrides.filter((o) => o.occurrenceDate >= fromDate),

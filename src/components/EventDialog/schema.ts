@@ -12,6 +12,8 @@ export const eventFormSchema = z
     repeat: z.enum(["none", "daily", "weekly", "monthly", "yearly"]),
     interval: z.coerce.number().int().min(1, "Must be at least 1"),
     endsOn: z.string().regex(ISO_DATE).optional().or(z.literal("")),
+    amount: z.coerce.number().positive("Amount must be greater than 0"),
+    direction: z.enum(["deposit", "withdrawal"]),
   })
   .refine((v) => !v.endsOn || v.endsOn >= v.date, {
     message: "End date must be on or after the start date",
@@ -24,6 +26,8 @@ export const toEventInput = (v: EventFormValues): EventInput => ({
   title: v.title.trim(),
   date: v.date,
   categoryId: v.categoryId,
+  amount: v.amount,
+  direction: v.direction,
   notes: v.notes?.trim() ? v.notes.trim() : undefined,
   recurrence:
     v.repeat === "none"

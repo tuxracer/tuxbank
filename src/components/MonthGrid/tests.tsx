@@ -10,6 +10,8 @@ const occ: Occurrence = {
   date: "2026-05-14",
   title: "Design review",
   category: { id: "work", name: "Work", color: "cyan" },
+  amount: 0,
+  direction: "deposit",
   isRecurring: false,
 };
 
@@ -62,6 +64,8 @@ describe("MonthGrid", () => {
       date: "2026-05-14",
       title: `Event ${i}`,
       category: { id: "work", name: "Work", color: "cyan" },
+      amount: 0,
+      direction: "deposit",
       isRecurring: false,
     });
     render(

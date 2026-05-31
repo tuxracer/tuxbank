@@ -7,6 +7,8 @@ const make = (id: string): CalendarEvent => ({
   title: `Event ${id}`,
   date: "2026-05-14",
   categoryId: "work",
+  amount: 0,
+  direction: "deposit",
   recurrence: null,
   overrides: [],
   createdAt: "t",

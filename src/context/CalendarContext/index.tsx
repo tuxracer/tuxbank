@@ -151,6 +151,8 @@ export const CalendarProvider = ({
         title: input.title,
         date: input.date,
         categoryId: input.categoryId,
+        amount: input.amount,
+        direction: input.direction,
         notes: input.notes,
         recurrence: input.recurrence,
         overrides: [],

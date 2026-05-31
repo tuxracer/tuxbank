@@ -29,15 +29,30 @@ describe("EventDialog", () => {
     const onSubmit = vi.fn();
     render(<EventDialog {...baseProps} onSubmit={onSubmit} />);
     await userEvent.type(screen.getByLabelText(/title/i), "Dentist");
+    await userEvent.clear(screen.getByLabelText(/amount/i));
+    await userEvent.type(screen.getByLabelText(/amount/i), "50");
     await userEvent.click(screen.getByRole("button", { name: /save/i }));
-    await waitFor(() => {
-      expect(onSubmit).toHaveBeenCalledTimes(1);
-      expect(onSubmit.mock.calls[0][0]).toMatchObject({
-        title: "Dentist",
-        date: "2026-05-14",
-        recurrence: null,
-      });
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+    expect(onSubmit.mock.calls[0][0]).toMatchObject({
+      title: "Dentist",
+      date: "2026-05-14",
+      amount: 50,
+      direction: "deposit",
+      recurrence: null,
     });
+  });
+
+  it("blocks submit when amount is not greater than zero", async () => {
+    const onSubmit = vi.fn();
+    render(<EventDialog {...baseProps} onSubmit={onSubmit} />);
+    await userEvent.type(screen.getByLabelText(/title/i), "Coffee");
+    await userEvent.clear(screen.getByLabelText(/amount/i));
+    await userEvent.type(screen.getByLabelText(/amount/i), "0");
+    await userEvent.click(screen.getByRole("button", { name: /save/i }));
+    expect(
+      await screen.findByText("Amount must be greater than 0"),
+    ).toBeInTheDocument();
+    expect(onSubmit).not.toHaveBeenCalled();
   });
 
   it("submits the series anchor date (not the clicked occurrence) when editing a recurring event", async () => {
@@ -47,6 +62,8 @@ describe("EventDialog", () => {
       title: "Standup",
       date: "2026-05-04",
       categoryId: "work",
+      amount: 50,
+      direction: "deposit" as const,
       recurrence: { freq: "weekly" as const, interval: 1, endsOn: null },
       overrides: [],
       createdAt: "",
@@ -57,6 +74,8 @@ describe("EventDialog", () => {
       date: "2026-05-11",
       title: "Standup",
       category: { id: "work", name: "Work", color: "cyan" as const },
+      amount: 50,
+      direction: "deposit" as const,
       isRecurring: true,
     };
     render(

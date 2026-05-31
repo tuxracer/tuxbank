@@ -2,6 +2,8 @@ import { isString, isArray, isPlainObject } from "remeda";
 
 export type CategoryColor = "cyan" | "magenta" | "yellow" | "green" | "orange";
 
+export type TransactionDirection = "deposit" | "withdrawal";
+
 export type Category = {
   id: string;
   name: string;
@@ -27,6 +29,8 @@ export type CalendarEvent = {
   title: string;
   date: string; // YYYY-MM-DD; series anchor for recurring events
   categoryId: string;
+  amount: number;
+  direction: TransactionDirection;
   notes?: string;
   recurrence: Recurrence | null;
   overrides: OccurrenceOverride[];
@@ -40,6 +44,8 @@ export type Occurrence = {
   date: string; // YYYY-MM-DD
   title: string;
   category: Category;
+  amount: number;
+  direction: TransactionDirection;
   notes?: string;
   isRecurring: boolean;
 };

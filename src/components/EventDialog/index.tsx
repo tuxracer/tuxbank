@@ -39,6 +39,8 @@ const buildDefaults = (props: EventDialogProps): EventFormValues => {
       // anchor date, not the clicked occurrence — so whole-series ("all") edits don't shift the series
       date: sourceEvent.date,
       categoryId: initialOccurrence.category.id,
+      amount: sourceEvent.amount,
+      direction: sourceEvent.direction,
       notes: initialOccurrence.notes ?? "",
       repeat: sourceEvent.recurrence?.freq ?? "none",
       interval: sourceEvent.recurrence?.interval ?? 1,
@@ -49,6 +51,8 @@ const buildDefaults = (props: EventDialogProps): EventFormValues => {
     title: "",
     date: defaultDate,
     categoryId: categories[0].id,
+    amount: 0,
+    direction: "deposit",
     notes: "",
     repeat: "none",
     interval: 1,
@@ -140,6 +144,35 @@ const EventDialog = (props: EventDialogProps) => {
                 </option>
               ))}
             </select>
+          </div>
+
+          <div className="flex gap-2">
+            <div className="flex flex-1 flex-col gap-1">
+              <Label htmlFor="amount">Amount</Label>
+              <Input
+                id="amount"
+                type="number"
+                step="0.01"
+                min={0}
+                {...register("amount")}
+              />
+              {errors.amount && (
+                <p className="text-xs text-[color:var(--cy-magenta)]">
+                  {errors.amount.message}
+                </p>
+              )}
+            </div>
+            <div className="flex flex-1 flex-col gap-1">
+              <Label htmlFor="direction">Type</Label>
+              <select
+                id="direction"
+                className="cy-btn px-3 py-2 text-sm"
+                {...register("direction")}
+              >
+                <option value="deposit">Deposit</option>
+                <option value="withdrawal">Withdrawal</option>
+              </select>
+            </div>
           </div>
 
           <div className="flex flex-col gap-1">
