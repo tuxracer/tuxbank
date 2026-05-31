@@ -38,7 +38,8 @@ A single person managing their own schedule of **all-day, date-based events** �
 | Language | **TypeScript** (ESM) | Per repo conventions in `CLAUDE.md`. |
 | UI library | **React** | — |
 | Styling | **Tailwind CSS** | Utility-first; cyberpunk design tokens defined as CSS variables in `globals.css`. |
-| Components | **shadcn/ui** (Radix primitives) | Dialog, Select, Popover, RadioGroup, Button, Input, Textarea, Label — restyled to the cyberpunk theme. |
+| Components | **shadcn/ui** (Radix primitives) | Dialog, Select, Popover, RadioGroup, Button, Input, Textarea, Label, Form — restyled to the cyberpunk theme. |
+| Forms | **react-hook-form** + **zod** (via `@hookform/resolvers`) | Form state & validation for the event editor; drives shadcn's `Form` component and its accessible field errors. |
 | Date math | **date-fns** | Grid generation, recurrence stepping, comparisons. |
 | Date picker | **shadcn date picker** | Used only for the event form's Date field; main month grid is custom-built. |
 | Persistence | **IndexedDB** via **`idb`** | Small Promise wrapper; one object store. |
@@ -179,7 +180,7 @@ This mirrors iCalendar semantics (`EXDATE` / `RECURRENCE-ID` for single override
 
 - **IndexedDB unavailable** (e.g., private-browsing restrictions) → show a **non-blocking banner** ("Local storage unavailable — changes won't be saved this session") and keep the calendar usable in-memory. Never swallow the error silently.
 - **Write/quota failures** → surface a banner/toast; do not lose the user's in-progress edit.
-- **Form validation:** title is required and non-empty; recurrence `interval >= 1`; `endsOn` (if set) `>= ` anchor date. Invalid input shows inline messages and disables **Save**.
+- **Forms & validation:** the event editor is built with **react-hook-form** wired to a **zod** schema (via `@hookform/resolvers`) and rendered through shadcn's `Form` primitives. Rules: title required and non-empty; recurrence `interval >= 1`; `endsOn` (if set) `>= ` anchor date. Invalid input shows inline, accessible field errors and keeps **Save** disabled until the form is valid.
 - DB version changes handled in the `idb` upgrade callback.
 
 ---
@@ -189,7 +190,7 @@ This mirrors iCalendar semantics (`EXDATE` / `RECURRENCE-ID` for single override
 - **Full-viewport layout:** `HUD status line` → `toolbar` → `weekday header` → `month grid` (the grid flexes to consume all remaining height).
 - **Toolbar:** ‹ / month-year / › · **Today** · **category filter** · **+ New Event** (primary CTA).
 - **Day cell:** date number; **today** glow; dimmed out-of-month days; stacked neon **event chips** (with ↻ for recurring); **"+N more"** → **day popover**.
-- **Event editor (Dialog):** Title, Date (shadcn date picker), Category (Select with color swatch), Notes (Textarea), Repeat (Select: Does-not-repeat / Daily / Weekly / Monthly / Yearly) with interval + optional end date; footer with **Delete**, **Cancel**, **Save**.
+- **Event editor (Dialog):** built with shadcn `Form` + **react-hook-form**/zod. Fields: Title, Date (shadcn date picker), Category (Select with color swatch), Notes (Textarea), Repeat (Select: Does-not-repeat / Daily / Weekly / Monthly / Yearly) with interval + optional end date; footer with **Delete**, **Cancel**, **Save**.
 - **Recurring scope dialog:** This event / This and following / All events.
 - **Responsive:** desktop-first full-page grid. On narrow screens, cells shrink and chips collapse to **colored dots with a count**; full details via the day popover.
 - **Empty state:** a styled prompt to create the first event when the calendar has none.
@@ -243,7 +244,7 @@ src/
     DayCell/                # date number, today glow, chips, "+N more"
     EventChip/              # neon chip
     DayEventsPopover/       # overflow list (shadcn Popover)
-    EventDialog/            # create/edit form (shadcn Dialog/Select/Textarea + date picker)
+    EventDialog/            # create/edit form (shadcn Form + react-hook-form/zod, Dialog/Select/Textarea + date picker)
     RecurrenceScopeDialog/  # This / This & following / All (shadcn Dialog + RadioGroup)
   context/
     CalendarContext/        # visible month, events, CRUD actions, filter state
@@ -276,7 +277,7 @@ Vitest, **behavior-focused** (verify behavior, not implementation constants — 
 - **`dateGrid`:** correct 6×7 matrix, Sunday-first, accurate leading/trailing days across month/year boundaries.
 - **`recurrence`:** daily/weekly/monthly/yearly expansion within a window; interval honored; `endsOn` boundary inclusive; month-skip (31st) and Feb-29 leap rules; overrides (cancel + patch); **split-series** ("this and following"); single-occurrence exception.
 - **`storage`:** CRUD round-trips via `fake-indexeddb`; errors map to the correct `StorageError` codes.
-- **Components** (RTL): create/edit/delete flow; the recurring-scope prompt appears only for recurring events; "+N more" opens the day popover; category filter hides/shows chips.
+- **Components** (RTL): create/edit/delete flow; **form validation** (empty title, `interval < 1`, or `endsOn` before the anchor block submission and surface field errors); the recurring-scope prompt appears only for recurring events; "+N more" opens the day popover; category filter hides/shows chips.
 
 ---
 
