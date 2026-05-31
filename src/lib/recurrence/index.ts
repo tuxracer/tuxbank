@@ -8,18 +8,21 @@ import {
   differenceInCalendarYears,
   format,
   parseISO,
+  subDays,
 } from "date-fns";
 import type {
   CalendarEvent,
   Category,
   Occurrence,
   OccurrenceOverride,
+  Recurrence,
   RecurrenceFreq,
 } from "@/types";
 import { UNKNOWN_CATEGORY } from "@/types";
 import type { CategoryResolver } from "./types";
 
 export * from "./types";
+export * from "./consts";
 
 const MAX_ITER = 1000;
 
@@ -124,3 +127,71 @@ export const expandEvents = (
   events.flatMap((e) =>
     expandEvent(e, windowStartISO, windowEndISO, getCategory),
   );
+
+/** Fields a create/edit form produces (no id/timestamps/overrides). */
+export type EventInput = {
+  title: string;
+  date: string;
+  categoryId: string;
+  notes?: string;
+  recurrence: Recurrence | null;
+};
+
+export const dayBeforeISO = (iso: string): string =>
+  format(subDays(parseISO(iso), 1), "yyyy-MM-dd");
+
+const upsertOverride = (
+  overrides: OccurrenceOverride[],
+  next: OccurrenceOverride,
+): OccurrenceOverride[] => [
+  ...overrides.filter((o) => o.occurrenceDate !== next.occurrenceDate),
+  next,
+];
+
+export const cancelOccurrence = (
+  event: CalendarEvent,
+  occurrenceDate: string,
+): CalendarEvent => ({
+  ...event,
+  overrides: upsertOverride(event.overrides, {
+    occurrenceDate,
+    cancelled: true,
+  }),
+});
+
+export const patchOccurrence = (
+  event: CalendarEvent,
+  occurrenceDate: string,
+  patch: NonNullable<OccurrenceOverride["patch"]>,
+): CalendarEvent => ({
+  ...event,
+  overrides: upsertOverride(event.overrides, { occurrenceDate, patch }),
+});
+
+export const truncateBefore = (
+  event: CalendarEvent,
+  fromDate: string,
+): CalendarEvent => ({
+  ...event,
+  recurrence: event.recurrence
+    ? { ...event.recurrence, endsOn: dayBeforeISO(fromDate) }
+    : null,
+});
+
+export const buildFollowingSeries = (
+  event: CalendarEvent,
+  fromDate: string,
+  input: EventInput,
+  id: string,
+  nowISO: string,
+): CalendarEvent => ({
+  id,
+  title: input.title,
+  date: fromDate,
+  categoryId: input.categoryId,
+  notes: input.notes,
+  recurrence: input.recurrence,
+  overrides: event.overrides.filter((o) => o.occurrenceDate >= fromDate),
+  createdAt: nowISO,
+  updatedAt: nowISO,
+});

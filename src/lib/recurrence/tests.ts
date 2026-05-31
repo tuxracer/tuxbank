@@ -2,6 +2,13 @@ import { describe, it, expect } from "vitest";
 import type { CalendarEvent } from "@/types";
 import { PRESET_CATEGORIES } from "@/types";
 import { expandEvent, expandEvents, makeCategoryResolver } from "./index";
+import {
+  cancelOccurrence,
+  patchOccurrence,
+  truncateBefore,
+  buildFollowingSeries,
+  dayBeforeISO,
+} from "./index";
 
 const getCategory = makeCategoryResolver(PRESET_CATEGORIES);
 
@@ -191,5 +198,73 @@ describe("expandEvents", () => {
     expect(expandEvents([], "2026-05-01", "2026-05-31", getCategory)).toEqual(
       [],
     );
+  });
+});
+
+describe("recurrence mutations", () => {
+  const series: CalendarEvent = {
+    id: "s1",
+    title: "Standup",
+    date: "2026-05-04",
+    categoryId: "work",
+    recurrence: { freq: "weekly", interval: 1, endsOn: null },
+    overrides: [],
+    createdAt: "",
+    updatedAt: "",
+  };
+
+  it("computes the day before an ISO date", () => {
+    expect(dayBeforeISO("2026-05-18")).toBe("2026-05-17");
+    expect(dayBeforeISO("2026-03-01")).toBe("2026-02-28");
+  });
+
+  it("cancels a single occurrence", () => {
+    const next = cancelOccurrence(series, "2026-05-18");
+    expect(next.overrides).toContainEqual({
+      occurrenceDate: "2026-05-18",
+      cancelled: true,
+    });
+  });
+
+  it("patches a single occurrence and replaces any prior override on that date", () => {
+    const once = patchOccurrence(series, "2026-05-18", { title: "A" });
+    const twice = patchOccurrence(once, "2026-05-18", { title: "B" });
+    expect(twice.overrides).toEqual([
+      { occurrenceDate: "2026-05-18", patch: { title: "B" } },
+    ]);
+  });
+
+  it("truncates a series to end the day before a split point", () => {
+    const next = truncateBefore(series, "2026-05-18");
+    expect(next.recurrence?.endsOn).toBe("2026-05-17");
+  });
+
+  it("builds a following series carrying forward only on/after overrides", () => {
+    const withOverrides = {
+      ...series,
+      overrides: [
+        { occurrenceDate: "2026-05-11", cancelled: true },
+        { occurrenceDate: "2026-05-25", patch: { notes: "keep" } },
+      ],
+    };
+    const created = buildFollowingSeries(
+      withOverrides,
+      "2026-05-18",
+      {
+        title: "Standup v2",
+        date: "2026-05-18",
+        categoryId: "work",
+        notes: undefined,
+        recurrence: { freq: "weekly", interval: 1, endsOn: null },
+      },
+      "new-id",
+      "2026-05-30T00:00:00.000Z",
+    );
+    expect(created.id).toBe("new-id");
+    expect(created.date).toBe("2026-05-18");
+    expect(created.title).toBe("Standup v2");
+    expect(created.overrides).toEqual([
+      { occurrenceDate: "2026-05-25", patch: { notes: "keep" } },
+    ]);
   });
 });
