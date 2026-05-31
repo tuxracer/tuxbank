@@ -8,7 +8,7 @@ See [docs/TRD.md](docs/TRD.md) for the full technical reference.
 
 ## Architecture
 
-Client-only Next.js App Router app — **no backend, no API routes**. Data flows `src/app/page.tsx` → `CalendarProvider` → `src/lib/*` → IndexedDB.
+Client-only Next.js App Router app — **no backend, no API routes**, **client-side rendered only (no SSR, no server-side hydration of app state)**. Data flows `src/app/page.tsx` → `CalendarProvider` → `src/lib/*` → IndexedDB.
 
 - **`src/app/`** — App Router entry (`layout.tsx`, `page.tsx`) and `globals.css` (Tailwind + cyberpunk theme).
 - **`src/context/CalendarContext/`** — app-wide state via React context; consume with the `useCalendar()` hook (events, categories, CRUD, recurrence-scope handling).
@@ -18,6 +18,8 @@ Client-only Next.js App Router app — **no backend, no API routes**. Data flows
 - **`src/utils/`** — small shared helpers (e.g. `formatCurrency`).
 
 Each module is a directory named after its primary export, containing `index.ts` and optionally `consts.ts` (constants), `types.ts` (types + guards), and `tests.ts`.
+
+**Rendering**: all UI lives under a `"use client"` boundary (`page.tsx` down); `layout.tsx` stays a thin Server Component for fonts/metadata only. Never add SSR/SSG data fetching or Server Components that render app state — IndexedDB is browser-only, so server-rendered markup would hydrate-mismatch.
 
 ## Commands
 
