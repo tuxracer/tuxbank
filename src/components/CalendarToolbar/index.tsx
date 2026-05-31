@@ -1,9 +1,11 @@
 import type { Category, CategoryColor } from "@/types";
 import { NEON_HEX } from "@/types";
+import { formatCurrency } from "@/utils/formatCurrency";
 
 type CalendarToolbarProps = {
   monthLabel: string;
   recordCount: number;
+  endBalance: number;
   categories: readonly Category[];
   activeColors: Set<CategoryColor>;
   onPrev: () => void;
@@ -16,6 +18,7 @@ type CalendarToolbarProps = {
 const CalendarToolbar = ({
   monthLabel,
   recordCount,
+  endBalance,
   categories,
   activeColors,
   onPrev,
@@ -33,7 +36,8 @@ const CalendarToolbar = ({
         <span className="on">{"◢ ONLINE"}</span>
       </span>
       <span className="dim">
-        LOCAL_DB::INDEXEDDB&nbsp; ◢ {recordCount} RECORDS
+        LOCAL_DB::INDEXEDDB&nbsp; ◢ {recordCount} RECORDS&nbsp; BAL ◢{" "}
+        {formatCurrency(endBalance)}
       </span>
     </div>
 

@@ -134,6 +134,9 @@ const CalendarScreen = () => {
         onToday={cal.goToToday}
         onToggleColor={cal.toggleColor}
         onNewEvent={() => openCreate(cal.todayISO)}
+        endBalance={
+          cal.balancesByDate[cal.cells[cal.cells.length - 1].iso] ?? 0
+        }
       />
 
       <MonthGrid
@@ -143,6 +146,7 @@ const CalendarScreen = () => {
         onSelectDate={openCreate}
         onSelectOccurrence={openEdit}
         gridLabel={`Calendar for ${cal.monthLabel}`}
+        balancesByDate={cal.balancesByDate}
       />
 
       {cal.loaded && totalOccurrences === 0 && (
