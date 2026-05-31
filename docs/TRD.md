@@ -72,7 +72,8 @@ A single person managing their own schedule of **all-day, date-based events** �
 ### 4.3 Categories
 - Categories are **user-managed and persisted** (no presets — the store starts empty for a fresh user). Each has a name and a neon color from the 5-color palette (`cyan`, `magenta`, `yellow`, `green`, `orange`).
 - **Created** inline via a creatable combobox in the event editor (pick an existing one or type a new name + pick a color); **renamed / recolored / deleted** in a dedicated **Manage Categories** dialog opened from the toolbar.
-- Identity is the **normalized name** (`name.trim().toLowerCase()`), so matching is case-insensitive. Categories live in their own IndexedDB store (see §4.6); events reference a category by id, so a rename or recolor propagates to all events that use it.
+- Each category has an opaque **GUID** `id` (`crypto.randomUUID()`), generated at creation and stable across renames. (Categories seeded from pre-existing events keep their legacy name-based ids — ids are opaque, so the two schemes coexist; no migration.) Categories live in their own IndexedDB store (see §4.6); events reference a category by id, so renaming or recoloring propagates to every event that uses it.
+- **Names are unique, case-insensitively** (`categoryKey(name) = name.trim().toLowerCase()` is the match key): creating a name that already exists selects the existing category instead of duplicating it, and renaming to a name another category already uses is rejected inline in the Manage dialog.
 - **Deleting an in-use category** prompts a confirm noting how many events use it; on delete its events keep the now-missing id and render as **Uncategorized** (a neutral cyan fallback) until re-categorized.
 - The toolbar **category filter** is **per category** — a toggle per category currently in use (plus an **Uncategorized** toggle when orphaned events exist); each can be turned on/off independently, all shown by default. The filter affects which event chips display, not the running balance (§4.7).
 
@@ -107,7 +108,7 @@ A single stored entity, `CalendarEvent`, where a one-off event is simply `recurr
 type CategoryColor = "cyan" | "magenta" | "yellow" | "green" | "orange";
 
 type Category = {
-  id: string;            // normalized name (name.trim().toLowerCase()), e.g. "groceries"
+  id: string;            // GUID for new categories (crypto.randomUUID()); legacy seeded ones keep a name-based id
   name: string;          // "Work"
   color: CategoryColor;
 };
