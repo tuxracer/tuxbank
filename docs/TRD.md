@@ -331,3 +331,69 @@ Vitest, **behavior-focused** (verify behavior, not implementation constants — 
 - Personal-scale data volume (hundreds–low-thousands of events) — in-memory expansion is acceptable.
 - Modern evergreen browser with IndexedDB support.
 - Sunday-first week (can be made configurable later).
+
+## Persistence: client-side SQLite (SQLite-WASM)
+
+> Updated 2026-05-31. This section supersedes any earlier references in this
+> document to IndexedDB or the `idb` library — persistence has been migrated to
+> client-side SQLite.
+
+All data is persisted in a **client-side SQLite database** compiled to
+WebAssembly via [`@sqlite.org/sqlite-wasm`](https://sqlite.org/wasm). No backend;
+the database lives entirely in the browser.
+
+- **Engine / VFS:** SQLite-WASM using the **OPFS SAHPool VFS**. It needs **no
+  COOP/COEP headers** and gives the highest OPFS performance, at the cost of a
+  single connection at a time.
+- **Threading:** OPFS sync access handles are only available in a Worker, so the
+  database runs in a dedicated **Web Worker** (`src/lib/storage/connection/worker.ts`);
+  the main thread talks to it over a small request/response RPC
+  (`workerConnection.ts`). Tests/Node use the **same wasm engine in-memory**
+  (`memoryConnection.ts`) — no OPFS, no worker.
+- **Schema (always `STRICT`):** `categories`, `events` (recurrence flattened into
+  columns with `CHECK` enums), and `event_overrides`
+  (`FOREIGN KEY ... ON DELETE CASCADE`). `events.category_id` deliberately has
+  **no** foreign key, preserving the app's loose category coupling. Versioned via
+  `PRAGMA user_version`; the schema is applied once, inside a transaction.
+- **Module layout (`src/lib/storage/`):** `index.ts` (repository / public API),
+  `consts.ts` (names, `SCHEMA_SQL`, SQL strings, defaults), `types.ts`
+  (`StorageError`, `SqlValue`/`Row`/`SyncDb`/`DbConnection`/`ConnectionStatus`),
+  `schema.ts` (migration runner), `mappers.ts` (pure row<->object mapping), and
+  `connection/` (`worker.ts`, `workerConnection.ts`, `memoryConnection.ts`,
+  `sqliteDb.ts`, `index.ts`).
+- **Multi-tab:** single active tab. OPFS's exclusive lock makes cross-tab
+  corruption impossible; the worker coordinates via `navigator.locks` so a second
+  tab shows an "open in another tab" overlay
+  (`src/components/StorageLockedOverlay`) and takes over automatically when the
+  first tab closes.
+- **Public API (unchanged across the migration):** `getAllEvents`, `putEvent`,
+  `deleteEvent`, `getAllCategories`, `putCategory`, `deleteCategory`,
+  `isStorageError`, `StorageError`, `seedCategoriesFromEvents`,
+  `resetDbForTests`, plus `onConnectionStatus`.
+- **Testing:** the full suite runs against the real SQLite-WASM engine in-memory
+  (`fake-indexeddb` removed); `resetDbForTests()` recreates a fresh `:memory:`
+  database per test.
+
+### Known limitation — production build bundling (TODO)
+
+`next build` (Turbopack) currently **fails** to bundle the app for the browser.
+`@sqlite.org/sqlite-wasm`'s only browser entry (`dist/index.mjs`) statically
+imports the Worker1 promiser (`sqlite3-worker1.mjs`), which calls
+`new Worker(new URL(proxyUri, import.meta.url))` with a **dynamic** URL Turbopack
+cannot statically resolve. We do not use the Worker1 API. Unit tests (in-memory)
+are unaffected and pass; only the browser build/run is blocked.
+
+Planned fix:
+1. In `worker.ts`, load sqlite-wasm at runtime from `public/sqlite/` via
+   `import(/* turbopackIgnore: true */ "/sqlite/index.mjs")` so Turbopack never
+   analyzes the Worker1 dynamic import. Add a small script to copy the package's
+   `dist/{index.mjs,sqlite3-worker1.mjs,sqlite3-opfs-async-proxy.js,sqlite3.wasm}`
+   into `public/sqlite/` on `predev`/`prebuild`.
+2. Ensure **no browser-reachable module imports the npm package**: move
+   `resetDbForTests` into a test-only `connection/testing.ts`, stop re-exporting
+   it from `storage/index.ts`, and import it from there in the test files so
+   `memoryConnection.ts` (which imports the npm package) is never pulled into the
+   browser bundle.
+3. Verify with `pnpm build` + a browser session: create an event, reload to
+   confirm OPFS persistence, and open a second tab to confirm the lock overlay
+   and automatic handoff.
