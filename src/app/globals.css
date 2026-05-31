@@ -128,3 +128,272 @@
     @apply font-sans;
   }
 }
+
+/* ===================== CYBERPUNK DESIGN SYSTEM ===================== */
+:root {
+  --cy-bg: #07080d;
+  --cy-panel: #0b0e16;
+  --cy-panel-2: #0e1320;
+  --cy-line: rgba(0, 240, 255, 0.16);
+  --cy-cyan: #00f0ff;
+  --cy-magenta: #ff2a6d;
+  --cy-yellow: #fcee0a;
+  --cy-green: #00ff9f;
+  --cy-orange: #ff9f1c;
+  --cy-text: #cfe0ec;
+  --cy-muted: #5d7488;
+}
+
+html,
+body {
+  height: 100%;
+}
+body {
+  background:
+    radial-gradient(
+      1200px 700px at 70% -10%,
+      rgba(255, 42, 109, 0.12),
+      transparent 60%
+    ),
+    radial-gradient(
+      900px 600px at 10% 110%,
+      rgba(0, 240, 255, 0.12),
+      transparent 60%
+    ),
+    var(--cy-bg);
+  color: var(--cy-text);
+  font-family: var(--font-ui), system-ui, sans-serif;
+  overflow: hidden;
+}
+
+.cy-scanlines::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 50;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent 0 2px,
+    rgba(0, 0, 0, 0.2) 2px 3px
+  );
+  mix-blend-mode: multiply;
+  opacity: 0.55;
+}
+.cy-scanlines::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  background:
+    linear-gradient(transparent 96%, var(--cy-line) 100%) 0 0 / 100% 38px,
+    linear-gradient(90deg, transparent 96%, var(--cy-line) 100%) 0 0 / 38px 100%;
+  opacity: 0.35;
+}
+
+.cy-mono {
+  font-family: var(--font-mono), monospace;
+}
+.cy-display {
+  font-family: var(--font-display), sans-serif;
+}
+
+.cy-hud {
+  font-family: var(--font-mono), monospace;
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  color: var(--cy-cyan);
+  text-transform: uppercase;
+}
+.cy-hud .on {
+  color: var(--cy-green);
+  text-shadow: 0 0 8px var(--cy-green);
+}
+.cy-hud .dim {
+  color: var(--cy-muted);
+}
+
+.cy-toolbar {
+  position: relative;
+  background: linear-gradient(180deg, var(--cy-panel-2), var(--cy-panel));
+  border: 1px solid var(--cy-line);
+  clip-path: polygon(
+    0 0,
+    calc(100% - 18px) 0,
+    100% 18px,
+    100% 100%,
+    18px 100%,
+    0 calc(100% - 18px)
+  );
+}
+.cy-toolbar::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  background: repeating-linear-gradient(
+    45deg,
+    var(--cy-magenta) 0 8px,
+    #000 8px 16px
+  );
+}
+
+.cy-month {
+  font-family: var(--font-display), sans-serif;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: #fff;
+  text-shadow: 0 0 14px rgba(0, 240, 255, 0.45);
+}
+
+.cy-nav {
+  color: var(--cy-cyan);
+  border: 1px solid var(--cy-cyan);
+  background: transparent;
+  text-shadow: 0 0 8px var(--cy-cyan);
+  clip-path: polygon(
+    0 0,
+    100% 0,
+    100% calc(100% - 9px),
+    calc(100% - 9px) 100%,
+    0 100%
+  );
+}
+.cy-btn {
+  font-family: var(--font-mono), monospace;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--cy-text);
+  border: 1px solid var(--cy-line);
+  background: rgba(255, 255, 255, 0.02);
+  clip-path: polygon(
+    0 0,
+    100% 0,
+    100% calc(100% - 8px),
+    calc(100% - 8px) 100%,
+    0 100%
+  );
+}
+.cy-cta {
+  font-family: var(--font-display), sans-serif;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  background: var(--cy-cyan);
+  color: #04141a;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 0 18px rgba(0, 240, 255, 0.45);
+  clip-path: polygon(
+    10px 0,
+    100% 0,
+    100% calc(100% - 10px),
+    calc(100% - 10px) 100%,
+    0 100%,
+    0 10px
+  );
+}
+
+.cy-weekhead {
+  font-family: var(--font-mono), monospace;
+  letter-spacing: 0.28em;
+  color: var(--cy-cyan);
+  text-transform: uppercase;
+  opacity: 0.8;
+}
+
+.cy-cell {
+  background: linear-gradient(
+    180deg,
+    rgba(14, 19, 32, 0.92),
+    rgba(8, 11, 18, 0.92)
+  );
+  border: 1px solid var(--cy-line);
+  position: relative;
+  overflow: hidden;
+  clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 0 100%);
+}
+.cy-cell.out {
+  opacity: 0.4;
+}
+.cy-cell.today {
+  border-color: var(--cy-yellow);
+  box-shadow:
+    inset 0 0 22px rgba(252, 238, 10, 0.12),
+    0 0 16px rgba(252, 238, 10, 0.25);
+}
+.cy-cell-num {
+  font-family: var(--font-mono), monospace;
+  color: var(--cy-muted);
+}
+.cy-cell.today .cy-cell-num {
+  color: var(--cy-yellow);
+  text-shadow: 0 0 10px var(--cy-yellow);
+  font-weight: 700;
+}
+
+.cy-chip {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  padding: 2px 7px;
+  background: rgba(0, 0, 0, 0.35);
+  color: #eaf6ff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  border-left: 3px solid var(--cy-cyan);
+  cursor: pointer;
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 6px 100%, 0 calc(100% - 6px));
+}
+
+.cy-dialog {
+  background: linear-gradient(180deg, #0b1019, #080b12);
+  border: 1px solid var(--cy-cyan);
+  box-shadow: 0 0 30px rgba(0, 240, 255, 0.25);
+  position: relative;
+  clip-path: polygon(
+    0 0,
+    calc(100% - 20px) 0,
+    100% 20px,
+    100% 100%,
+    20px 100%,
+    0 calc(100% - 20px)
+  );
+}
+
+.cy-glitch {
+  animation: cy-glitch 450ms steps(2) 1;
+}
+@keyframes cy-glitch {
+  0% {
+    transform: translate(0, 0);
+    filter: none;
+  }
+  20% {
+    transform: translate(-2px, 1px);
+    filter: drop-shadow(2px 0 var(--cy-magenta))
+      drop-shadow(-2px 0 var(--cy-cyan));
+  }
+  40% {
+    transform: translate(2px, -1px);
+  }
+  100% {
+    transform: translate(0, 0);
+    filter: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cy-scanlines::before,
+  .cy-scanlines::after {
+    animation: none !important;
+  }
+  .cy-glitch {
+    animation: none !important;
+  }
+}
