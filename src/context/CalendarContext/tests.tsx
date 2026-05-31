@@ -34,6 +34,39 @@ describe("CalendarContext", () => {
     });
   });
 
+  it("hides occurrences whose category color is filtered out", async () => {
+    const { result } = renderHook(() => useCalendar(), { wrapper });
+    await waitFor(() => expect(result.current.loaded).toBe(true));
+
+    await act(async () => {
+      result.current.goToDate(new Date(2026, 4, 1));
+      await result.current.createEvent({
+        title: "Work thing",
+        date: "2026-05-08",
+        categoryId: "work",
+        notes: undefined,
+        recurrence: null,
+      });
+    });
+    await waitFor(() =>
+      expect(result.current.occurrencesByDate["2026-05-08"]).toBeDefined(),
+    );
+
+    await act(async () => {
+      result.current.toggleColor("cyan"); // "work" preset is cyan
+    });
+    await waitFor(() =>
+      expect(result.current.occurrencesByDate["2026-05-08"]).toBeUndefined(),
+    );
+
+    await act(async () => {
+      result.current.toggleColor("cyan");
+    });
+    await waitFor(() =>
+      expect(result.current.occurrencesByDate["2026-05-08"]).toBeDefined(),
+    );
+  });
+
   it("deletes one occurrence of a recurring series", async () => {
     const { result } = renderHook(() => useCalendar(), { wrapper });
     await waitFor(() => expect(result.current.loaded).toBe(true));

@@ -8,6 +8,7 @@ const MAX_VISIBLE_CHIPS = 3;
 type DayCellProps = {
   cell: DateCell;
   isToday: boolean;
+  tabIndex: number;
   occurrences: Occurrence[];
   dateLabel: string;
   onSelectDate: (iso: string) => void;
@@ -17,6 +18,7 @@ type DayCellProps = {
 const DayCell = ({
   cell,
   isToday,
+  tabIndex,
   occurrences,
   dateLabel,
   onSelectDate,
@@ -31,7 +33,8 @@ const DayCell = ({
   return (
     <div
       role="gridcell"
-      tabIndex={0}
+      tabIndex={tabIndex}
+      data-iso={cell.iso}
       aria-label={dateLabel}
       aria-current={isToday ? "date" : undefined}
       className={classes.join(" ")}

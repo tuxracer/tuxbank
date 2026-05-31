@@ -31,4 +31,52 @@ describe("MonthGrid", () => {
     await userEvent.click(chip);
     expect(onSelectOccurrence).toHaveBeenCalledWith(occ);
   });
+
+  it("moves day focus with arrow keys (roving tabindex)", async () => {
+    render(
+      <MonthGrid
+        cells={buildMonthGrid(new Date(2026, 4, 1))}
+        todayISO="2026-05-14"
+        occurrencesByDate={{}}
+        onSelectDate={vi.fn()}
+        onSelectOccurrence={vi.fn()}
+      />,
+    );
+    await userEvent.tab();
+    expect(document.activeElement).toBe(
+      screen.getByLabelText("Thursday, May 14"),
+    );
+    await userEvent.keyboard("{ArrowRight}");
+    expect(document.activeElement).toBe(
+      screen.getByLabelText("Friday, May 15"),
+    );
+    await userEvent.keyboard("{ArrowDown}");
+    expect(document.activeElement).toBe(
+      screen.getByLabelText("Friday, May 22"),
+    );
+  });
+
+  it("shows at most 3 chips and collapses the rest into +N more", () => {
+    const occ = (i: number): Occurrence => ({
+      eventId: `e${i}`,
+      date: "2026-05-14",
+      title: `Event ${i}`,
+      category: { id: "work", name: "Work", color: "cyan" },
+      isRecurring: false,
+    });
+    render(
+      <MonthGrid
+        cells={buildMonthGrid(new Date(2026, 4, 1))}
+        todayISO="2026-05-14"
+        occurrencesByDate={{
+          "2026-05-14": [occ(1), occ(2), occ(3), occ(4), occ(5)],
+        }}
+        onSelectDate={vi.fn()}
+        onSelectOccurrence={vi.fn()}
+      />,
+    );
+    expect(screen.getByText("+2 more")).toBeInTheDocument();
+    expect(screen.getByTitle("Event 1")).toBeInTheDocument();
+    expect(screen.queryByTitle("Event 4")).not.toBeInTheDocument();
+  });
 });
