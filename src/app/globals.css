@@ -151,14 +151,14 @@ body {
 body {
   background:
     radial-gradient(
-      1200px 700px at 70% -10%,
-      rgba(255, 42, 109, 0.12),
-      transparent 60%
+      1300px 800px at 75% -15%,
+      rgba(255, 42, 109, 0.08),
+      transparent 62%
     ),
     radial-gradient(
-      900px 600px at 10% 110%,
-      rgba(0, 240, 255, 0.12),
-      transparent 60%
+      1000px 700px at 8% 115%,
+      rgba(0, 240, 255, 0.07),
+      transparent 62%
     ),
     var(--cy-bg);
   color: var(--cy-text);
@@ -166,6 +166,7 @@ body {
   overflow: hidden;
 }
 
+/* Faint CRT scanline whisper — the heavy scanlines + line-grid were removed for a cleaner look. */
 .cy-scanlines::before {
   content: "";
   position: fixed;
@@ -174,22 +175,11 @@ body {
   z-index: 50;
   background: repeating-linear-gradient(
     0deg,
-    transparent 0 2px,
-    rgba(0, 0, 0, 0.2) 2px 3px
+    transparent 0 3px,
+    rgba(0, 0, 0, 0.16) 3px 4px
   );
   mix-blend-mode: multiply;
-  opacity: 0.55;
-}
-.cy-scanlines::after {
-  content: "";
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 1;
-  background:
-    linear-gradient(transparent 96%, var(--cy-line) 100%) 0 0 / 100% 38px,
-    linear-gradient(90deg, transparent 96%, var(--cy-line) 100%) 0 0 / 38px 100%;
-  opacity: 0.35;
+  opacity: 0.06;
 }
 
 .cy-mono {
