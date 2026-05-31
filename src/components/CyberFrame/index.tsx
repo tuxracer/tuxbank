@@ -2,21 +2,64 @@
 
 import { useLayoutEffect, useRef, useState } from "react";
 
-// Must match the chamfer in `.cy-dialog::before`'s clip-path (globals.css).
-const CHAMFER = 20;
-const STROKE = 1;
+const CORNERS = ["tl", "tr", "br", "bl"] as const;
+type Corner = (typeof CORNERS)[number];
+
+type CyberFrameProps = {
+  // Chamfer size in px; must match the host's `::before`/`::after` clip-path chamfer.
+  chamfer?: number;
+  // Which corners are cut. Defaults to the dialog/toolbar shape (top-right + bottom-left).
+  corners?: readonly Corner[];
+  // Stroke color — any CSS color, e.g. a `var(--cy-*)` token.
+  color?: string;
+  strokeWidth?: number;
+};
+
+const DEFAULT_CORNERS: readonly Corner[] = ["tr", "bl"];
+
+// Vertices a corner contributes to the clockwise outline (TL→TR→BR→BL): a
+// chamfered corner emits two points (one per adjacent edge), a square corner
+// one. `s` insets the centered stroke so it stays within the SVG canvas.
+const cornerPoints = (
+  corner: Corner,
+  w: number,
+  h: number,
+  s: number,
+  c: number,
+  chamfered: boolean,
+): string[] => {
+  switch (corner) {
+    case "tl":
+      return chamfered ? [`${s},${s + c}`, `${s + c},${s}`] : [`${s},${s}`];
+    case "tr":
+      return chamfered ? [`${w - c},${s}`, `${w - s},${c}`] : [`${w - s},${s}`];
+    case "br":
+      return chamfered
+        ? [`${w - s},${h - c}`, `${w - c},${h - s}`]
+        : [`${w - s},${h - s}`];
+    case "bl":
+      return chamfered ? [`${c},${h - s}`, `${s},${h - c}`] : [`${s},${h - s}`];
+  }
+};
 
 /**
- * Cyberpunk dialog border. Traces the same chamfered octagon as a
- * `.cy-dialog`'s panel fill, but as an SVG vector stroke so the border keeps a
- * uniform width and brightness on every edge — including the 45° chamfers,
- * which a CSS clip-path fill rasterizes brighter than the straight edges (the
- * cyan there spreads over ~√2 more pixels), making the square corners look
- * comparatively dark. The host's size is measured at runtime so the fixed 20px
- * chamfer stays a true 45° cut at any dialog size. Render as a child of a
- * `.cy-dialog` (its `fixed`/portaled positioning is the containing block).
+ * Cyberpunk panel border. Traces the host's chamfered outline as an SVG vector
+ * stroke so the border keeps a uniform width and brightness on every edge —
+ * including the 45° chamfers, which a CSS `clip-path` fill rasterizes brighter
+ * than the straight edges (the color there spreads over ~√2 more pixels),
+ * leaving the square corners looking comparatively dark. The host is measured at
+ * runtime so a fixed-px chamfer stays a true 45° cut at any size.
+ *
+ * Render as a child of a `position`ed host whose chamfered fill lives on a
+ * pseudo-element (so this SVG isn't clipped away). The host's own `clip-path`
+ * must be removed. `chamfer`/`corners` must match that pseudo-element's shape.
  */
-export const CyberFrame = () => {
+export const CyberFrame = ({
+  chamfer = 20,
+  corners = DEFAULT_CORNERS,
+  color = "var(--cy-cyan)",
+  strokeWidth = 1,
+}: CyberFrameProps) => {
   const ref = useRef<HTMLDivElement>(null);
   const [{ w, h }, setSize] = useState({ w: 0, h: 0 });
 
@@ -31,12 +74,15 @@ export const CyberFrame = () => {
     return () => observer.disconnect();
   }, []);
 
-  // Clamp so a small popover can't produce overlapping/negative points.
-  const c = Math.min(CHAMFER, w / 2, h / 2);
-  const s = STROKE / 2; // inset the centered stroke so it stays within the canvas
+  // Clamp so a small host can't produce overlapping/negative points.
+  const c = Math.min(chamfer, w / 2, h / 2);
+  const s = strokeWidth / 2;
+  const cornerSet = new Set(corners);
   const points =
     w > 0 && h > 0
-      ? `${s},${s} ${w - c},${s} ${w - s},${c} ${w - s},${h - s} ${c},${h - s} ${s},${h - c}`
+      ? CORNERS.flatMap((corner) =>
+          cornerPoints(corner, w, h, s, c, cornerSet.has(corner)),
+        ).join(" ")
       : "";
 
   return (
@@ -46,8 +92,8 @@ export const CyberFrame = () => {
           <polygon
             points={points}
             fill="none"
-            stroke="var(--cy-cyan)"
-            strokeWidth={STROKE}
+            stroke={color}
+            strokeWidth={strokeWidth}
           />
         </svg>
       )}

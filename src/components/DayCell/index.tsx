@@ -1,5 +1,6 @@
 import EventChip from "@/components/EventChip";
 import DayEventsPopover from "@/components/DayEventsPopover";
+import { CyberFrame } from "@/components/CyberFrame";
 import { formatCurrency } from "@/utils/formatCurrency";
 
 import { MAX_VISIBLE_CHIPS } from "./consts";
@@ -37,6 +38,11 @@ const DayCell = ({
         if (e.key === "Enter") onSelectDate(cell.iso);
       }}
     >
+      <CyberFrame
+        chamfer={12}
+        corners={["tr"]}
+        color={isToday ? "var(--cy-yellow)" : "var(--cy-line)"}
+      />
       <span className="cy-cell-num">
         {String(cell.dayOfMonth).padStart(2, "0")}
       </span>

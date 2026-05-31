@@ -206,8 +206,22 @@ body {
 
 .cy-toolbar {
   position: relative;
-  background: linear-gradient(180deg, var(--cy-panel-2), var(--cy-panel));
-  border: 1px solid var(--cy-line);
+  isolation: isolate;
+}
+/* Panel fill + the magenta hazard stripe (left 6px) are layered backgrounds on
+   one pseudo so a single clip-path chamfers both; the border is drawn by
+   <CyberFrame> as an SVG stroke (uniform on the 45° chamfers, unlike a clip-path
+   fill). Host stays transparent/unclipped so the SVG isn't clipped. The 18px
+   chamfer here must match CyberFrame's `chamfer` prop in CalendarToolbar. */
+.cy-toolbar::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background:
+    repeating-linear-gradient(45deg, var(--cy-magenta) 0 8px, #000 8px 16px)
+      left / 6px 100% no-repeat,
+    linear-gradient(180deg, var(--cy-panel-2), var(--cy-panel));
   clip-path: polygon(
     0 0,
     calc(100% - 18px) 0,
@@ -215,19 +229,6 @@ body {
     100% 100%,
     18px 100%,
     0 calc(100% - 18px)
-  );
-}
-.cy-toolbar::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 6px;
-  background: repeating-linear-gradient(
-    45deg,
-    var(--cy-magenta) 0 8px,
-    #000 8px 16px
   );
 }
 
@@ -296,24 +297,36 @@ body {
 }
 
 .cy-cell {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+/* Chamfered fill on a pseudo so the border can be a uniform SVG stroke drawn by
+   <CyberFrame> (a clip-path fill rasterizes the 45° chamfer brighter than the
+   straight edges). Host stays transparent/unclipped so the stroke isn't clipped;
+   the 12px top-right chamfer here must match CyberFrame's props in DayCell. */
+.cy-cell::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
   background: linear-gradient(
     180deg,
     rgba(14, 19, 32, 0.92),
     rgba(8, 11, 18, 0.92)
   );
-  border: 1px solid var(--cy-line);
-  position: relative;
-  overflow: hidden;
   clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 0 100%);
 }
 .cy-cell.out {
   opacity: 0.4;
 }
+/* Today: CyberFrame draws the border in yellow (see DayCell). The inset glow
+   rides on the chamfered fill; the soft outer glow stays on the host. */
 .cy-cell.today {
-  border-color: var(--cy-yellow);
-  box-shadow:
-    inset 0 0 22px rgba(252, 238, 10, 0.12),
-    0 0 16px rgba(252, 238, 10, 0.25);
+  box-shadow: 0 0 16px rgba(252, 238, 10, 0.25);
+}
+.cy-cell.today::before {
+  box-shadow: inset 0 0 22px rgba(252, 238, 10, 0.12);
 }
 .cy-cell-num {
   font-family: var(--font-mono), monospace;

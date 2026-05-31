@@ -232,7 +232,8 @@ A bold, cohesive **Cyberpunk 2077–inspired** treatment. This section is the ca
 ### Component styling
 - Event chips: dark fill, neon left-border + matching glow, clipped corner.
 - Primary CTA: neon fill with clipped corners and glow.
-- Dialogs: dark glass panels, neon border, corner brackets, mono uppercase labels. The chamfered panel is `.cy-dialog` (a `::before` `clip-path` fill); the neon border is drawn by `<CyberFrame>` (`src/components/CyberFrame`) as an SVG vector stroke so it stays a uniform width/brightness on the 45° chamfers (a CSS clip-path fill rasterizes diagonal edges brighter than straight ones).
+- Dialogs: dark glass panels, neon border, corner brackets, mono uppercase labels.
+- Chamfered panels (`.cy-dialog`, `.cy-toolbar`, `.cy-cell`) split shape from border: a `::before` `clip-path` paints the dark fill, and `<CyberFrame>` (`src/components/CyberFrame`) draws the neon border as an SVG vector stroke so it stays a uniform width/brightness on the 45° chamfers (a CSS clip-path fill rasterizes diagonal edges brighter than straight ones, leaving square corners comparatively dark). CyberFrame props (`chamfer`, `corners`, `color`) must match each host's `::before` shape: dialogs cut top-right + bottom-left (cyan); the toolbar likewise (dim `--cy-line`); cells cut only top-right (`--cy-line`, or `--cy-yellow` on today).
 
 ---
 
@@ -253,7 +254,7 @@ src/
     MonthGrid/              # 6x7 grid; consumes dateGrid + grouped occurrences
     DayCell/                # date number, today glow, chips, "+N more"
     EventChip/              # neon chip
-    CyberFrame/             # SVG vector-stroke neon border for .cy-dialog panels
+    CyberFrame/             # SVG vector-stroke neon border for chamfered panels (.cy-dialog, .cy-toolbar, .cy-cell)
     DayEventsPopover/       # overflow list (shadcn Popover)
     EventDialog/            # create/edit form (shadcn Form + react-hook-form/zod, Dialog/Select/Textarea + date picker)
     RecurrenceScopeDialog/  # This / This & following / All (shadcn Dialog + RadioGroup)

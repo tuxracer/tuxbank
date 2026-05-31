@@ -1,4 +1,5 @@
 import { NEON_HEX } from "@/types";
+import { CyberFrame } from "@/components/CyberFrame";
 import { formatCurrency } from "@/utils/formatCurrency";
 
 import type { CalendarToolbarProps } from "./types";
@@ -33,6 +34,7 @@ const CalendarToolbar = ({
     </div>
 
     <div className="cy-toolbar flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+      <CyberFrame chamfer={18} color="var(--cy-line)" />
       <div className="flex items-center gap-3">
         <button
           type="button"
