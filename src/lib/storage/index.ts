@@ -117,7 +117,11 @@ export const putCategory = async (category: Category): Promise<void> => {
     await db.put(CATEGORY_STORE, category);
   } catch (error) {
     if (error instanceof StorageError) throw error;
-    throw new StorageError("WRITE_FAILED", error);
+    const code =
+      error instanceof DOMException && error.name === "QuotaExceededError"
+        ? "QUOTA_EXCEEDED"
+        : "WRITE_FAILED";
+    throw new StorageError(code, error);
   }
 };
 
