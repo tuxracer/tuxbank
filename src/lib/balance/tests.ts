@@ -106,4 +106,63 @@ describe("computeRunningBalances", () => {
     expect(b["2026-05-11"]).toBe(100);
     expect(b["2026-05-18"]).toBe(200);
   });
+
+  it("sums multiple deposits and withdrawals in the carry-in", () => {
+    const events = [
+      evt({ id: "a", date: "2026-04-01", amount: 500, direction: "deposit" }),
+      evt({
+        id: "b",
+        date: "2026-04-10",
+        amount: 200,
+        direction: "withdrawal",
+      }),
+      evt({ id: "c", date: "2026-04-20", amount: 50, direction: "deposit" }),
+    ];
+    const b = computeRunningBalances(events, may, getCategory);
+    expect(b[may[0].iso]).toBe(350);
+  });
+
+  it("carries in a negative balance from a pre-window withdrawal", () => {
+    const b = computeRunningBalances(
+      [evt({ date: "2026-04-01", amount: 300, direction: "withdrawal" })],
+      may,
+      getCategory,
+    );
+    expect(b[may[0].iso]).toBe(-300);
+  });
+
+  it("counts an occurrence exactly on the window's first day only once", () => {
+    const b = computeRunningBalances(
+      [evt({ date: may[0].iso, amount: 100, direction: "deposit" })],
+      may,
+      getCategory,
+    );
+    expect(b[may[0].iso]).toBe(100);
+    expect(b[may[1].iso]).toBe(100);
+  });
+
+  it("includes a recurring series that ended before the window in the carry-in", () => {
+    const ended = evt({
+      date: "2026-01-05",
+      amount: 100,
+      direction: "deposit",
+      recurrence: { freq: "weekly", interval: 1, endsOn: "2026-02-02" },
+    });
+    const b = computeRunningBalances([ended], may, getCategory);
+    expect(b[may[0].iso]).toBe(500); // Jan 5, 12, 19, 26 + Feb 2
+    expect(b["2026-05-31"]).toBe(500); // flat — no occurrences in the window
+  });
+
+  it("excludes a cancelled occurrence that falls before the window", () => {
+    const weekly = evt({
+      date: "2026-04-01",
+      amount: 100,
+      direction: "deposit",
+      recurrence: { freq: "weekly", interval: 1, endsOn: null },
+      overrides: [{ occurrenceDate: "2026-04-08", cancelled: true }],
+    });
+    const b = computeRunningBalances([weekly], may, getCategory);
+    expect(b[may[0].iso]).toBe(300); // Apr 1, 15, 22 (Apr 8 cancelled); Apr 29 is in-window
+    expect(b["2026-04-29"]).toBe(400);
+  });
 });
