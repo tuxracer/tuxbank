@@ -48,7 +48,9 @@ A single person managing their own schedule of **all-day, date-based events** �
 | Fonts | **Rajdhani**, **Chakra Petch**, **Share Tech Mono** | Loaded via `next/font`. Display / UI / data, respectively. |
 | Testing | **vitest** + **@testing-library/react** + **fake-indexeddb** | Behavior-focused tests per `CLAUDE.md`. |
 
-> **Build note:** This repo is currently a CLAUDE.md template. It will be initialized as a Next.js app. `package.json` scripts map to Next: `pnpm dev` → `next dev`, `pnpm build` → `next build`, `pnpm start` → `next start`. `pnpm test` runs vitest. `pnpm check` continues to run format + lint + typecheck and must pass before commits.
+> **As-built stack versions:** Next.js 16 (App Router, Turbopack), React 19, Tailwind v4, zod v4, react-day-picker v10.
+
+> **Build note:** `package.json` scripts map to Next: `pnpm dev` → `next dev --turbopack`, `pnpm build` → `next build`, `pnpm start` → `next start`. `pnpm test` runs vitest. `pnpm check` continues to run format + lint + typecheck and must pass before commits.
 
 ---
 
@@ -180,7 +182,7 @@ This mirrors iCalendar semantics (`EXDATE` / `RECURRENCE-ID` for single override
 
 `UNAVAILABLE` · `QUOTA_EXCEEDED` · `BLOCKED` · `VERSION_ERROR` · `READ_FAILED` · `WRITE_FAILED`, plus an `isStorageError` guard.
 
-- **IndexedDB unavailable** (e.g., private-browsing restrictions) → show a **non-blocking banner** ("Local storage unavailable — changes won't be saved this session") and keep the calendar usable in-memory. Never swallow the error silently.
+- **IndexedDB unavailable** (e.g., private-browsing restrictions) → show a **non-blocking banner** ("Local storage unavailable — changes won't be saved this session") and keep the calendar usable in-memory. Never swallow the error silently. `CalendarContext` exposes a `loaded` flag; the banner renders only when `loaded && !storageAvailable` so it never flashes during the initial load.
 - **Write/quota failures** → surface a banner/toast; do not lose the user's in-progress edit.
 - **Forms & validation:** the event editor is built with **react-hook-form** wired to a **zod** schema (via `@hookform/resolvers`) and rendered through shadcn's `Form` primitives. Rules: title required and non-empty; recurrence `interval >= 1`; `endsOn` (if set) `>= ` anchor date. Invalid input shows inline, accessible field errors and keeps **Save** disabled until the form is valid.
 - DB version changes handled in the `idb` upgrade callback.
@@ -252,10 +254,11 @@ src/
     CalendarContext/        # visible month, events, CRUD actions, filter state
   lib/
     storage/                # IndexedDB via idb; StorageError + guards
-    recurrence/             # expand(window) + override/split helpers
+    recurrence/             # expand(window) + recurrence override/split helpers (pure)
     dateGrid/               # month -> 6x7 date matrix
   types/                    # CalendarEvent, Category, Recurrence + type guards
-  ui/                       # shadcn primitives
+  components/
+    ui/                     # shadcn primitives (shadcn CLI default location)
 ```
 
 State is shared via **React Context** rather than prop drilling (`CLAUDE.md`). Labels/formatting use **`Intl.DateTimeFormat`**; array/object work prefers **remeda** utilities where it improves clarity. Constants are named (no magic numbers); numeric literals ≥ 1000 use underscore separators.

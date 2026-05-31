@@ -26,8 +26,6 @@ type ScopeState =
     }
   | { action: "delete"; event: CalendarEvent; occurrenceDate: string };
 
-const todayISO = (): string => new Date().toISOString().slice(0, 10);
-
 const CalendarScreen = () => {
   const cal = useCalendar();
   const [editor, setEditor] = useState<EditorState | null>(null);
@@ -53,7 +51,7 @@ const CalendarScreen = () => {
     if (e.key === "PageUp") cal.goToPrevMonth();
     if (e.key === "PageDown") cal.goToNextMonth();
     if (e.key.toLowerCase() === "n" && !editor && !scope)
-      openCreate(todayISO());
+      openCreate(cal.todayISO);
   };
   const openEdit = (occurrence: Occurrence) => {
     const event = cal.events.find((e) => e.id === occurrence.eventId);
@@ -135,7 +133,7 @@ const CalendarScreen = () => {
         onNext={cal.goToNextMonth}
         onToday={cal.goToToday}
         onToggleColor={cal.toggleColor}
-        onNewEvent={() => openCreate(todayISO())}
+        onNewEvent={() => openCreate(cal.todayISO)}
       />
 
       <MonthGrid
