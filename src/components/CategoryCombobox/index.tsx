@@ -59,7 +59,9 @@ const CategoryCombobox = ({
   const filtered = categories.filter((c) =>
     c.name.toLowerCase().includes(q.toLowerCase()),
   );
-  const hasExact = categories.some((c) => c.id === categoryKey(q));
+  const hasExact = categories.some(
+    (c) => categoryKey(c.name) === categoryKey(q),
+  );
   const showCreate = q.length > 0 && !hasExact;
 
   const choose = (id: string) => {

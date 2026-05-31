@@ -88,17 +88,20 @@ describe("CalendarContext", () => {
     expect(result.current.balancesByDate["2026-05-07"]).toBe(0);
   });
 
-  it("manages categories: create (dedupe by key), update propagates, delete -> Uncategorized", async () => {
+  it("manages categories: create (dedupe by name), update propagates, delete -> Uncategorized", async () => {
     const { result } = renderHook(() => useCalendar(), { wrapper });
     await waitFor(() => expect(result.current.loaded).toBe(true));
 
     let created: { id: string } | undefined;
     await act(async () => {
       created = await result.current.createCategory("Groceries", "green");
-      await result.current.createCategory("groceries", "magenta"); // same key -> no dup
+      await result.current.createCategory("groceries", "magenta"); // same name (case-insensitive) -> no dup
     });
+    // Only one category with the name "groceries" (case-insensitive)
     expect(
-      result.current.categories.filter((c) => c.id === "groceries"),
+      result.current.categories.filter(
+        (c) => c.name.trim().toLowerCase() === "groceries",
+      ),
     ).toHaveLength(1);
 
     await act(async () => {
@@ -120,7 +123,7 @@ describe("CalendarContext", () => {
     );
 
     await act(async () => {
-      await result.current.updateCategory("groceries", {
+      await result.current.updateCategory(created!.id, {
         name: "Food & Drink",
       });
     });
@@ -131,22 +134,26 @@ describe("CalendarContext", () => {
     );
 
     await act(async () => {
-      await result.current.deleteCategory("groceries");
+      await result.current.deleteCategory(created!.id);
     });
     await waitFor(() =>
       expect(
         result.current.occurrencesByDate["2026-05-08"]?.[0]?.category.name,
       ).toBe("Uncategorized"),
     );
-    expect(result.current.categoryUsageCount["groceries"]).toBe(1);
+    expect(result.current.categoryUsageCount[created!.id]).toBe(1);
   });
 
   it("collapses multiple orphaned categories into a single Uncategorized entry", async () => {
     const { result } = renderHook(() => useCalendar(), { wrapper });
     await waitFor(() => expect(result.current.loaded).toBe(true));
+    let aId = "";
+    let bId = "";
     await act(async () => {
       const a = await result.current.createCategory("Groceries", "green");
       const b = await result.current.createCategory("Rent", "magenta");
+      aId = a.id;
+      bId = b.id;
       result.current.goToDate(new Date(2026, 4, 1));
       await result.current.createEvent({
         title: "Food",
@@ -169,8 +176,8 @@ describe("CalendarContext", () => {
     });
     await waitFor(() => expect(result.current.usedCategories.length).toBe(2));
     await act(async () => {
-      await result.current.deleteCategory("groceries");
-      await result.current.deleteCategory("rent");
+      await result.current.deleteCategory(aId);
+      await result.current.deleteCategory(bId);
     });
     // both events now orphaned → exactly ONE Uncategorized entry, and ids are unique
     await waitFor(() => {
@@ -211,5 +218,70 @@ describe("CalendarContext", () => {
       expect(result.current.occurrencesByDate["2026-05-11"]).toBeUndefined();
       expect(result.current.occurrencesByDate["2026-05-04"]).toBeDefined();
     });
+  });
+
+  it("createCategory assigns a GUID id (not the normalized name)", async () => {
+    const { result } = renderHook(() => useCalendar(), { wrapper });
+    await waitFor(() => expect(result.current.loaded).toBe(true));
+
+    let c: { id: string } | undefined;
+    await act(async () => {
+      c = await result.current.createCategory("Work", "cyan");
+    });
+
+    expect(c!.id).not.toBe("work");
+    expect(c!.id).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+    );
+  });
+
+  it("createCategory deduplicates by name (case-insensitive) and returns the same category", async () => {
+    const { result } = renderHook(() => useCalendar(), { wrapper });
+    await waitFor(() => expect(result.current.loaded).toBe(true));
+
+    let a: { id: string } | undefined;
+    let b: { id: string } | undefined;
+    await act(async () => {
+      a = await result.current.createCategory("Work", "cyan");
+      b = await result.current.createCategory("work", "magenta");
+    });
+
+    expect(b!.id).toBe(a!.id);
+    expect(
+      result.current.categories.filter(
+        (c) => c.name.trim().toLowerCase() === "work",
+      ),
+    ).toHaveLength(1);
+  });
+
+  it("updateCategory rejects a rename that collides with another category's name", async () => {
+    const { result } = renderHook(() => useCalendar(), { wrapper });
+    await waitFor(() => expect(result.current.loaded).toBe(true));
+
+    let personalId = "";
+    await act(async () => {
+      await result.current.createCategory("Work", "cyan");
+      const personal = await result.current.createCategory(
+        "Personal",
+        "magenta",
+      );
+      personalId = personal.id;
+    });
+
+    // Attempt to rename "Personal" to "work" (collides with "Work")
+    await act(async () => {
+      await result.current.updateCategory(personalId, { name: "work" });
+    });
+
+    // Personal category should still be named "Personal"
+    const personal = result.current.categories.find((c) => c.id === personalId);
+    expect(personal?.name).toBe("Personal");
+
+    // Only one category with the name "work" (case-insensitive)
+    expect(
+      result.current.categories.filter(
+        (c) => c.name.trim().toLowerCase() === "work",
+      ),
+    ).toHaveLength(1);
   });
 });

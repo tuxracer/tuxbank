@@ -305,10 +305,16 @@ export const CalendarProvider = ({
 
   const createCategory = useCallback(
     async (name: string, color: CategoryColor): Promise<Category> => {
-      const id = categoryKey(name);
-      const existing = categoriesRef.current.find((c) => c.id === id);
+      const key = categoryKey(name);
+      const existing = categoriesRef.current.find(
+        (c) => categoryKey(c.name) === key,
+      );
       if (existing) return existing;
-      const category: Category = { id, name: name.trim(), color };
+      const category: Category = {
+        id: newId(),
+        name: name.trim(),
+        color,
+      };
       categoriesRef.current = [...categoriesRef.current, category];
       setCategoriesWithRef(() => categoriesRef.current);
       await persist(() => putCategory(category));
@@ -321,6 +327,13 @@ export const CalendarProvider = ({
     async (id: string, patch: { name?: string; color?: CategoryColor }) => {
       const current = categoriesRef.current.find((c) => c.id === id);
       if (!current) return;
+      if (patch.name !== undefined) {
+        const collision = categoriesRef.current.find(
+          (c) =>
+            c.id !== id && categoryKey(c.name) === categoryKey(patch.name!),
+        );
+        if (collision) return;
+      }
       const next: Category = {
         ...current,
         ...patch,

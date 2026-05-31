@@ -48,4 +48,16 @@ describe("ManageCategoriesDialog", () => {
     await userEvent.click(screen.getByRole("button", { name: /^delete$/i }));
     expect(onDelete).toHaveBeenCalledWith("work");
   });
+
+  it("shows an inline error and does not call onRename when renaming to a colliding name", async () => {
+    const onRename = vi.fn();
+    render(<ManageCategoriesDialog {...base} onRename={onRename} />);
+    // Rename "Rent" to "Work" (case-insensitive collision)
+    const input = screen.getByDisplayValue("Rent");
+    await userEvent.clear(input);
+    await userEvent.type(input, "Work");
+    await userEvent.tab(); // blur commits
+    expect(onRename).not.toHaveBeenCalled();
+    expect(await screen.findByText(/already exists/i)).toBeInTheDocument();
+  });
 });
