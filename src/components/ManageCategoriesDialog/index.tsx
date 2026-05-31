@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import type { Category, CategoryColor } from "@/types";
 import { NEON_HEX, categoryKey } from "@/types";
 import {
   Dialog,
@@ -12,23 +11,11 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
-const PALETTE: CategoryColor[] = [
-  "cyan",
-  "magenta",
-  "yellow",
-  "green",
-  "orange",
-];
+import { PALETTE } from "./consts";
+import type { ManageCategoriesDialogProps } from "./types";
 
-type ManageCategoriesDialogProps = {
-  open: boolean;
-  categories: readonly Category[];
-  usageCountById: Record<string, number>;
-  onRename: (id: string, name: string) => void;
-  onRecolor: (id: string, color: CategoryColor) => void;
-  onDelete: (id: string) => void;
-  onOpenChange: (open: boolean) => void;
-};
+export * from "./consts";
+export * from "./types";
 
 const ManageCategoriesDialog = ({
   open,

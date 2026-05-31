@@ -6,15 +6,11 @@ import {
   startOfWeek,
 } from "date-fns";
 
-export const GRID_DAYS = 42; // fixed 6 weeks x 7 days
-const WEEK_STARTS_ON = 0; // Sunday
+import { GRID_DAYS, WEEK_STARTS_ON } from "./consts";
+import type { DateCell } from "./types";
 
-export type DateCell = {
-  date: Date;
-  iso: string; // YYYY-MM-DD
-  dayOfMonth: number;
-  inMonth: boolean;
-};
+export * from "./consts";
+export * from "./types";
 
 export const toISODate = (date: Date): string => format(date, "yyyy-MM-dd");
 

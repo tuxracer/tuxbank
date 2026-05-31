@@ -18,7 +18,7 @@ import type {
   Occurrence,
 } from "@/types";
 import { categoryKey } from "@/types";
-import { buildMonthGrid, type DateCell } from "@/lib/dateGrid";
+import { buildMonthGrid } from "@/lib/dateGrid";
 import {
   buildFollowingSeries,
   cancelOccurrence,
@@ -39,46 +39,9 @@ import {
 } from "@/lib/storage";
 import { computeRunningBalances } from "@/lib/balance";
 
-export type EditScope = "this" | "following" | "all";
+import type { CalendarContextValue, EditScope } from "./types";
 
-type CalendarContextValue = {
-  visibleMonth: Date;
-  monthLabel: string;
-  cells: DateCell[];
-  todayISO: string;
-  events: CalendarEvent[];
-  occurrencesByDate: Partial<Record<string, Occurrence[]>>;
-  balancesByDate: Record<string, number>;
-  categories: readonly Category[];
-  usedCategories: Category[];
-  categoryUsageCount: Record<string, number>;
-  activeCategoryIds: Set<string>;
-  storageAvailable: boolean;
-  loaded: boolean;
-  goToPrevMonth: () => void;
-  goToNextMonth: () => void;
-  goToToday: () => void;
-  goToDate: (date: Date) => void;
-  toggleCategory: (id: string) => void;
-  createEvent: (input: EventInput) => Promise<void>;
-  updateEvent: (
-    id: string,
-    input: EventInput,
-    scope: EditScope,
-    occurrenceDate: string,
-  ) => Promise<void>;
-  deleteEvent: (
-    id: string,
-    scope: EditScope,
-    occurrenceDate: string,
-  ) => Promise<void>;
-  createCategory: (name: string, color: CategoryColor) => Promise<Category>;
-  updateCategory: (
-    id: string,
-    patch: { name?: string; color?: CategoryColor },
-  ) => Promise<void>;
-  deleteCategory: (id: string) => Promise<void>;
-};
+export * from "./types";
 
 const newId = (): string => crypto.randomUUID();
 const nowISO = (): string => new Date().toISOString();

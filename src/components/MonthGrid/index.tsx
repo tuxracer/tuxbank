@@ -1,27 +1,20 @@
 "use client";
 
 import { useRef, useState } from "react";
-import type { Occurrence } from "@/types";
 import type { DateCell } from "@/lib/dateGrid";
 import DayCell from "@/components/DayCell";
 
-const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-const COLS = 7;
+import { WEEKDAYS, COLS } from "./consts";
+import type { MonthGridProps } from "./types";
+
+export * from "./consts";
+export * from "./types";
+
 const dayLabeler = new Intl.DateTimeFormat(undefined, {
   weekday: "long",
   month: "long",
   day: "numeric",
 });
-
-type MonthGridProps = {
-  cells: DateCell[];
-  todayISO: string;
-  occurrencesByDate: Partial<Record<string, Occurrence[]>>;
-  balancesByDate?: Record<string, number>;
-  gridLabel?: string;
-  onSelectDate: (iso: string) => void;
-  onSelectOccurrence: (occurrence: Occurrence) => void;
-};
 
 const initialActiveIndex = (cells: DateCell[], todayISO: string): number => {
   const today = cells.findIndex((c) => c.iso === todayISO);

@@ -1,4 +1,3 @@
-import type { Occurrence } from "@/types";
 import {
   Popover,
   PopoverContent,
@@ -6,12 +5,9 @@ import {
 } from "@/components/ui/popover";
 import EventChip from "@/components/EventChip";
 
-type DayEventsPopoverProps = {
-  label: string; // e.g. "+2 more"
-  dateLabel: string; // e.g. "May 13"
-  occurrences: Occurrence[];
-  onSelect: (occurrence: Occurrence) => void;
-};
+import type { DayEventsPopoverProps } from "./types";
+
+export * from "./types";
 
 const DayEventsPopover = ({
   label,

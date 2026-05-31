@@ -1,48 +1,17 @@
-import {
-  addDays,
-  addMonths,
-  addWeeks,
-  addYears,
-  differenceInCalendarDays,
-  differenceInCalendarMonths,
-  differenceInCalendarYears,
-  format,
-  parseISO,
-  subDays,
-} from "date-fns";
+import { format, parseISO, subDays } from "date-fns";
 import type {
   CalendarEvent,
   Category,
   Occurrence,
   OccurrenceOverride,
-  Recurrence,
   RecurrenceFreq,
-  TransactionDirection,
 } from "@/types";
 import { UNKNOWN_CATEGORY } from "@/types";
-import type { CategoryResolver } from "./types";
+import type { CategoryResolver, EventInput } from "./types";
+import { MAX_ITER, STEP, UNITS_BETWEEN } from "./consts";
 
 export * from "./types";
 export * from "./consts";
-
-const MAX_ITER = 1_000_000;
-
-const STEP: Record<RecurrenceFreq, (anchor: Date, amount: number) => Date> = {
-  daily: addDays,
-  weekly: addWeeks,
-  monthly: addMonths,
-  yearly: addYears,
-};
-
-const UNITS_BETWEEN: Record<
-  RecurrenceFreq,
-  (anchor: Date, target: Date) => number
-> = {
-  daily: (a, t) => differenceInCalendarDays(t, a),
-  weekly: (a, t) => Math.floor(differenceInCalendarDays(t, a) / 7),
-  monthly: (a, t) => differenceInCalendarMonths(t, a),
-  yearly: (a, t) => differenceInCalendarYears(t, a),
-};
 
 // date-fns clamps overflowing days (Jan 31 + 1mo -> Feb 28). Detect clamping and skip.
 const landsOnAnchorDay = (
@@ -132,17 +101,6 @@ export const expandEvents = (
   events.flatMap((e) =>
     expandEvent(e, windowStartISO, windowEndISO, getCategory),
   );
-
-/** Fields a create/edit form produces (no id/timestamps/overrides). */
-export type EventInput = {
-  title: string;
-  date: string;
-  categoryId: string;
-  amount: number;
-  direction: TransactionDirection;
-  notes?: string;
-  recurrence: Recurrence | null;
-};
 
 export const dayBeforeISO = (iso: string): string =>
   format(subDays(parseISO(iso), 1), "yyyy-MM-dd");

@@ -1,21 +1,12 @@
-import type { Occurrence } from "@/types";
-import type { DateCell } from "@/lib/dateGrid";
 import EventChip from "@/components/EventChip";
 import DayEventsPopover from "@/components/DayEventsPopover";
 import { formatCurrency } from "@/utils/formatCurrency";
 
-const MAX_VISIBLE_CHIPS = 3;
+import { MAX_VISIBLE_CHIPS } from "./consts";
+import type { DayCellProps } from "./types";
 
-type DayCellProps = {
-  cell: DateCell;
-  isToday: boolean;
-  tabIndex: number;
-  occurrences: Occurrence[];
-  balance: number;
-  dateLabel: string;
-  onSelectDate: (iso: string) => void;
-  onSelectOccurrence: (occurrence: Occurrence) => void;
-};
+export * from "./consts";
+export * from "./types";
 
 const DayCell = ({
   cell,

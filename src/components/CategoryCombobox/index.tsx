@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { Category, CategoryColor } from "@/types";
+import type { CategoryColor } from "@/types";
 import { NEON_HEX, categoryKey } from "@/types";
 import {
   Popover,
@@ -16,23 +16,11 @@ import {
   CommandList,
 } from "@/components/ui/command";
 
-const PALETTE: CategoryColor[] = [
-  "cyan",
-  "magenta",
-  "yellow",
-  "green",
-  "orange",
-];
+import { PALETTE } from "./consts";
+import type { CategoryComboboxProps } from "./types";
 
-type CategoryComboboxProps = {
-  categories: readonly Category[];
-  value: string; // selected categoryId, "" if none
-  onChange: (categoryId: string) => void;
-  onCreateCategory: (
-    name: string,
-    color: CategoryColor,
-  ) => Promise<Category> | Category;
-};
+export * from "./consts";
+export * from "./types";
 
 const Dot = ({ color }: { color: CategoryColor }) => (
   <span

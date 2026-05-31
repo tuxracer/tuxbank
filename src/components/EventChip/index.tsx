@@ -1,12 +1,10 @@
-import type { Occurrence } from "@/types";
 import { NEON_HEX } from "@/types";
 import { formatSignedCompact } from "@/utils/formatCurrency";
 import { signedAmount } from "@/lib/balance";
 
-type EventChipProps = {
-  occurrence: Occurrence;
-  onSelect: (occurrence: Occurrence) => void;
-};
+import type { EventChipProps } from "./types";
+
+export * from "./types";
 
 const EventChip = ({ occurrence, onSelect }: EventChipProps) => {
   const hex = NEON_HEX[occurrence.category.color];

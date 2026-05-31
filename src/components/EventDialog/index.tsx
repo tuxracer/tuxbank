@@ -3,13 +3,6 @@
 import { useEffect } from "react";
 import { useForm, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import type {
-  Category,
-  CategoryColor,
-  Occurrence,
-  CalendarEvent,
-} from "@/types";
-import type { EventInput } from "@/lib/recurrence";
 import {
   Dialog,
   DialogContent,
@@ -24,21 +17,9 @@ import { Label } from "@/components/ui/label";
 import { eventFormSchema, toEventInput, type EventFormValues } from "./schema";
 import CategoryCombobox from "@/components/CategoryCombobox";
 
-type EventDialogProps = {
-  open: boolean;
-  mode: "create" | "edit";
-  categories: readonly Category[];
-  defaultDate: string;
-  initialOccurrence?: Occurrence;
-  sourceEvent?: CalendarEvent;
-  onOpenChange: (open: boolean) => void;
-  onSubmit: (input: EventInput) => void;
-  onDelete: () => void;
-  onCreateCategory: (
-    name: string,
-    color: CategoryColor,
-  ) => Promise<Category> | Category;
-};
+import type { EventDialogProps } from "./types";
+
+export * from "./types";
 
 const buildDefaults = (props: EventDialogProps): EventFormValues => {
   const { mode, defaultDate, initialOccurrence, sourceEvent, categories } =

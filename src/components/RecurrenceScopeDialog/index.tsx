@@ -13,18 +13,11 @@ import { Button } from "@/components/ui/button";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 
-type RecurrenceScopeDialogProps = {
-  open: boolean;
-  action: "edit" | "delete";
-  onConfirm: (scope: EditScope) => void;
-  onOpenChange: (open: boolean) => void;
-};
+import { OPTIONS } from "./consts";
+import type { RecurrenceScopeDialogProps } from "./types";
 
-const OPTIONS: { value: EditScope; label: string }[] = [
-  { value: "this", label: "This event" },
-  { value: "following", label: "This and following events" },
-  { value: "all", label: "All events" },
-];
+export * from "./consts";
+export * from "./types";
 
 const RecurrenceScopeDialog = ({
   open,

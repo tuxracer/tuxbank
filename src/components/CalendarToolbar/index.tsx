@@ -1,20 +1,9 @@
-import type { Category } from "@/types";
 import { NEON_HEX } from "@/types";
 import { formatCurrency } from "@/utils/formatCurrency";
 
-type CalendarToolbarProps = {
-  monthLabel: string;
-  recordCount: number;
-  endBalance: number;
-  usedCategories: Category[];
-  activeCategoryIds: Set<string>;
-  onPrev: () => void;
-  onNext: () => void;
-  onToday: () => void;
-  onToggleCategory: (id: string) => void;
-  onManageCategories: () => void;
-  onNewEvent: () => void;
-};
+import type { CalendarToolbarProps } from "./types";
+
+export * from "./types";
 
 const CalendarToolbar = ({
   monthLabel,

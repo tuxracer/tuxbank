@@ -2,7 +2,9 @@ import { openDB, type IDBPDatabase } from "idb";
 import type { CalendarEvent, Category } from "@/types";
 import { isCalendarEvent, isCategory, PRESET_CATEGORIES } from "@/types";
 import { StorageError } from "./types";
+import { DB_NAME, DB_VERSION, STORE, CATEGORY_STORE } from "./consts";
 
+export * from "./consts";
 export * from "./types";
 
 const withTransactionDefaults = (event: CalendarEvent): CalendarEvent => ({
@@ -10,11 +12,6 @@ const withTransactionDefaults = (event: CalendarEvent): CalendarEvent => ({
   amount: typeof event.amount === "number" ? event.amount : 0,
   direction: event.direction === "withdrawal" ? "withdrawal" : "deposit",
 });
-
-const DB_NAME = "cyber-calendar";
-const DB_VERSION = 2;
-const STORE = "events";
-const CATEGORY_STORE = "categories";
 
 const LEGACY_CATEGORY_BY_ID = new Map(PRESET_CATEGORIES.map((c) => [c.id, c]));
 
