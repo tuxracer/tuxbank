@@ -11,10 +11,10 @@ Each module is a directory named after its primary export, containing `index.ts`
 ## Commands
 
 ```bash
-pnpm dev        # Run in development mode (tsx)
-pnpm build      # Build for production (tsup → dist/)
-pnpm start      # Run built version
-pnpm test       # Run tests (vitest)
+pnpm dev        # Next.js dev server (Turbopack) at http://localhost:3000
+pnpm build      # Production build (next build)
+pnpm start      # Serve the production build (next start)
+pnpm test       # Run tests (vitest run)
 pnpm check      # Format, lint, and typecheck (run before commits)
 ```
 
@@ -23,6 +23,17 @@ pnpm check      # Format, lint, and typecheck (run before commits)
 **Documentation**: When making major changes (architecture, new modules, API changes, file structure), update [docs/TRD.md](docs/TRD.md) to keep the technical reference accurate.
 
 ## Tech Stack
+
+- **Next.js 16** (App Router, Turbopack) + **React 19** + **TypeScript** (ESM)
+- **Tailwind CSS v4** + **shadcn/ui** (Radix); shadcn primitives live in `src/components/ui/`
+- **react-hook-form** + **zod** (event editor) · **date-fns** · **IndexedDB** via **idb** (no backend)
+- Tests: **vitest** + **@testing-library/react** + **fake-indexeddb**
+
+## Gotchas
+
+- **Cyberpunk styles are unlayered**: `.cy-*` classes in `src/app/globals.css` sit outside `@layer`, so they override Tailwind utilities. Keep them to visual props — never set `position` on `.cy-dialog` (it overrides shadcn's `fixed` centering and renders the dialog off-screen).
+- **jsdom has no layout engine**: vitest can't catch CSS positioning/visibility bugs. Verify dialogs/layout in a real browser (chrome-devtools) and screenshot the render — the a11y tree reports off-screen elements as "present."
+- **Turbopack stale CSS**: `globals.css` edits may not hot-reload; `rm -rf .next && pnpm dev` forces a rebuild.
 
 ## Coding Standards
 
@@ -36,6 +47,7 @@ pnpm check      # Format, lint, and typecheck (run before commits)
 - **Remeda utilities**: Prefer for array/object manipulation over manual loops where it improves readability without hurting performance (e.g., `flatMap` to flatten nested loops, `find` for searching, `sortBy` for sorting)
 - **Named constants**: Use `const HEADER_SIZE = 16` not magic numbers
 - **Numeric separators**: Use underscore separators for numbers 1000 and above for readability (`1_500`, `44_100`, `100_000`)
+- **Local dates, not UTC**: derive "today" / all-day calendar dates with date-fns `format(new Date(), "yyyy-MM-dd")`. Never `new Date().toISOString()` for a calendar date (UTC → off-by-one in behind-UTC zones)
 - **DRY (Don't Repeat Yourself)**: When a pattern appears 3+ times, extract it into a helper function. Place shared utilities in `src/utils/` (e.g., `src/utils/findLibrary/index.ts`). This improves readability and maintainability without impacting performance
 - **Module structure**: Always create modules as directories with `index.ts`, never as single `moduleName.ts` files. Name the directory after the primary export (class, function, or concept). This provides a consistent location for related files:
 
