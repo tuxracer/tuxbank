@@ -70,9 +70,11 @@ A single person managing their own schedule of **all-day, date-based events** �
 - When a day has more chips than fit, it collapses to **"+N more"**, which opens a **day popover** listing all of that day's events.
 
 ### 4.3 Categories
-- v1 ships a **fixed preset list** of categories, each with a name and a neon color from the palette (`cyan`, `magenta`, `yellow`, `green`, `orange`).
-- The toolbar **category filter** is a **multi-select toggle** — each category can be turned on/off independently; all are shown by default.
-- Creating/editing custom categories is **out of scope** for v1 (future enhancement).
+- Categories are **user-managed and persisted** (no presets — the store starts empty for a fresh user). Each has a name and a neon color from the 5-color palette (`cyan`, `magenta`, `yellow`, `green`, `orange`).
+- **Created** inline via a creatable combobox in the event editor (pick an existing one or type a new name + pick a color); **renamed / recolored / deleted** in a dedicated **Manage Categories** dialog opened from the toolbar.
+- Identity is the **normalized name** (`name.trim().toLowerCase()`), so matching is case-insensitive. Categories live in their own IndexedDB store (see §4.6); events reference a category by id, so a rename or recolor propagates to all events that use it.
+- **Deleting an in-use category** prompts a confirm noting how many events use it; on delete its events keep the now-missing id and render as **Uncategorized** (a neutral cyan fallback) until re-categorized.
+- The toolbar **category filter** is **per category** — a toggle per category currently in use (plus an **Uncategorized** toggle when orphaned events exist); each can be turned on/off independently, all shown by default. The filter affects which event chips display, not the running balance (§4.7).
 
 ### 4.4 Create / edit / delete (CRUD)
 - **Create:** clicking **+ New Event** or an empty day opens the **Event editor** (shadcn Dialog). Clicking a day prefills its date.
@@ -89,7 +91,7 @@ A single person managing their own schedule of **all-day, date-based events** �
 - Changing an event's **date** is supported for **one-off events** and **whole-series** edits only; per-occurrence date moves are out of scope for v1.
 
 ### 4.6 Persistence
-- All events persist in **IndexedDB** and reload on app start. Events stored before the amount/direction fields existed are normalized to `$0` deposit on read.
+- Events and categories persist in **IndexedDB** (the `cyber-calendar` DB, stores `events` and `categories`) and reload on app start. Events stored before the amount/direction fields existed are normalized to `$0` deposit on read. The `categories` store was added in **DB v2**; the upgrade seeds category rows from the distinct `categoryId`s already on stored events (legacy preset ids mapped to their names/colors; any other id seeded as `{ id, name: id, color: "cyan" }`), so existing calendars keep their categories.
 - No data leaves the device. Clearing browser data clears the calendar.
 
 ### 4.7 Account balance
@@ -105,7 +107,7 @@ A single stored entity, `CalendarEvent`, where a one-off event is simply `recurr
 type CategoryColor = "cyan" | "magenta" | "yellow" | "green" | "orange";
 
 type Category = {
-  id: string;            // stable preset id, e.g. "work"
+  id: string;            // normalized name (name.trim().toLowerCase()), e.g. "groceries"
   name: string;          // "Work"
   color: CategoryColor;
 };
@@ -197,7 +199,7 @@ This mirrors iCalendar semantics (`EXDATE` / `RECURRENCE-ID` for single override
 - **Full-viewport layout:** `HUD status line` → `toolbar` → `weekday header` → `month grid` (the grid flexes to consume all remaining height).
 - **Toolbar:** ‹ / month-year / › · **Today** · **category filter** · **+ New Event** (primary CTA).
 - **Day cell:** date number; **today** glow; dimmed out-of-month days; stacked neon **event chips** (with ↻ for recurring); **"+N more"** → **day popover**.
-- **Event editor (Dialog):** built with shadcn `Form` + **react-hook-form**/zod. Fields: Title, Date (native `<input type="date">`), Category (native `<select>`), Notes (Textarea), Repeat (native `<select>`: Does-not-repeat / Daily / Weekly / Monthly / Yearly) with interval + optional end date; footer with **Delete**, **Cancel**, **Save**. The shadcn `calendar`/`Select` primitives remain available for future use.
+- **Event editor (Dialog):** built with shadcn `Form` + **react-hook-form**/zod. Fields: Title, Date (native `<input type="date">`), Category (creatable combobox — shadcn `Command` + `Popover`; pick existing or create a new name + color), Notes (Textarea), Repeat (native `<select>`: Does-not-repeat / Daily / Weekly / Monthly / Yearly) with interval + optional end date; footer with **Delete**, **Cancel**, **Save**. The shadcn `calendar`/`Select` primitives remain available for future use.
 - **Recurring scope dialog:** This event / This and following / All events.
 - **Responsive:** desktop-first full-page grid. On narrow screens, cells shrink and chips collapse to **colored dots with a count**; full details via the day popover.
 - **Empty state:** a styled prompt to create the first event when the calendar has none.
