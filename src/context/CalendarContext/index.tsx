@@ -153,9 +153,7 @@ export const CalendarProvider = ({
   const exportData = useCallback(async () => {
     const bytes = await exportDatabase();
     downloadBlob(
-      new Blob([bytes.buffer as ArrayBuffer], {
-        type: "application/x-sqlite3",
-      }),
+      new Blob([bytes], { type: "application/x-sqlite3" }),
       `tuxbank-backup-${format(new Date(), "yyyy-MM-dd")}.sqlite3`,
     );
   }, []);

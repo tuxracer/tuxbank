@@ -311,7 +311,7 @@ describe("CalendarContext", () => {
     await waitFor(() => expect(result.current.events).toHaveLength(1));
 
     const bytes = await exportDatabase();
-    const file = new File([bytes.buffer as ArrayBuffer], "backup.sqlite3");
+    const file = new File([bytes], "backup.sqlite3");
 
     await act(async () => {
       await result.current.deleteEvent(
@@ -348,7 +348,7 @@ describe("CalendarContext", () => {
 
     const bytes = await exportDatabase();
     const preview = await result.current.previewImport(
-      new File([bytes.buffer as ArrayBuffer], "backup.sqlite3"),
+      new File([bytes], "backup.sqlite3"),
     );
     expect(preview.events).toBe(1);
     expect(preview.schemaVersion).toBe(1);

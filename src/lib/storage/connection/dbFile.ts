@@ -25,7 +25,7 @@ const hasSqliteHeader = (bytes: Uint8Array): boolean => {
 export const exportBytes = (
   sqlite3: Sqlite3,
   dbPointer: number | undefined,
-): Uint8Array => {
+): Uint8Array<ArrayBuffer> => {
   if (dbPointer === undefined) throw new StorageError("EXPORT_FAILED", "no-db");
   return sqlite3.capi.sqlite3_js_db_export(dbPointer);
 };
@@ -36,7 +36,8 @@ export const deserializeInto = (
   dbPointer: number | undefined,
   bytes: Uint8Array,
 ): void => {
-  if (dbPointer === undefined) throw new StorageError("IMPORT_INVALID", "no-db");
+  if (dbPointer === undefined)
+    throw new StorageError("IMPORT_INVALID", "no-db");
   const dataPtr = sqlite3.wasm.allocFromTypedArray(bytes);
   const rc = sqlite3.capi.sqlite3_deserialize(
     dbPointer,

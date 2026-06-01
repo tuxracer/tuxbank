@@ -123,7 +123,7 @@ export const deleteCategory = async (id: string): Promise<void> => {
   }
 };
 
-export const exportDatabase = async (): Promise<Uint8Array> => {
+export const exportDatabase = async (): Promise<Uint8Array<ArrayBuffer>> => {
   try {
     const conn = await getConnection();
     return await conn.exportDb();

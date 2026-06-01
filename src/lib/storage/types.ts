@@ -23,9 +23,7 @@ const STORAGE_ERROR_CODES: readonly StorageErrorCode[] = [
   "EXPORT_FAILED",
 ];
 
-export const isStorageErrorCode = (
-  value: unknown,
-): value is StorageErrorCode =>
+export const isStorageErrorCode = (value: unknown): value is StorageErrorCode =>
   isString(value) && STORAGE_ERROR_CODES.includes(value as StorageErrorCode);
 
 export class StorageError extends Error {
@@ -71,8 +69,8 @@ export interface DbConnection {
   selectAll(sql: string, bind?: SqlValue[]): Promise<Row[]>;
   run(sql: string, bind?: SqlValue[]): Promise<void>;
   tx(ops: { sql: string; bind?: SqlValue[] }[]): Promise<void>;
-  /** Serialize the whole database to bytes. */
-  exportDb(): Promise<Uint8Array>;
+  /** Serialize the whole database to bytes (always ArrayBuffer-backed). */
+  exportDb(): Promise<Uint8Array<ArrayBuffer>>;
   /** Validate candidate bytes WITHOUT touching the live database. */
   validateImport(bytes: Uint8Array): Promise<ImportPreview>;
   /** Replace the live database with the (validated) bytes. */

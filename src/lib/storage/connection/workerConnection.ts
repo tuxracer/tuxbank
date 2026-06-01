@@ -10,7 +10,7 @@ import type {
 
 interface WorkerOk {
   rows?: Row[];
-  bytes?: Uint8Array;
+  bytes?: Uint8Array<ArrayBuffer>;
   preview?: ImportPreview;
 }
 
