@@ -2,6 +2,7 @@ import { groupBy } from "remeda";
 import type { CalendarEvent, Category } from "@/types";
 import { PRESET_CATEGORIES } from "@/types";
 import { StorageError, type StorageErrorCode } from "./types";
+import type { ImportPreview } from "./types";
 import { getConnection } from "./connection";
 import {
   DELETE_OVERRIDES_SQL,
@@ -117,6 +118,35 @@ export const deleteCategory = async (id: string): Promise<void> => {
   try {
     const conn = await getConnection();
     await conn.run("DELETE FROM categories WHERE id = ?", [id]);
+  } catch (error) {
+    throw toStorageError(error, "WRITE_FAILED");
+  }
+};
+
+export const exportDatabase = async (): Promise<Uint8Array> => {
+  try {
+    const conn = await getConnection();
+    return await conn.exportDb();
+  } catch (error) {
+    throw toStorageError(error, "EXPORT_FAILED");
+  }
+};
+
+export const validateImport = async (
+  bytes: Uint8Array,
+): Promise<ImportPreview> => {
+  try {
+    const conn = await getConnection();
+    return await conn.validateImport(bytes);
+  } catch (error) {
+    throw toStorageError(error, "IMPORT_INVALID");
+  }
+};
+
+export const commitImport = async (bytes: Uint8Array): Promise<void> => {
+  try {
+    const conn = await getConnection();
+    await conn.commitImport(bytes);
   } catch (error) {
     throw toStorageError(error, "WRITE_FAILED");
   }
