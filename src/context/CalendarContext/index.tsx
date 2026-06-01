@@ -37,7 +37,11 @@ import {
   putCategory,
   deleteCategory as dbDeleteCategory,
   onConnectionStatus,
+  exportDatabase,
+  validateImport,
+  commitImport,
 } from "@/lib/storage";
+import { downloadBlob } from "@/utils/downloadBlob";
 import { computeRunningBalances } from "@/lib/balance";
 
 import type { CalendarContextValue, EditScope } from "./types";
@@ -134,6 +138,41 @@ export const CalendarProvider = ({
       else throw error;
     }
   }, []);
+
+  const reloadData = useCallback(async () => {
+    const [loadedEvents, loadedCategories] = await Promise.all([
+      getAllEvents(),
+      getAllCategories(),
+    ]);
+    categoriesRef.current = loadedCategories;
+    setCategories(loadedCategories);
+    setEvents(loadedEvents);
+    setHiddenCategoryIds(new Set());
+  }, []);
+
+  const exportData = useCallback(async () => {
+    const bytes = await exportDatabase();
+    downloadBlob(
+      new Blob([bytes.buffer as ArrayBuffer], {
+        type: "application/x-sqlite3",
+      }),
+      `tuxbank-backup-${format(new Date(), "yyyy-MM-dd")}.sqlite3`,
+    );
+  }, []);
+
+  const previewImport = useCallback(async (file: File) => {
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    return validateImport(bytes);
+  }, []);
+
+  const importData = useCallback(
+    async (file: File) => {
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      await commitImport(bytes);
+      await reloadData();
+    },
+    [reloadData],
+  );
 
   const cells = useMemo(() => buildMonthGrid(visibleMonth), [visibleMonth]);
   const todayISO = format(new Date(), "yyyy-MM-dd");
@@ -357,6 +396,9 @@ export const CalendarProvider = ({
     createCategory,
     updateCategory,
     deleteCategory,
+    exportData,
+    previewImport,
+    importData,
   };
 
   return (

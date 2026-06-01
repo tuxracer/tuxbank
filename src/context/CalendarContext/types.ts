@@ -6,6 +6,7 @@ import type {
 } from "@/types";
 import type { DateCell } from "@/lib/dateGrid";
 import type { EventInput } from "@/lib/recurrence";
+import type { ImportPreview } from "@/lib/storage";
 
 export type EditScope = "this" | "following" | "all";
 
@@ -47,4 +48,7 @@ export type CalendarContextValue = {
     patch: { name?: string; color?: CategoryColor },
   ) => Promise<void>;
   deleteCategory: (id: string) => Promise<void>;
+  exportData: () => Promise<void>;
+  previewImport: (file: File) => Promise<ImportPreview>;
+  importData: (file: File) => Promise<void>;
 };
