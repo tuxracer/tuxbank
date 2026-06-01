@@ -11,5 +11,6 @@ export type CalendarToolbarProps = {
   onToday: () => void;
   onToggleCategory: (id: string) => void;
   onManageCategories: () => void;
+  onManageData: () => void;
   onNewEvent: () => void;
 };
