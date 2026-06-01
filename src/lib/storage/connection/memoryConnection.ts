@@ -1,6 +1,7 @@
 import sqlite3InitModule from "@sqlite.org/sqlite-wasm";
 import type { DbConnection } from "../types";
 import { initSyncDb } from "./sqliteDb";
+import { exportBytes, validateBytes, deserializeInto } from "./dbFile";
 
 /** Same wasm engine as production, in-memory (no OPFS/worker). Node + tests. */
 export const createMemoryConnection = async (): Promise<DbConnection> => {
@@ -26,6 +27,30 @@ export const createMemoryConnection = async (): Promise<DbConnection> => {
     tx: (ops) => {
       try {
         sync.tx(ops);
+        return Promise.resolve();
+      } catch (error) {
+        return Promise.reject(error);
+      }
+    },
+    exportDb: () => {
+      try {
+        return Promise.resolve(exportBytes(sqlite3, db.pointer));
+      } catch (error) {
+        return Promise.reject(error);
+      }
+    },
+    validateImport: (bytes) => {
+      try {
+        return Promise.resolve(validateBytes(sqlite3, bytes));
+      } catch (error) {
+        return Promise.reject(error);
+      }
+    },
+    commitImport: (bytes) => {
+      try {
+        validateBytes(sqlite3, bytes); // throws IMPORT_INVALID before any swap
+        deserializeInto(sqlite3, db.pointer, bytes);
+        sync.run("PRAGMA foreign_keys = ON"); // re-assert connection pragma
         return Promise.resolve();
       } catch (error) {
         return Promise.reject(error);

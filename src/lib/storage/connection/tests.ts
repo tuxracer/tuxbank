@@ -38,3 +38,87 @@ describe("in-memory sqlite connection", () => {
     expect(overrides).toEqual([]);
   });
 });
+
+describe("export / import (in-memory)", () => {
+  it("round-trips the database via export + commitImport", async () => {
+    const a = await createMemoryConnection();
+    await a.run("INSERT INTO categories (id,name,color) VALUES (?,?,?)", [
+      "c1",
+      "Rent",
+      "magenta",
+    ]);
+    const bytes = await a.exportDb();
+
+    const b = await createMemoryConnection();
+    expect(await b.selectAll("SELECT id FROM categories")).toEqual([]);
+    await b.commitImport(bytes);
+    expect(await b.selectAll("SELECT id FROM categories")).toEqual([
+      { id: "c1" },
+    ]);
+  });
+
+  it("validateImport returns counts + schema version without changing data", async () => {
+    const a = await createMemoryConnection();
+    await a.run("INSERT INTO categories (id,name,color) VALUES (?,?,?)", [
+      "c1",
+      "Rent",
+      "magenta",
+    ]);
+    const bytes = await a.exportDb();
+
+    const b = await createMemoryConnection();
+    expect(await b.validateImport(bytes)).toEqual({
+      events: 0,
+      categories: 1,
+      schemaVersion: 1,
+    });
+    // unchanged
+    expect(await b.selectAll("SELECT id FROM categories")).toEqual([]);
+  });
+
+  it("rejects a non-sqlite buffer with IMPORT_INVALID", async () => {
+    const a = await createMemoryConnection();
+    await expect(
+      a.commitImport(new Uint8Array([1, 2, 3, 4])),
+    ).rejects.toMatchObject({ code: "IMPORT_INVALID" });
+  });
+
+  it("rejects a valid sqlite db missing our tables", async () => {
+    const a = await createMemoryConnection();
+    await a.run("DROP TABLE event_overrides");
+    await a.run("DROP TABLE events");
+    await a.run("DROP TABLE categories");
+    const bytes = await a.exportDb();
+
+    const b = await createMemoryConnection();
+    await expect(b.validateImport(bytes)).rejects.toMatchObject({
+      code: "IMPORT_INVALID",
+    });
+  });
+
+  it("rejects a db whose schema version differs", async () => {
+    const a = await createMemoryConnection();
+    await a.run("PRAGMA user_version = 99");
+    const bytes = await a.exportDb();
+
+    const b = await createMemoryConnection();
+    await expect(b.validateImport(bytes)).rejects.toMatchObject({
+      code: "IMPORT_INVALID",
+    });
+  });
+
+  it("does not corrupt existing data when commitImport is rejected", async () => {
+    const a = await createMemoryConnection();
+    await a.run("INSERT INTO categories (id,name,color) VALUES (?,?,?)", [
+      "keep",
+      "Keep",
+      "cyan",
+    ]);
+    await expect(
+      a.commitImport(new Uint8Array([1, 2, 3])),
+    ).rejects.toMatchObject({ code: "IMPORT_INVALID" });
+    expect(await a.selectAll("SELECT id FROM categories")).toEqual([
+      { id: "keep" },
+    ]);
+  });
+});
