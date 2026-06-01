@@ -1,8 +1,21 @@
-import { StorageError } from "../types";
-import type { ConnectionStatus, DbConnection, Row, SqlValue } from "../types";
+import { StorageError, isStorageErrorCode } from "../types";
+import type {
+  ConnectionStatus,
+  DbConnection,
+  ImportPreview,
+  Row,
+  SqlValue,
+  StorageErrorCode,
+} from "../types";
+
+interface WorkerOk {
+  rows?: Row[];
+  bytes?: Uint8Array<ArrayBuffer>;
+  preview?: ImportPreview;
+}
 
 type Pending = {
-  resolve: (rows: Row[]) => void;
+  resolve: (value: WorkerOk) => void;
   reject: (error: StorageError) => void;
   read: boolean;
 };
@@ -38,15 +51,23 @@ export const createWorkerConnection = (
     if (!entry) return;
     pending.delete(message.id);
     if (message.error) {
-      const isFull = String(message.error).toLowerCase().includes("full");
-      const code = entry.read
-        ? "READ_FAILED"
-        : isFull
-          ? "QUOTA_EXCEEDED"
-          : "WRITE_FAILED";
+      const explicit: StorageErrorCode | null = isStorageErrorCode(message.code)
+        ? message.code
+        : null;
+      const code: StorageErrorCode =
+        explicit ??
+        (entry.read
+          ? "READ_FAILED"
+          : String(message.error).toLowerCase().includes("full")
+            ? "QUOTA_EXCEEDED"
+            : "WRITE_FAILED");
       entry.reject(new StorageError(code, message.error));
     } else {
-      entry.resolve(message.rows ?? []);
+      entry.resolve({
+        rows: message.rows,
+        bytes: message.bytes,
+        preview: message.preview,
+      });
     }
   };
 
@@ -55,10 +76,16 @@ export const createWorkerConnection = (
   };
 
   const call = (
-    payload: { op: string; sql?: string; bind?: SqlValue[]; ops?: unknown },
+    payload: {
+      op: string;
+      sql?: string;
+      bind?: SqlValue[];
+      ops?: unknown;
+      bytes?: Uint8Array;
+    },
     read: boolean,
-  ): Promise<Row[]> =>
-    new Promise<Row[]>((resolve, reject) => {
+  ): Promise<WorkerOk> =>
+    new Promise<WorkerOk>((resolve, reject) => {
       const id = nextId++;
       pending.set(id, { resolve, reject, read });
       worker.postMessage({ id, ...payload });
@@ -67,7 +94,8 @@ export const createWorkerConnection = (
   return {
     async selectAll(sql, bind = []) {
       await ready;
-      return call({ op: "selectAll", sql, bind }, true);
+      const { rows } = await call({ op: "selectAll", sql, bind }, true);
+      return rows ?? [];
     },
     async run(sql, bind = []) {
       await ready;
@@ -76,6 +104,22 @@ export const createWorkerConnection = (
     async tx(ops) {
       await ready;
       await call({ op: "tx", ops }, false);
+    },
+    async exportDb() {
+      await ready;
+      const { bytes } = await call({ op: "export" }, true);
+      if (!bytes) throw new StorageError("EXPORT_FAILED");
+      return bytes;
+    },
+    async validateImport(bytes) {
+      await ready;
+      const { preview } = await call({ op: "import-validate", bytes }, true);
+      if (!preview) throw new StorageError("IMPORT_INVALID");
+      return preview;
+    },
+    async commitImport(bytes) {
+      await ready;
+      await call({ op: "import-commit", bytes }, false);
     },
   };
 };

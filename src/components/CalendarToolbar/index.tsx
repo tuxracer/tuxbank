@@ -17,6 +17,7 @@ const CalendarToolbar = ({
   onToday,
   onToggleCategory,
   onManageCategories,
+  onManageData,
   onNewEvent,
 }: CalendarToolbarProps) => (
   <header className="flex flex-col gap-3">
@@ -93,6 +94,13 @@ const CalendarToolbar = ({
             );
           })}
         </div>
+        <button
+          type="button"
+          className="cy-btn px-3 py-1.5 text-xs"
+          onClick={onManageData}
+        >
+          ◢ DATA
+        </button>
         <button
           type="button"
           className="cy-btn px-3 py-1.5 text-xs"

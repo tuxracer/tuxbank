@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { resetDbForTests } from "@/lib/storage/connection/testing";
+import { exportDatabase } from "@/lib/storage";
 import { CalendarProvider, useCalendar } from "./index";
 
 const wrapper = ({ children }: { children: React.ReactNode }) => (
@@ -289,5 +290,67 @@ describe("CalendarContext", () => {
         (c) => c.name.trim().toLowerCase() === "work",
       ),
     ).toHaveLength(1);
+  });
+
+  it("exports and re-imports the database, restoring events", async () => {
+    const { result } = renderHook(() => useCalendar(), { wrapper });
+    await waitFor(() => expect(result.current.loaded).toBe(true));
+
+    await act(async () => {
+      result.current.goToDate(new Date(2026, 4, 1));
+      await result.current.createEvent({
+        title: "Paycheck",
+        date: "2026-05-08",
+        categoryId: "work",
+        amount: 1000,
+        direction: "deposit",
+        notes: undefined,
+        recurrence: null,
+      });
+    });
+    await waitFor(() => expect(result.current.events).toHaveLength(1));
+
+    const bytes = await exportDatabase();
+    const file = new File([bytes], "backup.sqlite3");
+
+    await act(async () => {
+      await result.current.deleteEvent(
+        result.current.events[0].id,
+        "all",
+        "2026-05-08",
+      );
+    });
+    await waitFor(() => expect(result.current.events).toHaveLength(0));
+
+    await act(async () => {
+      await result.current.importData(file);
+    });
+    await waitFor(() => expect(result.current.events).toHaveLength(1));
+    expect(result.current.events[0].title).toBe("Paycheck");
+  });
+
+  it("previewImport reports the backup's record counts", async () => {
+    const { result } = renderHook(() => useCalendar(), { wrapper });
+    await waitFor(() => expect(result.current.loaded).toBe(true));
+
+    await act(async () => {
+      await result.current.createEvent({
+        title: "A",
+        date: "2026-05-08",
+        categoryId: "work",
+        amount: 1,
+        direction: "deposit",
+        notes: undefined,
+        recurrence: null,
+      });
+    });
+    await waitFor(() => expect(result.current.events).toHaveLength(1));
+
+    const bytes = await exportDatabase();
+    const preview = await result.current.previewImport(
+      new File([bytes], "backup.sqlite3"),
+    );
+    expect(preview.events).toBe(1);
+    expect(preview.schemaVersion).toBe(1);
   });
 });

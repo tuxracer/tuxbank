@@ -13,6 +13,7 @@ import MonthGrid from "@/components/MonthGrid";
 import EventDialog from "@/components/EventDialog";
 import RecurrenceScopeDialog from "@/components/RecurrenceScopeDialog";
 import ManageCategoriesDialog from "@/components/ManageCategoriesDialog";
+import DataDialog from "@/components/DataDialog";
 import StorageLockedOverlay from "@/components/StorageLockedOverlay";
 
 type EditorState =
@@ -33,6 +34,7 @@ const CalendarScreen = () => {
   const [editor, setEditor] = useState<EditorState | null>(null);
   const [scope, setScope] = useState<ScopeState | null>(null);
   const [manageOpen, setManageOpen] = useState(false);
+  const [dataOpen, setDataOpen] = useState(false);
 
   const totalOccurrences = useMemo(
     () =>
@@ -139,6 +141,7 @@ const CalendarScreen = () => {
         onToday={cal.goToToday}
         onToggleCategory={cal.toggleCategory}
         onManageCategories={() => setManageOpen(true)}
+        onManageData={() => setDataOpen(true)}
         onNewEvent={() => openCreate(cal.todayISO)}
         endBalance={
           cal.balancesByDate[cal.cells[cal.cells.length - 1].iso] ?? 0
@@ -198,6 +201,16 @@ const CalendarScreen = () => {
         onRecolor={(id, color) => void cal.updateCategory(id, { color })}
         onDelete={(id) => void cal.deleteCategory(id)}
         onOpenChange={setManageOpen}
+      />
+      <DataDialog
+        open={dataOpen}
+        currentEventCount={cal.events.length}
+        currentCategoryCount={cal.categories.length}
+        storageAvailable={cal.storageAvailable}
+        onExport={cal.exportData}
+        onPreviewImport={cal.previewImport}
+        onCommitImport={cal.importData}
+        onOpenChange={setDataOpen}
       />
     </main>
   );

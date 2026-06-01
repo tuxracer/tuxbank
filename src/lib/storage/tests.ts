@@ -8,6 +8,9 @@ import {
   putCategory,
   deleteCategory,
   seedCategoriesFromEvents,
+  exportDatabase,
+  validateImport,
+  commitImport,
 } from "./index";
 import { resetDbForTests } from "./connection/testing";
 
@@ -169,5 +172,44 @@ describe("categories store", () => {
       color: "cyan",
     });
     expect(seeded.filter((c) => c.id === "finance")).toHaveLength(1);
+  });
+});
+
+describe("export / import (repository)", () => {
+  beforeEach(async () => {
+    await resetDbForTests();
+  });
+
+  it("round-trips the whole database through export + commitImport", async () => {
+    await putCategory({ id: "rent", name: "Rent", color: "magenta" });
+    await putEvent(make("a"));
+    const bytes = await exportDatabase();
+
+    await deleteEvent("a");
+    await deleteCategory("rent");
+    expect(await getAllEvents()).toEqual([]);
+
+    await commitImport(bytes);
+    expect((await getAllEvents()).map((e) => e.id)).toEqual(["a"]);
+    expect((await getAllCategories()).map((c) => c.id)).toEqual(["rent"]);
+  });
+
+  it("validateImport reports the backup's record counts", async () => {
+    await putEvent(make("a"));
+    await putEvent(make("b"));
+    const bytes = await exportDatabase();
+    expect(await validateImport(bytes)).toEqual({
+      events: 2,
+      categories: 0,
+      schemaVersion: 1,
+    });
+  });
+
+  it("rejects an invalid file with IMPORT_INVALID and keeps existing data", async () => {
+    await putEvent(make("a"));
+    await expect(commitImport(new Uint8Array([1, 2, 3]))).rejects.toMatchObject(
+      { code: "IMPORT_INVALID" },
+    );
+    expect((await getAllEvents()).map((e) => e.id)).toEqual(["a"]);
   });
 });
