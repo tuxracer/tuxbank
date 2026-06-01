@@ -368,10 +368,10 @@ the database lives entirely in the browser.
   tab shows an "open in another tab" overlay
   (`src/components/StorageLockedOverlay`) and takes over automatically when the
   first tab closes.
-- **Public API (unchanged across the migration):** `getAllEvents`, `putEvent`,
-  `deleteEvent`, `getAllCategories`, `putCategory`, `deleteCategory`,
-  `isStorageError`, `StorageError`, `seedCategoriesFromEvents`,
-  `resetDbForTests`, plus `onConnectionStatus`.
+- **Public API:** `getAllEvents`, `putEvent`, `deleteEvent`, `getAllCategories`,
+  `putCategory`, `deleteCategory`, `isStorageError`, `StorageError`,
+  `seedCategoriesFromEvents`, `resetDbForTests`, `onConnectionStatus`, plus
+  **backup/restore**: `exportDatabase`, `validateImport`, `commitImport`.
 - **Testing:** the full suite runs against the real SQLite-WASM engine in-memory
   (`fake-indexeddb` removed); `resetDbForTests()` recreates a fresh `:memory:`
   database per test.
@@ -403,3 +403,32 @@ out of the build graph entirely:
 the real in-memory engine) pass. Remaining manual verification (a real browser
 session): create an event and reload to confirm OPFS persistence, and open a
 second tab to confirm the lock overlay and automatic handoff.
+
+### Backup / restore (export & import)
+
+The whole database can be exported to a raw `.sqlite3` file and restored from
+one. Format is the raw SQLite binary (an exact snapshot), not JSON; import is
+therefore always a **full replace** of the database.
+
+- **Export** — `exportDatabase()` → worker `export` op →
+  `sqlite3.capi.sqlite3_js_db_export(db.pointer)`. The UI wraps the bytes in a
+  `Blob` and downloads `tuxbank-backup-<YYYY-MM-DD>.sqlite3` via
+  `src/utils/downloadBlob`.
+- **Validate** — `validateImport(bytes)` → worker `import-validate` op →
+  `dbFile.validateBytes`, which loads the bytes into a throwaway `:memory:` DB
+  (`sqlite3_deserialize`) and checks the SQLite header, `PRAGMA integrity_check`,
+  the presence of `categories`/`events`/`event_overrides`, and
+  `PRAGMA user_version === SCHEMA_VERSION`. The live database is never touched.
+  Returns an `ImportPreview` (`{ events, categories, schemaVersion }`).
+- **Commit** — `commitImport(bytes)` → worker `import-commit` op: re-validates,
+  closes the live DB, `poolUtil.importDb(DB_FILENAME, bytes)` (async), reopens,
+  and re-applies pragmas/migrations. On failure it reopens the original file so
+  the connection stays live. An invalid file raises `IMPORT_INVALID`; the live
+  data is unaffected.
+- **UI** — a `◢ DATA` toolbar button opens `src/components/DataDialog`, which runs
+  a validate → confirm → swap state machine and reloads context state
+  (`CalendarContext.importData`) after a successful import.
+- **Shared, React-free helper** — `src/lib/storage/connection/dbFile.ts`
+  (`exportBytes`, `deserializeInto`, `validateBytes`) backs both the worker and
+  the in-memory test connection, and uses a type-only sqlite import so it stays
+  out of the worker's build graph.
