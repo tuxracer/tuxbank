@@ -221,7 +221,7 @@ A bold, cohesive **Cyberpunk 2077–inspired** treatment. This section is the ca
 - Subtle **scanline** overlay and a faint background **grid**.
 - **Neon glow** (text-shadow / box-shadow) on accents, chips, and the today cell.
 - **Glitch** flickers on key transitions (e.g., month change, dialog open) and hover.
-- **Angular clipped panels** (cut corners via `clip-path`), **corner brackets**, and a **hazard-stripe** accent on the toolbar.
+- **Angular clipped panels** (cut corners via `clip-path`) and **corner brackets**.
 - **`prefers-reduced-motion`:** disable glitch/scanline animation and flicker; retain the static neon look.
 
 ### Typography

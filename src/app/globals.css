@@ -156,7 +156,6 @@
   --cy-cell-bottom: #f8fafc;
   --cy-dialog-top: #ffffff;
   --cy-dialog-bottom: #f8fafc;
-  --cy-stripe-dark: #cbd5e1;
 
   /* Glow/effect tokens — off in light */
   --cy-radial-magenta: transparent;
@@ -207,7 +206,6 @@
     --cy-cell-bottom: rgba(8, 11, 18, 0.92);
     --cy-dialog-top: #0b1019;
     --cy-dialog-bottom: #080b12;
-    --cy-stripe-dark: #000000;
 
     /* Glow/effect tokens — dark (current literals) */
     --cy-radial-magenta: rgba(255, 42, 109, 0.08);
@@ -299,24 +297,16 @@ body {
   position: relative;
   isolation: isolate;
 }
-/* Panel fill + the magenta hazard stripe (left 6px) are layered backgrounds on
-   one pseudo so a single clip-path chamfers both; the border is drawn by
-   <CyberFrame> as an SVG stroke (uniform on the 45° chamfers, unlike a clip-path
-   fill). Host stays transparent/unclipped so the SVG isn't clipped. The 18px
-   chamfer here must match CyberFrame's `chamfer` prop in CalendarToolbar. */
+/* Panel fill on a pseudo so a single clip-path chamfers it; the border is drawn
+   by <CyberFrame> as an SVG stroke (uniform on the 45° chamfers, unlike a
+   clip-path fill). Host stays transparent/unclipped so the SVG isn't clipped.
+   The 18px chamfer here must match CyberFrame's `chamfer` prop in CalendarToolbar. */
 .cy-toolbar::before {
   content: "";
   position: absolute;
   inset: 0;
   z-index: -1;
-  background:
-    repeating-linear-gradient(
-        45deg,
-        var(--cy-magenta) 0 8px,
-        var(--cy-stripe-dark) 8px 16px
-      )
-      left / 6px 100% no-repeat,
-    linear-gradient(180deg, var(--cy-panel-2), var(--cy-panel));
+  background: linear-gradient(180deg, var(--cy-panel-2), var(--cy-panel));
   clip-path: polygon(
     0 0,
     calc(100% - 18px) 0,
