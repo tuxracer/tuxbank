@@ -1,4 +1,4 @@
-import type { Category, CategoryColor } from "./index";
+import type { Category } from "./index";
 
 export const PRESET_CATEGORIES: readonly Category[] = [
   { id: "work", name: "Work", color: "cyan" },
@@ -7,15 +7,6 @@ export const PRESET_CATEGORIES: readonly Category[] = [
   { id: "finance", name: "Finance", color: "yellow" },
   { id: "social", name: "Social", color: "orange" },
 ];
-
-/** Neon hex per category color, used for chip accents/glow (inline styles). */
-export const NEON_HEX: Record<CategoryColor, string> = {
-  cyan: "#00f0ff",
-  magenta: "#ff2a6d",
-  yellow: "#fcee0a",
-  green: "#00ff9f",
-  orange: "#ff9f1c",
-};
 
 export const UNKNOWN_CATEGORY: Category = {
   id: "unknown",

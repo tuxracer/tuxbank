@@ -1,4 +1,4 @@
-import { NEON_HEX } from "@/types";
+import { catColorVar, catGlowVar } from "@/utils/categoryColor";
 import { CyberFrame } from "@/components/CyberFrame";
 import { formatCurrency } from "@/utils/formatCurrency";
 
@@ -71,7 +71,7 @@ const CalendarToolbar = ({
         >
           {usedCategories.map((c) => {
             const active = activeCategoryIds.has(c.id);
-            const hex = NEON_HEX[c.color];
+            const colorVar = catColorVar(c.color);
             return (
               <button
                 key={c.id}
@@ -80,13 +80,13 @@ const CalendarToolbar = ({
                 title={c.name}
                 onClick={() => onToggleCategory(c.id)}
                 className="cy-mono flex items-center gap-1.5 border px-2 py-1 text-[10px] uppercase"
-                style={{ borderColor: hex, opacity: active ? 1 : 0.35 }}
+                style={{ borderColor: colorVar, opacity: active ? 1 : 0.35 }}
               >
                 <span
                   className="inline-block h-2.5 w-2.5 rounded-full"
                   style={{
-                    background: hex,
-                    boxShadow: `0 0 8px ${hex}`,
+                    background: colorVar,
+                    boxShadow: `0 0 8px ${catGlowVar(c.color)}`,
                   }}
                 />
                 {c.name}

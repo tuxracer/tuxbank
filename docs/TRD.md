@@ -235,6 +235,13 @@ A bold, cohesive **Cyberpunk 2077–inspired** treatment. This section is the ca
 - Dialogs: dark glass panels, neon border, corner brackets, mono uppercase labels.
 - Chamfered panels (`.cy-dialog`, `.cy-toolbar`, `.cy-cell`) split shape from border: a `::before` `clip-path` paints the dark fill, and `<CyberFrame>` (`src/components/CyberFrame`) draws the neon border as an SVG vector stroke so it stays a uniform width/brightness on the 45° chamfers (a CSS clip-path fill rasterizes diagonal edges brighter than straight ones, leaving square corners comparatively dark). CyberFrame props (`chamfer`, `corners`, `color`) must match each host's `::before` shape: dialogs cut top-right + bottom-left (cyan); the toolbar likewise (dim `--cy-line`); cells cut only top-right (`--cy-line`, or `--cy-yellow` on today).
 
+### Theming — light/dark (auto, follows OS)
+- Both themes are selected automatically from `prefers-color-scheme`; there is **no in-app toggle and no persistence**. Pure CSS — no JS, no theme class.
+- Every theme-able color is a CSS custom property: light values live in `:root`, dark values in `@media (prefers-color-scheme: dark) { :root { … } }`. The Tailwind `dark:` variant is media-query-driven (`@custom-variant dark (@media (prefers-color-scheme: dark))`), and `:root` sets `color-scheme: light dark` for native controls.
+- **Dark** is the original neon-on-black palette (unchanged). **Light** (Direction C — neutral/minimal) uses near-white surfaces, slate text, category/accent hues darkened to ~700 shades for contrast, and drops scanlines, body glows, and neon `box-/text-shadow` glows (glow tokens resolve to `transparent`).
+- Category accents are CSS tokens `--cat-{color}` / `--cat-{color}-glow` (not a JS hex map); components reference them via `catColorVar` / `catGlowVar` in `src/utils/categoryColor`.
+- `<CyberFrame>` borders re-theme for free because their stroke color is already a `var(--cy-*)` token; on a light surface the border reads as a dark line whose width stays uniform across the 45° chamfers via the same SVG-stroke mechanism (not a `clip-path` border).
+
 ---
 
 ## 11. Architecture & Project Structure
@@ -323,7 +330,7 @@ Vitest, **behavior-focused** (verify behavior, not implementation constants — 
 - Custom categories; tags; search.
 - Reminders/notifications; ICS or Google Calendar import/export/sync.
 - Multi-device sync / accounts / backend.
-- Theme toggle (e.g., alternate palettes) and a light mode.
+- Manual theme toggle / alternate palettes (light & dark already follow the OS automatically).
 
 ---
 

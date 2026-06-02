@@ -26,7 +26,7 @@ export const metadata: Metadata = {
 const RootLayout = ({ children }: { children: React.ReactNode }) => (
   <html
     lang="en"
-    className={`dark ${display.variable} ${ui.variable} ${mono.variable}`}
+    className={`${display.variable} ${ui.variable} ${mono.variable}`}
   >
     <body>{children}</body>
   </html>
