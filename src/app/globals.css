@@ -243,12 +243,12 @@ body {
   background:
     radial-gradient(
       1300px 800px at 75% -15%,
-      rgba(255, 42, 109, 0.08),
+      var(--cy-radial-magenta),
       transparent 62%
     ),
     radial-gradient(
       1000px 700px at 8% 115%,
-      rgba(0, 240, 255, 0.07),
+      var(--cy-radial-cyan),
       transparent 62%
     ),
     var(--cy-bg);
@@ -270,7 +270,7 @@ body {
     rgba(0, 0, 0, 0.16) 3px 4px
   );
   mix-blend-mode: multiply;
-  opacity: 0.06;
+  opacity: var(--cy-scanline-opacity);
 }
 
 .cy-mono {
@@ -289,7 +289,7 @@ body {
 }
 .cy-hud .on {
   color: var(--cy-green);
-  text-shadow: 0 0 8px var(--cy-green);
+  text-shadow: 0 0 8px var(--cy-glow-green);
 }
 .cy-hud .dim {
   color: var(--cy-muted);
@@ -310,7 +310,11 @@ body {
   inset: 0;
   z-index: -1;
   background:
-    repeating-linear-gradient(45deg, var(--cy-magenta) 0 8px, #000 8px 16px)
+    repeating-linear-gradient(
+        45deg,
+        var(--cy-magenta) 0 8px,
+        var(--cy-stripe-dark) 8px 16px
+      )
       left / 6px 100% no-repeat,
     linear-gradient(180deg, var(--cy-panel-2), var(--cy-panel));
   clip-path: polygon(
@@ -327,15 +331,15 @@ body {
   font-family: var(--font-display), sans-serif;
   font-weight: 700;
   letter-spacing: 0.06em;
-  color: #fff;
-  text-shadow: 0 0 14px rgba(0, 240, 255, 0.45);
+  color: var(--cy-month);
+  text-shadow: 0 0 14px var(--cy-glow-cyan-soft);
 }
 
 .cy-nav {
   color: var(--cy-cyan);
   border: 1px solid var(--cy-cyan);
   background: transparent;
-  text-shadow: 0 0 8px var(--cy-cyan);
+  text-shadow: 0 0 8px var(--cy-glow-cyan);
   clip-path: polygon(
     0 0,
     100% 0,
@@ -365,10 +369,10 @@ body {
   letter-spacing: 0.1em;
   text-transform: uppercase;
   background: var(--cy-cyan);
-  color: #04141a;
+  color: var(--cy-cta-fg);
   border: none;
   cursor: pointer;
-  box-shadow: 0 0 18px rgba(0, 240, 255, 0.45);
+  box-shadow: 0 0 18px var(--cy-glow-cyan-soft);
   clip-path: polygon(
     10px 0,
     100% 0,
@@ -403,8 +407,8 @@ body {
   z-index: -1;
   background: linear-gradient(
     180deg,
-    rgba(14, 19, 32, 0.92),
-    rgba(8, 11, 18, 0.92)
+    var(--cy-cell-top),
+    var(--cy-cell-bottom)
   );
   clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 0 100%);
 }
@@ -414,10 +418,10 @@ body {
 /* Today: CyberFrame draws the border in yellow (see DayCell). The inset glow
    rides on the chamfered fill; the soft outer glow stays on the host. */
 .cy-cell.today {
-  box-shadow: 0 0 16px rgba(252, 238, 10, 0.25);
+  box-shadow: 0 0 16px var(--cy-glow-today);
 }
 .cy-cell.today::before {
-  box-shadow: inset 0 0 22px rgba(252, 238, 10, 0.12);
+  box-shadow: inset 0 0 22px var(--cy-glow-today-inset);
 }
 .cy-cell-num {
   font-family: var(--font-mono), monospace;
@@ -425,7 +429,7 @@ body {
 }
 .cy-cell.today .cy-cell-num {
   color: var(--cy-yellow);
-  text-shadow: 0 0 10px var(--cy-yellow);
+  text-shadow: 0 0 10px var(--cy-glow-yellow);
   font-weight: 700;
 }
 
@@ -435,8 +439,8 @@ body {
   gap: 5px;
   font-size: 11px;
   padding: 2px 7px;
-  background: rgba(0, 0, 0, 0.35);
-  color: #eaf6ff;
+  background: var(--cy-chip-bg);
+  color: var(--cy-chip-text);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -467,7 +471,11 @@ body {
   position: absolute;
   inset: 0;
   z-index: -1;
-  background: linear-gradient(180deg, #0b1019, #080b12);
+  background: linear-gradient(
+    180deg,
+    var(--cy-dialog-top),
+    var(--cy-dialog-bottom)
+  );
   clip-path: polygon(
     0 0,
     calc(100% - 20px) 0,
@@ -514,9 +522,9 @@ body {
   font-family: var(--font-mono), monospace;
   font-size: 10px;
   color: var(--cy-cyan);
-  text-shadow: 0 0 8px rgba(0, 240, 255, 0.45);
+  text-shadow: 0 0 8px var(--cy-glow-cyan-soft);
 }
 .cy-balance-neg {
   color: var(--cy-magenta);
-  text-shadow: 0 0 8px rgba(255, 42, 109, 0.5);
+  text-shadow: 0 0 8px var(--cy-glow-magenta-soft);
 }
