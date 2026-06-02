@@ -12,6 +12,7 @@ export type EditScope = "this" | "following" | "all";
 
 export type CalendarContextValue = {
   visibleMonth: Date;
+  yearRange: { min: number; max: number };
   monthLabel: string;
   cells: DateCell[];
   todayISO: string;

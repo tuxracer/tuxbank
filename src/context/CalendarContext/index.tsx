@@ -175,6 +175,19 @@ export const CalendarProvider = ({
   const cells = useMemo(() => buildMonthGrid(visibleMonth), [visibleMonth]);
   const todayISO = format(new Date(), "yyyy-MM-dd");
 
+  const yearRange = useMemo(() => {
+    const currentYear = new Date().getFullYear();
+    const visibleYear = visibleMonth.getFullYear();
+    const eventYears = events.map((e) => Number(e.date.slice(0, 4)));
+    const firstEventYear = eventYears.length
+      ? Math.min(...eventYears)
+      : currentYear;
+    return {
+      min: Math.min(firstEventYear, currentYear, visibleYear),
+      max: Math.max(currentYear + 10, visibleYear),
+    };
+  }, [events, visibleMonth]);
+
   const occurrencesByDate = useMemo((): Partial<
     Record<string, Occurrence[]>
   > => {
@@ -370,6 +383,7 @@ export const CalendarProvider = ({
 
   const value: CalendarContextValue = {
     visibleMonth,
+    yearRange,
     monthLabel: monthFormatter.format(visibleMonth),
     cells,
     todayISO,
