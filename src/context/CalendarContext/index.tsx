@@ -55,6 +55,8 @@ const monthFormatter = new Intl.DateTimeFormat(undefined, {
   year: "numeric",
 });
 
+const YEAR_LOOKAHEAD = 10;
+
 const CalendarContext = createContext<CalendarContextValue | null>(null);
 
 export const CalendarProvider = ({
@@ -178,13 +180,15 @@ export const CalendarProvider = ({
   const yearRange = useMemo(() => {
     const currentYear = new Date().getFullYear();
     const visibleYear = visibleMonth.getFullYear();
-    const eventYears = events.map((e) => Number(e.date.slice(0, 4)));
+    const eventYears = events
+      .map((e) => Number(e.date.slice(0, 4)))
+      .filter((y) => Number.isFinite(y));
     const firstEventYear = eventYears.length
-      ? Math.min(...eventYears)
+      ? eventYears.reduce((a, b) => Math.min(a, b))
       : currentYear;
     return {
       min: Math.min(firstEventYear, currentYear, visibleYear),
-      max: Math.max(currentYear + 10, visibleYear),
+      max: Math.max(currentYear + YEAR_LOOKAHEAD, visibleYear),
     };
   }, [events, visibleMonth]);
 

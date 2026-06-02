@@ -399,4 +399,18 @@ describe("CalendarContext", () => {
     );
     expect(result.current.yearRange.max).toBe(farYear);
   });
+
+  it("year range widens to include a visible year before the earliest event", async () => {
+    const { result } = renderHook(() => useCalendar(), { wrapper });
+    await waitFor(() => expect(result.current.loaded).toBe(true));
+    const currentYear = new Date().getFullYear();
+    const pastYear = currentYear - 5;
+    await act(async () => {
+      result.current.goToDate(new Date(pastYear, 0, 1));
+    });
+    await waitFor(() =>
+      expect(result.current.visibleMonth.getFullYear()).toBe(pastYear),
+    );
+    expect(result.current.yearRange.min).toBe(pastYear);
+  });
 });
