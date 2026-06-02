@@ -148,7 +148,6 @@
   --cy-muted: #64748b;
 
   /* Derived surface tokens — light */
-  --cy-month: #0f172a;
   --cy-chip-bg: #f1f5f9;
   --cy-chip-text: #1e293b;
   --cy-cta-fg: #ffffff;
@@ -198,7 +197,6 @@
     --cy-muted: #5d7488;
 
     /* Derived surface tokens — dark (current literals) */
-    --cy-month: #ffffff;
     --cy-chip-bg: rgba(0, 0, 0, 0.35);
     --cy-chip-text: #eaf6ff;
     --cy-cta-fg: #04141a;
@@ -315,14 +313,6 @@ body {
     18px 100%,
     0 calc(100% - 18px)
   );
-}
-
-.cy-month {
-  font-family: var(--font-display), sans-serif;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  color: var(--cy-month);
-  text-shadow: 0 0 14px var(--cy-glow-cyan-soft);
 }
 
 .cy-nav {

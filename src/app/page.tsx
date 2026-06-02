@@ -31,6 +31,8 @@ type ScopeState =
 
 const CalendarScreen = () => {
   const cal = useCalendar();
+  const selectedYear = cal.visibleMonth.getFullYear();
+  const selectedMonth = cal.visibleMonth.getMonth();
   const [editor, setEditor] = useState<EditorState | null>(null);
   const [scope, setScope] = useState<ScopeState | null>(null);
   const [manageOpen, setManageOpen] = useState(false);
@@ -50,7 +52,8 @@ const CalendarScreen = () => {
   const onKeyDown = (e: React.KeyboardEvent) => {
     if (
       e.target instanceof HTMLInputElement ||
-      e.target instanceof HTMLTextAreaElement
+      e.target instanceof HTMLTextAreaElement ||
+      e.target instanceof HTMLSelectElement
     )
       return;
     if (e.key === "PageUp") cal.goToPrevMonth();
@@ -132,7 +135,14 @@ const CalendarScreen = () => {
       )}
 
       <CalendarToolbar
-        monthLabel={cal.monthLabel}
+        selectedYear={selectedYear}
+        selectedMonth={selectedMonth}
+        minYear={cal.yearRange.min}
+        maxYear={cal.yearRange.max}
+        onSelectMonth={(monthIndex) =>
+          cal.goToDate(new Date(selectedYear, monthIndex, 1))
+        }
+        onSelectYear={(year) => cal.goToDate(new Date(year, selectedMonth, 1))}
         recordCount={cal.events.length}
         usedCategories={cal.usedCategories}
         activeCategoryIds={cal.activeCategoryIds}

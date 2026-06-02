@@ -353,4 +353,64 @@ describe("CalendarContext", () => {
     expect(preview.events).toBe(1);
     expect(preview.schemaVersion).toBe(1);
   });
+
+  it("year range defaults to current year .. current year + 10 with no events", async () => {
+    const { result } = renderHook(() => useCalendar(), { wrapper });
+    await waitFor(() => expect(result.current.loaded).toBe(true));
+    const currentYear = new Date().getFullYear();
+    expect(result.current.yearRange).toEqual({
+      min: currentYear,
+      max: currentYear + 10,
+    });
+  });
+
+  it("year range starts at the earliest event year", async () => {
+    const { result } = renderHook(() => useCalendar(), { wrapper });
+    await waitFor(() => expect(result.current.loaded).toBe(true));
+    const currentYear = new Date().getFullYear();
+    await act(async () => {
+      await result.current.createEvent({
+        title: "Old",
+        date: `${currentYear - 3}-02-01`,
+        categoryId: "work",
+        amount: 100,
+        direction: "deposit",
+        notes: undefined,
+        recurrence: null,
+      });
+    });
+    await waitFor(() => expect(result.current.events.length).toBe(1));
+    expect(result.current.yearRange).toEqual({
+      min: currentYear - 3,
+      max: currentYear + 10,
+    });
+  });
+
+  it("year range widens to include a visible year beyond the +10 cap", async () => {
+    const { result } = renderHook(() => useCalendar(), { wrapper });
+    await waitFor(() => expect(result.current.loaded).toBe(true));
+    const currentYear = new Date().getFullYear();
+    const farYear = currentYear + 25;
+    await act(async () => {
+      result.current.goToDate(new Date(farYear, 0, 1));
+    });
+    await waitFor(() =>
+      expect(result.current.visibleMonth.getFullYear()).toBe(farYear),
+    );
+    expect(result.current.yearRange.max).toBe(farYear);
+  });
+
+  it("year range widens to include a visible year before the earliest event", async () => {
+    const { result } = renderHook(() => useCalendar(), { wrapper });
+    await waitFor(() => expect(result.current.loaded).toBe(true));
+    const currentYear = new Date().getFullYear();
+    const pastYear = currentYear - 5;
+    await act(async () => {
+      result.current.goToDate(new Date(pastYear, 0, 1));
+    });
+    await waitFor(() =>
+      expect(result.current.visibleMonth.getFullYear()).toBe(pastYear),
+    );
+    expect(result.current.yearRange.min).toBe(pastYear);
+  });
 });
