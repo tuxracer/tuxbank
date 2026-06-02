@@ -1,4 +1,4 @@
-import { NEON_HEX } from "@/types";
+import { catColorVar, catGlowVar } from "@/utils/categoryColor";
 import { formatSignedCompact } from "@/utils/formatCurrency";
 import { signedAmount } from "@/lib/balance";
 
@@ -7,13 +7,16 @@ import type { EventChipProps } from "./types";
 export * from "./types";
 
 const EventChip = ({ occurrence, onSelect }: EventChipProps) => {
-  const hex = NEON_HEX[occurrence.category.color];
+  const { color } = occurrence.category;
   const delta = signedAmount(occurrence.direction, occurrence.amount);
   return (
     <button
       type="button"
       className="cy-chip w-full text-left"
-      style={{ borderLeftColor: hex, boxShadow: `-1px 0 8px ${hex}66` }}
+      style={{
+        borderLeftColor: catColorVar(color),
+        boxShadow: `-1px 0 8px color-mix(in srgb, ${catGlowVar(color)} 40%, transparent)`,
+      }}
       onClick={(e) => {
         e.stopPropagation();
         onSelect(occurrence);

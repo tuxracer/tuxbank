@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { NEON_HEX, categoryKey } from "@/types";
+import { categoryKey } from "@/types";
+import { catColorVar, catGlowVar } from "@/utils/categoryColor";
 import {
   Dialog,
   DialogContent,
@@ -98,15 +99,15 @@ const ManageCategoriesDialog = ({
                       style={{
                         outline:
                           c.color === color
-                            ? `2px solid ${NEON_HEX[color]}`
+                            ? `2px solid ${catColorVar(color)}`
                             : "none",
                       }}
                     >
                       <span
                         className="inline-block h-3 w-3 rounded-full"
                         style={{
-                          background: NEON_HEX[color],
-                          boxShadow: `0 0 6px ${NEON_HEX[color]}`,
+                          background: catColorVar(color),
+                          boxShadow: `0 0 6px ${catGlowVar(color)}`,
                         }}
                       />
                     </button>
