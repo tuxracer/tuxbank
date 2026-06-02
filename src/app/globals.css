@@ -2,7 +2,7 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
-@custom-variant dark (&:is(.dark *));
+@custom-variant dark (@media (prefers-color-scheme: dark));
 
 @theme inline {
   --color-background: var(--background);
@@ -49,6 +49,7 @@
 }
 
 :root {
+  color-scheme: light dark;
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
@@ -83,38 +84,40 @@
   --sidebar-ring: oklch(0.708 0 0);
 }
 
-.dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: oklch(0.145 0 0);
+    --foreground: oklch(0.985 0 0);
+    --card: oklch(0.205 0 0);
+    --card-foreground: oklch(0.985 0 0);
+    --popover: oklch(0.205 0 0);
+    --popover-foreground: oklch(0.985 0 0);
+    --primary: oklch(0.922 0 0);
+    --primary-foreground: oklch(0.205 0 0);
+    --secondary: oklch(0.269 0 0);
+    --secondary-foreground: oklch(0.985 0 0);
+    --muted: oklch(0.269 0 0);
+    --muted-foreground: oklch(0.708 0 0);
+    --accent: oklch(0.269 0 0);
+    --accent-foreground: oklch(0.985 0 0);
+    --destructive: oklch(0.704 0.191 22.216);
+    --border: oklch(1 0 0 / 10%);
+    --input: oklch(1 0 0 / 15%);
+    --ring: oklch(0.556 0 0);
+    --chart-1: oklch(0.87 0 0);
+    --chart-2: oklch(0.556 0 0);
+    --chart-3: oklch(0.439 0 0);
+    --chart-4: oklch(0.371 0 0);
+    --chart-5: oklch(0.269 0 0);
+    --sidebar: oklch(0.205 0 0);
+    --sidebar-foreground: oklch(0.985 0 0);
+    --sidebar-primary: oklch(0.488 0.243 264.376);
+    --sidebar-primary-foreground: oklch(0.985 0 0);
+    --sidebar-accent: oklch(0.269 0 0);
+    --sidebar-accent-foreground: oklch(0.985 0 0);
+    --sidebar-border: oklch(1 0 0 / 10%);
+    --sidebar-ring: oklch(0.556 0 0);
+  }
 }
 
 @layer base {
@@ -131,17 +134,105 @@
 
 /* ===================== CYBERPUNK DESIGN SYSTEM ===================== */
 :root {
-  --cy-bg: #07080d;
-  --cy-panel: #0b0e16;
-  --cy-panel-2: #0e1320;
-  --cy-line: rgba(0, 240, 255, 0.16);
-  --cy-cyan: #00f0ff;
-  --cy-magenta: #ff2a6d;
-  --cy-yellow: #fcee0a;
-  --cy-green: #00ff9f;
-  --cy-orange: #ff9f1c;
-  --cy-text: #cfe0ec;
-  --cy-muted: #5d7488;
+  /* Cyberpunk surfaces — light (Direction C: neutral/minimal) */
+  --cy-bg: #f5f6f8;
+  --cy-panel: #ffffff;
+  --cy-panel-2: #f1f2f4;
+  --cy-line: rgba(15, 23, 42, 0.12);
+  --cy-cyan: #0e7490;
+  --cy-magenta: #be185d;
+  --cy-yellow: #a16207;
+  --cy-green: #047857;
+  --cy-orange: #c2410c;
+  --cy-text: #1e293b;
+  --cy-muted: #64748b;
+
+  /* Derived surface tokens — light */
+  --cy-month: #0f172a;
+  --cy-chip-bg: #f1f5f9;
+  --cy-chip-text: #1e293b;
+  --cy-cta-fg: #ffffff;
+  --cy-cell-top: #ffffff;
+  --cy-cell-bottom: #f8fafc;
+  --cy-dialog-top: #ffffff;
+  --cy-dialog-bottom: #f8fafc;
+  --cy-stripe-dark: #cbd5e1;
+
+  /* Glow/effect tokens — off in light */
+  --cy-radial-magenta: transparent;
+  --cy-radial-cyan: transparent;
+  --cy-scanline-opacity: 0;
+  --cy-glow-cyan: transparent;
+  --cy-glow-cyan-soft: transparent;
+  --cy-glow-yellow: transparent;
+  --cy-glow-green: transparent;
+  --cy-glow-magenta-soft: transparent;
+  --cy-glow-today: transparent;
+  --cy-glow-today-inset: transparent;
+
+  /* Category accents — light (darkened ~700 shade) */
+  --cat-cyan: #0e7490;
+  --cat-magenta: #be185d;
+  --cat-yellow: #a16207;
+  --cat-green: #047857;
+  --cat-orange: #c2410c;
+  --cat-cyan-glow: transparent;
+  --cat-magenta-glow: transparent;
+  --cat-yellow-glow: transparent;
+  --cat-green-glow: transparent;
+  --cat-orange-glow: transparent;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    /* Cyberpunk surfaces — dark (current values) */
+    --cy-bg: #07080d;
+    --cy-panel: #0b0e16;
+    --cy-panel-2: #0e1320;
+    --cy-line: rgba(0, 240, 255, 0.16);
+    --cy-cyan: #00f0ff;
+    --cy-magenta: #ff2a6d;
+    --cy-yellow: #fcee0a;
+    --cy-green: #00ff9f;
+    --cy-orange: #ff9f1c;
+    --cy-text: #cfe0ec;
+    --cy-muted: #5d7488;
+
+    /* Derived surface tokens — dark (current literals) */
+    --cy-month: #ffffff;
+    --cy-chip-bg: rgba(0, 0, 0, 0.35);
+    --cy-chip-text: #eaf6ff;
+    --cy-cta-fg: #04141a;
+    --cy-cell-top: rgba(14, 19, 32, 0.92);
+    --cy-cell-bottom: rgba(8, 11, 18, 0.92);
+    --cy-dialog-top: #0b1019;
+    --cy-dialog-bottom: #080b12;
+    --cy-stripe-dark: #000000;
+
+    /* Glow/effect tokens — dark (current literals) */
+    --cy-radial-magenta: rgba(255, 42, 109, 0.08);
+    --cy-radial-cyan: rgba(0, 240, 255, 0.07);
+    --cy-scanline-opacity: 0.06;
+    --cy-glow-cyan: #00f0ff;
+    --cy-glow-cyan-soft: rgba(0, 240, 255, 0.45);
+    --cy-glow-yellow: #fcee0a;
+    --cy-glow-green: #00ff9f;
+    --cy-glow-magenta-soft: rgba(255, 42, 109, 0.5);
+    --cy-glow-today: rgba(252, 238, 10, 0.25);
+    --cy-glow-today-inset: rgba(252, 238, 10, 0.12);
+
+    /* Category accents — dark (current neon) */
+    --cat-cyan: #00f0ff;
+    --cat-magenta: #ff2a6d;
+    --cat-yellow: #fcee0a;
+    --cat-green: #00ff9f;
+    --cat-orange: #ff9f1c;
+    --cat-cyan-glow: #00f0ff;
+    --cat-magenta-glow: #ff2a6d;
+    --cat-yellow-glow: #fcee0a;
+    --cat-green-glow: #00ff9f;
+    --cat-orange-glow: #ff9f1c;
+  }
 }
 
 html,
