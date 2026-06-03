@@ -4,7 +4,7 @@
 
 **Status:** Draft for review · **Date:** 2026-05-30 · **Owner:** Derek Petersen
 
-A single-user, full-page **month calendar** web app with a **Cyberpunk 2077–inspired** interface. Events are created, edited, and deleted entirely in the browser and persist locally in **IndexedDB** — no backend, no accounts. Events can repeat, and repeating events can be edited or deleted at three scopes (this occurrence / this and following / the whole series).
+A single-user, full-page **month calendar** web app with a **Cyberpunk 2077–inspired** interface. Events are created, edited, and deleted entirely in the browser and persist locally in a **client-side SQLite database** (SQLite-WASM) — no backend, no accounts. Events can repeat, and repeating events can be edited or deleted at three scopes (this occurrence / this and following / the whole series).
 
 ---
 
@@ -14,7 +14,7 @@ A single-user, full-page **month calendar** web app with a **Cyberpunk 2077–in
 - A calendar that **fills the entire viewport** and is the whole app — no chrome competing for space.
 - A genuinely **stunning, cohesive cyberpunk aesthetic** (neon-on-black, angular HUD), not a generic theme.
 - Fast, fully **client-side** personal scheduling: create/edit/delete events with **no sign-in and no network dependency**.
-- **Local persistence** that survives reloads via IndexedDB.
+- **Local persistence** that survives reloads via a client-side SQLite database (OPFS-backed).
 - Support **recurring events** with familiar Google-Calendar-style edit/delete scopes.
 
 ### Non-Goals (v1)
@@ -22,7 +22,7 @@ A single-user, full-page **month calendar** web app with a **Cyberpunk 2077–in
 - No backend, database server, or API routes for event data.
 - No timed events (no start/end times), no multi-day events, no drag-and-drop.
 - No week / day / agenda views (month view only).
-- No reminders/notifications, no import/export, no external calendar (Google/ICS) sync.
+- No reminders/notifications; no external calendar (Google/ICS) sync. (A whole-database `.sqlite3` backup export/restore *is* supported — see the Backup / restore section.)
 
 ---
 
@@ -44,13 +44,13 @@ A single person managing their own schedule of **all-day, date-based events** �
 | Forms | **react-hook-form** + **zod** (via `@hookform/resolvers`) | Form state & validation for the event editor; drives shadcn's `Form` component and its accessible field errors. |
 | Date math | **date-fns** | Grid generation, recurrence stepping, comparisons. |
 | Date picker | **Native `<input type="date">`** | Used for the event form's Date field; main month grid is custom-built. The shadcn `calendar` primitive remains available for future use. |
-| Persistence | **IndexedDB** via **`idb`** | Small Promise wrapper; one object store. |
+| Persistence | **client-side SQLite** via **`@sqlite.org/sqlite-wasm`** | Runs in a Web Worker over the OPFS SAHPool VFS; see §"Persistence: client-side SQLite". |
 | Fonts | **Rajdhani**, **Chakra Petch**, **Share Tech Mono** | Loaded via `next/font`. Display / UI / data, respectively. |
-| Testing | **vitest** + **@testing-library/react** + **fake-indexeddb** | Behavior-focused tests per `CLAUDE.md`. |
+| Testing | **vitest** + **@testing-library/react** | Behavior-focused tests per `CLAUDE.md`; storage tests run the real SQLite-WASM engine in-memory. |
 
 > **As-built stack versions:** Next.js 16 (App Router, Turbopack), React 19, Tailwind v4, zod v4, react-day-picker v10.
 
-> **Build note:** `package.json` scripts map to Next: `pnpm dev` → `next dev --turbopack`, `pnpm build` → `next build`, `pnpm start` → `next start`. `pnpm test` runs vitest. `pnpm check` continues to run format + lint + typecheck and must pass before commits.
+> **Build note:** `package.json` scripts map to Next: `pnpm dev` → `pnpm run copy-sqlite && next dev`, `pnpm build` → `pnpm run copy-sqlite && next build`, `pnpm start` → `next start`. The `copy-sqlite` prestep vendors the SQLite-WASM runtime into `public/sqlite/` (see §"Build & bundling"). `pnpm test` runs vitest. `pnpm check` continues to run format + lint + typecheck and must pass before commits.
 
 ---
 
@@ -72,7 +72,7 @@ A single person managing their own schedule of **all-day, date-based events** �
 ### 4.3 Categories
 - Categories are **user-managed and persisted** (no presets — the store starts empty for a fresh user). Each has a name and a neon color from the 5-color palette (`cyan`, `magenta`, `yellow`, `green`, `orange`).
 - **Created** inline via a creatable combobox in the event editor (pick an existing one or type a new name + pick a color); **renamed / recolored / deleted** in a dedicated **Manage Categories** dialog opened from the toolbar.
-- Each category has an opaque **GUID** `id` (`crypto.randomUUID()`), generated at creation and stable across renames. (Categories seeded from pre-existing events keep their legacy name-based ids — ids are opaque, so the two schemes coexist; no migration.) Categories live in their own IndexedDB store (see §4.6); events reference a category by id, so renaming or recoloring propagates to every event that uses it.
+- Each category has an opaque **GUID** `id` (`crypto.randomUUID()`), generated at creation and stable across renames. (Categories seeded from pre-existing events keep their legacy name-based ids — ids are opaque, so the two schemes coexist; no migration.) Categories live in their own SQLite table (see §4.6); events reference a category by id, so renaming or recoloring propagates to every event that uses it.
 - **Names are unique, case-insensitively** (`categoryKey(name) = name.trim().toLowerCase()` is the match key): creating a name that already exists selects the existing category instead of duplicating it, and renaming to a name another category already uses is rejected inline in the Manage dialog.
 - **Deleting an in-use category** prompts a confirm noting how many events use it; on delete its events keep the now-missing id and render as **Uncategorized** (a neutral cyan fallback) until re-categorized.
 - The toolbar **category filter** is **per category** — a toggle per category currently in use (plus an **Uncategorized** toggle when orphaned events exist); each can be turned on/off independently, all shown by default. The filter affects which event chips display, not the running balance (§4.7).
@@ -92,7 +92,7 @@ A single person managing their own schedule of **all-day, date-based events** �
 - Changing an event's **date** is supported for **one-off events** and **whole-series** edits only; per-occurrence date moves are out of scope for v1.
 
 ### 4.6 Persistence
-- Events and categories persist in **IndexedDB** (the `cyber-calendar` DB, stores `events` and `categories`) and reload on app start. Events stored before the amount/direction fields existed are normalized to `$0` deposit on read. The `categories` store was added in **DB v2**; the upgrade seeds category rows from the distinct `categoryId`s already on stored events (legacy preset ids mapped to their names/colors; any other id seeded as `{ id, name: id, color: "cyan" }`), so existing calendars keep their categories.
+- Events and categories persist in a **client-side SQLite database** (`STRICT` tables `events`, `categories`, and `event_overrides`; see §"Persistence: client-side SQLite") and reload on app start. Events stored before the amount/direction fields existed are normalized to `$0` deposit on read. Category rows are seeded from the distinct `categoryId`s already on stored events (legacy preset ids mapped to their names/colors; any other id seeded as `{ id, name: id, color: "cyan" }`) via `seedCategoriesFromEvents`, so existing calendars keep their categories.
 - No data leaves the device. Clearing browser data clears the calendar.
 
 ### 4.7 Account balance
@@ -146,7 +146,7 @@ type CalendarEvent = {
 
 **Date-only storage:** dates are stored as plain `YYYY-MM-DD` strings (no time, no UTC conversion), so all-day events never drift across time zones.
 
-**IndexedDB layout:** database `cyber-calendar`, object store `events` keyed by `id`. Given personal-scale data volume, all events are loaded into memory and occurrences are expanded per visible window; a date index can be added later if needed. Schema migrations run via the `idb` upgrade callback.
+**SQLite layout:** `STRICT` tables `events` (recurrence flattened into columns with `CHECK` enums), `categories`, and `event_overrides` (`FOREIGN KEY … ON DELETE CASCADE`); `events.category_id` has **no** FK (loose category coupling). Given personal-scale data volume, all events are loaded into memory and occurrences are expanded per visible window; a date index can be added later if needed. Schema is versioned via `PRAGMA user_version` and applied once inside a transaction (see §"Persistence: client-side SQLite").
 
 **Type guards:** runtime validation (e.g., `isCalendarEvent`, `isRecurrenceFreq`, `isCategoryColor`) over `as` assertions, per `CLAUDE.md`.
 
@@ -186,12 +186,12 @@ This mirrors iCalendar semantics (`EXDATE` / `RECURRENCE-ID` for single override
 
 **Typed errors over strings** (`CLAUDE.md`): a `StorageError` class with a machine-readable `code`:
 
-`UNAVAILABLE` · `QUOTA_EXCEEDED` · `BLOCKED` · `VERSION_ERROR` · `READ_FAILED` · `WRITE_FAILED`, plus an `isStorageError` guard.
+`UNAVAILABLE` · `QUOTA_EXCEEDED` · `BLOCKED` · `VERSION_ERROR` · `READ_FAILED` · `WRITE_FAILED` · `LOCKED` · `IMPORT_INVALID` · `EXPORT_FAILED`, plus an `isStorageError` guard.
 
-- **IndexedDB unavailable** (e.g., private-browsing restrictions) → show a **non-blocking banner** ("Local storage unavailable — changes won't be saved this session") and keep the calendar usable in-memory. Never swallow the error silently. `CalendarContext` exposes a `loaded` flag; the banner renders only when `loaded && !storageAvailable` so it never flashes during the initial load.
+- **Storage unavailable** (no Web Worker / WASM support, or private-browsing restrictions) → show a **non-blocking banner** ("Local storage unavailable — changes won't be saved this session") and keep the calendar usable in-memory. Never swallow the error silently. `CalendarContext` exposes a `loaded` flag; the banner renders only when `loaded && !storageAvailable` so it never flashes during the initial load.
 - **Write/quota failures** → surface a banner/toast; do not lose the user's in-progress edit.
 - **Forms & validation:** the event editor is built with **react-hook-form** wired to a **zod** schema (via `@hookform/resolvers`) and rendered through shadcn's `Form` primitives. Rules: title required and non-empty; recurrence `interval >= 1`; `endsOn` (if set) `>= ` anchor date. Validation runs on submit; submitting with invalid input is blocked and shows inline, accessible field errors.
-- DB version changes handled in the `idb` upgrade callback.
+- Schema/version changes handled via `PRAGMA user_version` migrations (`src/lib/storage/schema.ts`).
 
 ---
 
@@ -265,10 +265,12 @@ src/
     DayEventsPopover/       # overflow list (shadcn Popover)
     EventDialog/            # create/edit form (shadcn Form + react-hook-form/zod, Dialog/Select/Textarea + date picker)
     RecurrenceScopeDialog/  # This / This & following / All (shadcn Dialog + RadioGroup)
+    DataDialog/             # .sqlite3 backup export/import (validate -> confirm -> swap)
+    StorageLockedOverlay/   # shown when another tab holds the OPFS DB lock
   context/
     CalendarContext/        # visible month, events, CRUD actions, filter state
   lib/
-    storage/                # IndexedDB via idb; StorageError + guards
+    storage/                # SQLite-WASM (Web Worker, OPFS); StorageError + guards
     recurrence/             # expand(window) + recurrence override/split helpers (pure)
     dateGrid/               # month -> 6x7 date matrix
   types/                    # CalendarEvent, Category, Recurrence + type guards
@@ -296,7 +298,7 @@ Vitest, **behavior-focused** (verify behavior, not implementation constants — 
 
 - **`dateGrid`:** correct 6×7 matrix, Sunday-first, accurate leading/trailing days across month/year boundaries.
 - **`recurrence`:** daily/weekly/monthly/yearly expansion within a window; interval honored; `endsOn` boundary inclusive; month-skip (31st) and Feb-29 leap rules; overrides (cancel + patch); **split-series** ("this and following"); single-occurrence exception.
-- **`storage`:** CRUD round-trips via `fake-indexeddb`; errors map to the correct `StorageError` codes.
+- **`storage`:** CRUD round-trips against the real SQLite-WASM engine in-memory (`resetDbForTests()` per test); errors map to the correct `StorageError` codes; backup export → validate → commit round-trips.
 - **Components** (RTL): create/edit/delete flow; **form validation** (empty title, `interval < 1`, or `endsOn` before the anchor block submission and surface field errors); the recurring-scope prompt appears only for recurring events; "+N more" opens the day popover; category filter hides/shows chips.
 
 ---
@@ -306,7 +308,7 @@ Vitest, **behavior-focused** (verify behavior, not implementation constants — 
 - **Offline-first:** fully functional with no network after initial load.
 - **No secrets / no logging of sensitive data** (`CLAUDE.md`) — though v1 has no secrets.
 - **`pnpm check` clean** (format, lint, typecheck) before commits.
-- Reasonable bundle size — no calendar framework; only date-fns, idb, Radix/shadcn, fonts.
+- Reasonable bundle size — no calendar framework; only date-fns, Radix/shadcn, fonts (the SQLite-WASM runtime is vendored to `public/sqlite/` and loaded at runtime, not bundled).
 
 ---
 
@@ -317,7 +319,7 @@ Vitest, **behavior-focused** (verify behavior, not implementation constants — 
 3. A user can create a recurring event (e.g., weekly), and it renders on the correct days within the visible month.
 4. Editing/deleting a recurring event prompts for scope, and **This / This-and-following / All** each behave per §7 and persist correctly.
 5. "+N more" reveals all events for a day via the popover; the category filter hides/shows chips.
-6. With IndexedDB unavailable, the app shows a non-blocking banner and remains usable in-memory.
+6. With storage unavailable (no Web Worker / WASM), the app shows a non-blocking banner and remains usable in-memory.
 7. `prefers-reduced-motion` disables animated effects while preserving the neon look.
 8. All tests pass and `pnpm check` is clean.
 
@@ -338,7 +340,7 @@ Vitest, **behavior-focused** (verify behavior, not implementation constants — 
 
 - Single user on a single device; no concurrent editing.
 - Personal-scale data volume (hundreds–low-thousands of events) — in-memory expansion is acceptable.
-- Modern evergreen browser with IndexedDB support.
+- Modern evergreen browser with WebAssembly, Web Workers, and OPFS support.
 - Sunday-first week (can be made configurable later).
 
 ## Persistence: client-side SQLite (SQLite-WASM)
