@@ -1,27 +1,49 @@
-import { groupBy } from "remeda";
+import { openDB, type IDBPDatabase } from "idb";
 import type { CalendarEvent, Category } from "@/types";
-import { PRESET_CATEGORIES } from "@/types";
-import { StorageError, type StorageErrorCode } from "./types";
-import type { ImportPreview } from "./types";
-import { getConnection } from "./connection";
+import { isCalendarEvent, isCategory } from "@/types";
 import {
-  DELETE_OVERRIDES_SQL,
-  INSERT_OVERRIDE_SQL,
-  UPSERT_CATEGORY_SQL,
-  UPSERT_EVENT_SQL,
+  BACKUP_APP,
+  BACKUP_SCHEMA_VERSION,
+  CATEGORY_STORE,
+  DB_NAME,
+  DB_VERSION,
+  STORE,
 } from "./consts";
 import {
-  categoryToRow,
-  eventToColumns,
-  overrideToColumns,
-  rowToCategory,
-  rowToEvent,
-  rowToOverride,
-} from "./mappers";
+  isBackupFile,
+  StorageError,
+  type BackupFile,
+  type ImportPreview,
+  type StorageErrorCode,
+} from "./types";
 
 export * from "./consts";
 export * from "./types";
-export { onConnectionStatus } from "./connection";
+
+let dbPromise: Promise<IDBPDatabase> | null = null;
+
+const getDb = (): Promise<IDBPDatabase> => {
+  if (typeof indexedDB === "undefined") {
+    return Promise.reject(new StorageError("UNAVAILABLE"));
+  }
+  if (!dbPromise) {
+    dbPromise = openDB(DB_NAME, DB_VERSION, {
+      upgrade(db) {
+        db.createObjectStore(STORE, { keyPath: "id" });
+        db.createObjectStore(CATEGORY_STORE, { keyPath: "id" });
+      },
+    }).catch((cause) => {
+      dbPromise = null;
+      throw new StorageError("UNAVAILABLE", cause);
+    });
+  }
+  return dbPromise;
+};
+
+/** Test-only: drop the cached connection so the next call reopens the DB. */
+export const resetDbCache = (): void => {
+  dbPromise = null;
+};
 
 const toStorageError = (
   error: unknown,
@@ -29,40 +51,19 @@ const toStorageError = (
 ): StorageError =>
   error instanceof StorageError ? error : new StorageError(code, error);
 
-const LEGACY_CATEGORY_BY_ID = new Map(PRESET_CATEGORIES.map((c) => [c.id, c]));
-
-/** Build the category records implied by the categoryIds already on events. */
-export const seedCategoriesFromEvents = (
-  events: CalendarEvent[],
-): Category[] => {
-  const byId = new Map<string, Category>();
-  for (const event of events) {
-    if (byId.has(event.categoryId)) continue;
-    const legacy = LEGACY_CATEGORY_BY_ID.get(event.categoryId);
-    byId.set(
-      event.categoryId,
-      legacy ?? { id: event.categoryId, name: event.categoryId, color: "cyan" },
-    );
-  }
-  return [...byId.values()];
-};
+const toWriteError = (error: unknown): StorageError =>
+  toStorageError(
+    error,
+    error instanceof DOMException && error.name === "QuotaExceededError"
+      ? "QUOTA_EXCEEDED"
+      : "WRITE_FAILED",
+  );
 
 export const getAllEvents = async (): Promise<CalendarEvent[]> => {
   try {
-    const conn = await getConnection();
-    const [eventRows, overrideRows] = await Promise.all([
-      conn.selectAll("SELECT * FROM events"),
-      conn.selectAll("SELECT * FROM event_overrides"),
-    ]);
-    const overridesByEvent = groupBy(overrideRows, (r) => String(r.event_id));
-    return eventRows
-      .map((row) =>
-        rowToEvent(
-          row,
-          (overridesByEvent[String(row.id)] ?? []).map(rowToOverride),
-        ),
-      )
-      .filter((event): event is CalendarEvent => event !== null);
+    const db = await getDb();
+    const rows: unknown[] = await db.getAll(STORE);
+    return rows.filter(isCalendarEvent);
   } catch (error) {
     throw toStorageError(error, "READ_FAILED");
   }
@@ -70,36 +71,27 @@ export const getAllEvents = async (): Promise<CalendarEvent[]> => {
 
 export const putEvent = async (event: CalendarEvent): Promise<void> => {
   try {
-    const conn = await getConnection();
-    await conn.tx([
-      { sql: UPSERT_EVENT_SQL, bind: eventToColumns(event) },
-      { sql: DELETE_OVERRIDES_SQL, bind: [event.id] },
-      ...event.overrides.map((override) => ({
-        sql: INSERT_OVERRIDE_SQL,
-        bind: overrideToColumns(event.id, override),
-      })),
-    ]);
+    const db = await getDb();
+    await db.put(STORE, event);
   } catch (error) {
-    throw toStorageError(error, "WRITE_FAILED");
+    throw toWriteError(error);
   }
 };
 
 export const deleteEvent = async (id: string): Promise<void> => {
   try {
-    const conn = await getConnection();
-    await conn.run("DELETE FROM events WHERE id = ?", [id]);
+    const db = await getDb();
+    await db.delete(STORE, id);
   } catch (error) {
-    throw toStorageError(error, "WRITE_FAILED");
+    throw toWriteError(error);
   }
 };
 
 export const getAllCategories = async (): Promise<Category[]> => {
   try {
-    const conn = await getConnection();
-    const rows = await conn.selectAll("SELECT * FROM categories");
-    return rows
-      .map(rowToCategory)
-      .filter((category): category is Category => category !== null);
+    const db = await getDb();
+    const rows: unknown[] = await db.getAll(CATEGORY_STORE);
+    return rows.filter(isCategory);
   } catch (error) {
     throw toStorageError(error, "READ_FAILED");
   }
@@ -107,47 +99,78 @@ export const getAllCategories = async (): Promise<Category[]> => {
 
 export const putCategory = async (category: Category): Promise<void> => {
   try {
-    const conn = await getConnection();
-    await conn.run(UPSERT_CATEGORY_SQL, categoryToRow(category));
+    const db = await getDb();
+    await db.put(CATEGORY_STORE, category);
   } catch (error) {
-    throw toStorageError(error, "WRITE_FAILED");
+    throw toWriteError(error);
   }
 };
 
 export const deleteCategory = async (id: string): Promise<void> => {
   try {
-    const conn = await getConnection();
-    await conn.run("DELETE FROM categories WHERE id = ?", [id]);
+    const db = await getDb();
+    await db.delete(CATEGORY_STORE, id);
   } catch (error) {
-    throw toStorageError(error, "WRITE_FAILED");
+    throw toWriteError(error);
   }
 };
 
-export const exportDatabase = async (): Promise<Uint8Array<ArrayBuffer>> => {
+export const exportDatabase = async (): Promise<string> => {
   try {
-    const conn = await getConnection();
-    return await conn.exportDb();
+    const [events, categories] = await Promise.all([
+      getAllEvents(),
+      getAllCategories(),
+    ]);
+    const backup: BackupFile = {
+      app: BACKUP_APP,
+      schemaVersion: BACKUP_SCHEMA_VERSION,
+      exportedAt: new Date().toISOString(),
+      events,
+      categories,
+    };
+    return JSON.stringify(backup, null, 2);
   } catch (error) {
     throw toStorageError(error, "EXPORT_FAILED");
   }
 };
 
-export const validateImport = async (
-  bytes: Uint8Array,
-): Promise<ImportPreview> => {
+const parseBackup = (text: string): BackupFile => {
+  let parsed: unknown;
   try {
-    const conn = await getConnection();
-    return await conn.validateImport(bytes);
-  } catch (error) {
-    throw toStorageError(error, "IMPORT_INVALID");
+    parsed = JSON.parse(text);
+  } catch (cause) {
+    throw new StorageError("IMPORT_INVALID", cause);
   }
+  if (!isBackupFile(parsed)) throw new StorageError("IMPORT_INVALID");
+  return parsed;
 };
 
-export const commitImport = async (bytes: Uint8Array): Promise<void> => {
+export const validateImport = async (text: string): Promise<ImportPreview> => {
+  const backup = parseBackup(text);
+  return {
+    events: backup.events.length,
+    categories: backup.categories.length,
+    schemaVersion: backup.schemaVersion,
+  };
+};
+
+export const commitImport = async (text: string): Promise<void> => {
+  const backup = parseBackup(text);
   try {
-    const conn = await getConnection();
-    await conn.commitImport(bytes);
+    const db = await getDb();
+    const tx = db.transaction([STORE, CATEGORY_STORE], "readwrite");
+    const events = tx.objectStore(STORE);
+    const categories = tx.objectStore(CATEGORY_STORE);
+    // Requests run in creation order within the transaction: clears first,
+    // then puts. The whole transaction rolls back if anything fails.
+    await Promise.all([
+      events.clear(),
+      categories.clear(),
+      ...backup.events.map((event) => events.put(event)),
+      ...backup.categories.map((category) => categories.put(category)),
+    ]);
+    await tx.done;
   } catch (error) {
-    throw toStorageError(error, "WRITE_FAILED");
+    throw toWriteError(error);
   }
 };

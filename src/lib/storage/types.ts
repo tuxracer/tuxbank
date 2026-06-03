@@ -1,13 +1,14 @@
-import { isString } from "remeda";
+import { isArray, isPlainObject, isString } from "remeda";
+import type { CalendarEvent, Category } from "@/types";
+import { isCalendarEvent, isCategory } from "@/types";
+import { BACKUP_APP, BACKUP_SCHEMA_VERSION } from "./consts";
 
 export type StorageErrorCode =
   | "UNAVAILABLE"
   | "QUOTA_EXCEEDED"
   | "BLOCKED"
-  | "VERSION_ERROR"
   | "READ_FAILED"
   | "WRITE_FAILED"
-  | "LOCKED"
   | "IMPORT_INVALID"
   | "EXPORT_FAILED";
 
@@ -15,10 +16,8 @@ const STORAGE_ERROR_CODES: readonly StorageErrorCode[] = [
   "UNAVAILABLE",
   "QUOTA_EXCEEDED",
   "BLOCKED",
-  "VERSION_ERROR",
   "READ_FAILED",
   "WRITE_FAILED",
-  "LOCKED",
   "IMPORT_INVALID",
   "EXPORT_FAILED",
 ];
@@ -39,10 +38,6 @@ export class StorageError extends Error {
 export const isStorageError = (error: unknown): error is StorageError =>
   error instanceof StorageError;
 
-/** Values SQLite columns hold/return in this app (no BLOB, no bigint). */
-export type SqlValue = string | number | null;
-export type Row = Record<string, SqlValue>;
-
 /** Summary of a candidate import file, shown before the destructive swap. */
 export interface ImportPreview {
   events: number;
@@ -50,35 +45,21 @@ export interface ImportPreview {
   schemaVersion: number;
 }
 
-/** Minimal structural view of a sqlite-wasm oo1 DB handle. */
-export interface Oo1Db {
-  selectObjects(sql: string, bind?: SqlValue[]): Record<string, unknown>[];
-  exec(opts: { sql: string; bind?: SqlValue[] }): unknown;
-  transaction(callback: () => void): unknown;
+/** Shape of a tuxbank JSON backup file. */
+export interface BackupFile {
+  app: typeof BACKUP_APP;
+  schemaVersion: typeof BACKUP_SCHEMA_VERSION;
+  exportedAt: string;
+  events: CalendarEvent[];
+  categories: Category[];
 }
 
-/** Synchronous DB primitives (over an oo1 DB). */
-export interface SyncDb {
-  selectAll(sql: string, bind?: SqlValue[]): Row[];
-  run(sql: string, bind?: SqlValue[]): void;
-  tx(ops: { sql: string; bind?: SqlValue[] }[]): void;
-}
-
-/** Async DB interface the repository depends on (memory or worker). */
-export interface DbConnection {
-  selectAll(sql: string, bind?: SqlValue[]): Promise<Row[]>;
-  run(sql: string, bind?: SqlValue[]): Promise<void>;
-  tx(ops: { sql: string; bind?: SqlValue[] }[]): Promise<void>;
-  /** Serialize the whole database to bytes (always ArrayBuffer-backed). */
-  exportDb(): Promise<Uint8Array<ArrayBuffer>>;
-  /** Validate candidate bytes WITHOUT touching the live database. */
-  validateImport(bytes: Uint8Array): Promise<ImportPreview>;
-  /** Replace the live database with the (validated) bytes. */
-  commitImport(bytes: Uint8Array): Promise<void>;
-}
-
-export type ConnectionStatus =
-  | "connecting"
-  | "ready"
-  | "waiting-locked"
-  | "unavailable";
+export const isBackupFile = (value: unknown): value is BackupFile =>
+  isPlainObject(value) &&
+  value.app === BACKUP_APP &&
+  value.schemaVersion === BACKUP_SCHEMA_VERSION &&
+  isString(value.exportedAt) &&
+  isArray(value.events) &&
+  value.events.every(isCalendarEvent) &&
+  isArray(value.categories) &&
+  value.categories.every(isCategory);
