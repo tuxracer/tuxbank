@@ -44,7 +44,7 @@ const buildDefaults = (props: EventDialogProps): EventFormValues => {
     date: defaultDate,
     categoryId: categories[0]?.id ?? "",
     amount: 0,
-    direction: "deposit",
+    direction: "withdrawal",
     notes: "",
     repeat: "none",
     interval: 1,

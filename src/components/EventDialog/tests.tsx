@@ -38,7 +38,7 @@ describe("EventDialog", () => {
       title: "Dentist",
       date: "2026-05-14",
       amount: 50,
-      direction: "deposit",
+      direction: "withdrawal",
       recurrence: null,
     });
   });
