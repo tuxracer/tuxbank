@@ -4,9 +4,6 @@ import { resolve } from "node:path";
 
 export default defineConfig({
   plugins: [react()],
-  optimizeDeps: {
-    exclude: ["@sqlite.org/sqlite-wasm"],
-  },
   test: {
     environment: "jsdom",
     globals: true,

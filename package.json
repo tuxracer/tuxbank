@@ -4,9 +4,8 @@
   "private": true,
   "packageManager": "pnpm@10.33.0",
   "scripts": {
-    "copy-sqlite": "node scripts/copy-sqlite-wasm.mjs",
-    "dev": "pnpm run copy-sqlite && next dev",
-    "build": "pnpm run copy-sqlite && next build",
+    "dev": "next dev",
+    "build": "next build",
     "start": "next start",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -15,7 +14,6 @@
   },
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",
-    "@sqlite.org/sqlite-wasm": "3.53.0-build1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",

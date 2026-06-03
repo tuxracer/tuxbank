@@ -42,6 +42,3 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
-
-# sqlite-wasm runtime copied into public/ by scripts/copy-sqlite-wasm.mjs
-/public/sqlite/
