@@ -113,7 +113,7 @@ const DataDialog = ({
             <input
               ref={inputRef}
               type="file"
-              accept=".sqlite3,.sqlite,.db"
+              accept=".json,application/json"
               aria-label="Import database file"
               hidden
               onChange={(e) => {

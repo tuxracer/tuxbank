@@ -32,7 +32,7 @@ describe("DataDialog", () => {
 
   it("validates a chosen file and shows the confirmation with counts", async () => {
     render(<DataDialog {...base} />);
-    const file = new File([new Uint8Array([1, 2, 3])], "backup.sqlite3");
+    const file = new File(["{}"], "backup.json");
     fireEvent.change(fileInput(), { target: { files: [file] } });
 
     expect(base.onPreviewImport).toHaveBeenCalledWith(file);
@@ -54,7 +54,7 @@ describe("DataDialog", () => {
         onOpenChange={onOpenChange}
       />,
     );
-    const file = new File([new Uint8Array([1, 2, 3])], "backup.sqlite3");
+    const file = new File(["{}"], "backup.json");
     fireEvent.change(fileInput(), { target: { files: [file] } });
     await userEvent.click(
       await screen.findByRole("button", { name: /replace data/i }),
