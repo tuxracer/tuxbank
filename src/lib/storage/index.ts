@@ -159,17 +159,37 @@ export const commitImport = async (text: string): Promise<void> => {
   try {
     const db = await getDb();
     const tx = db.transaction([STORE, CATEGORY_STORE], "readwrite");
-    const events = tx.objectStore(STORE);
-    const categories = tx.objectStore(CATEGORY_STORE);
-    // Requests run in creation order within the transaction: clears first,
-    // then puts. The whole transaction rolls back if anything fails.
-    await Promise.all([
-      events.clear(),
-      categories.clear(),
-      ...backup.events.map((event) => events.put(event)),
-      ...backup.categories.map((category) => categories.put(category)),
-    ]);
-    await tx.done;
+    // Accumulate request promises as they are queued so we can silence any
+    // pending AbortError rejections if we need to abort the transaction.
+    const requests: Promise<unknown>[] = [];
+    try {
+      const events = tx.objectStore(STORE);
+      const categories = tx.objectStore(CATEGORY_STORE);
+      // Requests are queued synchronously in push order — both clears are
+      // enqueued before any put, and IndexedDB runs same-store requests in
+      // creation order. The whole transaction rolls back on failure.
+      requests.push(events.clear(), categories.clear());
+      for (const event of backup.events) {
+        requests.push(events.put(event));
+      }
+      for (const category of backup.categories) {
+        requests.push(categories.put(category));
+      }
+      await Promise.all(requests);
+      await tx.done;
+    } catch (error) {
+      // Abort explicitly so a failure can never commit the clears.
+      // Swallow AbortError rejections on all pending request promises and
+      // tx.done so they don't surface as unhandled rejections.
+      tx.done.catch(() => undefined);
+      for (const req of requests) req.catch(() => undefined);
+      try {
+        tx.abort();
+      } catch {
+        // already aborted (request-error auto-abort) or already committed
+      }
+      throw error;
+    }
   } catch (error) {
     throw toWriteError(error);
   }

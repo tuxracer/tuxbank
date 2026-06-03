@@ -236,4 +236,37 @@ describe("export / import (JSON backup)", () => {
     });
     expect((await getAllEvents()).map((e) => e.id)).toEqual(["a"]);
   });
+
+  it("rolls back and keeps existing data when a write fails mid-import", async () => {
+    await putEvent(make("existing"));
+    const backup = JSON.stringify({
+      app: "tuxbank",
+      schemaVersion: 1,
+      exportedAt: "2026-06-03T00:00:00.000Z",
+      events: [make("a"), make("b")],
+      categories: [],
+    });
+
+    // Fail the second put — after the clears have already been queued.
+    const realPut = IDBObjectStore.prototype.put;
+    let putCalls = 0;
+    IDBObjectStore.prototype.put = function (
+      this: IDBObjectStore,
+      value: unknown,
+      key?: IDBValidKey,
+    ) {
+      putCalls += 1;
+      if (putCalls === 2) throw new Error("simulated write failure");
+      return realPut.call(this, value, key);
+    };
+    try {
+      await expect(commitImport(backup)).rejects.toMatchObject({
+        code: "WRITE_FAILED",
+      });
+    } finally {
+      IDBObjectStore.prototype.put = realPut;
+    }
+
+    expect((await getAllEvents()).map((e) => e.id)).toEqual(["existing"]);
+  });
 });
