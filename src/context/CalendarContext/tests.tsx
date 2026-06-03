@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { act, renderHook, waitFor } from "@testing-library/react";
-import { resetDbForTests } from "@/lib/storage/connection/testing";
+import { resetDbForTests } from "@/lib/storage/testing";
 import { exportDatabase } from "@/lib/storage";
 import { CalendarProvider, useCalendar } from "./index";
 
@@ -35,12 +35,6 @@ describe("CalendarContext", () => {
         "Dentist",
       );
     });
-  });
-
-  it("defaults storageLocked to false with a working connection", async () => {
-    const { result } = renderHook(() => useCalendar(), { wrapper });
-    await waitFor(() => expect(result.current.loaded).toBe(true));
-    expect(result.current.storageLocked).toBe(false);
   });
 
   it("hides occurrences whose category is toggled off", async () => {
@@ -310,8 +304,8 @@ describe("CalendarContext", () => {
     });
     await waitFor(() => expect(result.current.events).toHaveLength(1));
 
-    const bytes = await exportDatabase();
-    const file = new File([bytes], "backup.sqlite3");
+    const json = await exportDatabase();
+    const file = new File([json], "backup.json");
 
     await act(async () => {
       await result.current.deleteEvent(
@@ -346,9 +340,9 @@ describe("CalendarContext", () => {
     });
     await waitFor(() => expect(result.current.events).toHaveLength(1));
 
-    const bytes = await exportDatabase();
+    const json = await exportDatabase();
     const preview = await result.current.previewImport(
-      new File([bytes], "backup.sqlite3"),
+      new File([json], "backup.json"),
     );
     expect(preview.events).toBe(1);
     expect(preview.schemaVersion).toBe(1);

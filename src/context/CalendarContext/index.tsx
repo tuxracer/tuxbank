@@ -36,7 +36,6 @@ import {
   getAllCategories,
   putCategory,
   deleteCategory as dbDeleteCategory,
-  onConnectionStatus,
   exportDatabase,
   validateImport,
   commitImport,
@@ -71,7 +70,6 @@ export const CalendarProvider = ({
   const [categories, setCategories] = useState<Category[]>([]);
   const categoriesRef = useRef<Category[]>([]);
   const [storageAvailable, setStorageAvailable] = useState<boolean>(true);
-  const [storageLocked, setStorageLocked] = useState<boolean>(false);
   const [loaded, setLoaded] = useState<boolean>(false);
   const [hiddenCategoryIds, setHiddenCategoryIds] = useState<Set<string>>(
     () => new Set(),
@@ -100,15 +98,6 @@ export const CalendarProvider = ({
   const getCategory = useMemo(
     () => makeCategoryResolver(categories),
     [categories],
-  );
-
-  useEffect(
-    () =>
-      onConnectionStatus((status) => {
-        setStorageLocked(status === "waiting-locked");
-        if (status === "unavailable") setStorageAvailable(false);
-      }),
-    [],
   );
 
   useEffect(() => {
@@ -153,22 +142,20 @@ export const CalendarProvider = ({
   }, []);
 
   const exportData = useCallback(async () => {
-    const bytes = await exportDatabase();
+    const json = await exportDatabase();
     downloadBlob(
-      new Blob([bytes], { type: "application/x-sqlite3" }),
-      `tuxbank-backup-${format(new Date(), "yyyy-MM-dd")}.sqlite3`,
+      new Blob([json], { type: "application/json" }),
+      `tuxbank-backup-${format(new Date(), "yyyy-MM-dd")}.json`,
     );
   }, []);
 
   const previewImport = useCallback(async (file: File) => {
-    const bytes = new Uint8Array(await file.arrayBuffer());
-    return validateImport(bytes);
+    return validateImport(await file.text());
   }, []);
 
   const importData = useCallback(
     async (file: File) => {
-      const bytes = new Uint8Array(await file.arrayBuffer());
-      await commitImport(bytes);
+      await commitImport(await file.text());
       await reloadData();
     },
     [reloadData],
@@ -399,7 +386,6 @@ export const CalendarProvider = ({
     categoryUsageCount,
     activeCategoryIds,
     storageAvailable,
-    storageLocked,
     loaded,
     goToPrevMonth: () => setVisibleMonth((m) => addMonths(m, -1)),
     goToNextMonth: () => setVisibleMonth((m) => addMonths(m, 1)),

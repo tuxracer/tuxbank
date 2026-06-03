@@ -24,7 +24,6 @@ export type CalendarContextValue = {
   categoryUsageCount: Record<string, number>;
   activeCategoryIds: Set<string>;
   storageAvailable: boolean;
-  storageLocked: boolean;
   loaded: boolean;
   goToPrevMonth: () => void;
   goToNextMonth: () => void;

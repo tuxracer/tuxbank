@@ -14,7 +14,6 @@ import EventDialog from "@/components/EventDialog";
 import RecurrenceScopeDialog from "@/components/RecurrenceScopeDialog";
 import ManageCategoriesDialog from "@/components/ManageCategoriesDialog";
 import DataDialog from "@/components/DataDialog";
-import StorageLockedOverlay from "@/components/StorageLockedOverlay";
 
 type EditorState =
   | { mode: "create"; date: string }
@@ -125,8 +124,6 @@ const CalendarScreen = () => {
       className="cy-scanlines flex h-[100dvh] flex-col gap-3 p-3.5"
       onKeyDown={onKeyDown}
     >
-      {cal.storageLocked && <StorageLockedOverlay />}
-
       {cal.loaded && !cal.storageAvailable && (
         <div className="cy-mono border border-[color:var(--cy-magenta)] px-4 py-2 text-xs text-[color:var(--cy-magenta)]">
           ◢ LOCAL STORAGE UNAVAILABLE — changes won&apos;t be saved this
