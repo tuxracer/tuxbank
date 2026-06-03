@@ -1,6 +1,6 @@
 # tuxbank
 
-A single-user, full-page **month calendar** web app with a **Cyberpunk 2077–inspired** UI. All-day, date-based events — each with an amount and a deposit/withdrawal direction — are created, edited, and deleted entirely in the browser and persist in a **client-side SQLite database** (SQLite-WASM in a Web Worker, OPFS-persisted; no backend, no accounts). Events can recur, and recurring events edit/delete at three scopes (this occurrence / this and following / the whole series).
+A single-user, full-page **month calendar** web app with a **Cyberpunk 2077–inspired** UI. All-day, date-based events — each with an amount and a deposit/withdrawal direction — are created, edited, and deleted entirely in the browser and persist in **IndexedDB** (via the `idb` library; no backend, no accounts). Events can recur, and recurring events edit/delete at three scopes (this occurrence / this and following / the whole series).
 
 See [docs/TRD.md](docs/TRD.md) for the full technical reference.
 
@@ -8,24 +8,24 @@ See [docs/TRD.md](docs/TRD.md) for the full technical reference.
 
 ## Architecture
 
-Client-only Next.js App Router app — **no backend, no API routes**, **client-side rendered only (no SSR, no server-side hydration of app state)**. Data flows `src/app/page.tsx` → `CalendarProvider` → `src/lib/*` → SQLite-WASM (in a dedicated Web Worker, OPFS-persisted).
+Client-only Next.js App Router app — **no backend, no API routes**, **client-side rendered only (no SSR, no server-side hydration of app state)**. Data flows `src/app/page.tsx` → `CalendarProvider` → `src/lib/*` → IndexedDB (via `idb`).
 
 - **`src/app/`** — App Router entry (`layout.tsx`, `page.tsx`) and `globals.css` (Tailwind + cyberpunk theme).
 - **`src/context/CalendarContext/`** — app-wide state via React context; consume with the `useCalendar()` hook (events, categories, CRUD, recurrence-scope handling).
-- **`src/components/`** — UI: `MonthGrid`, `DayCell`, `EventChip`, `EventDialog`, `CategoryCombobox`, `ManageCategoriesDialog`, `RecurrenceScopeDialog`, `CalendarToolbar` (month/year nav), `DataDialog` (`.sqlite3` backup export/import), `DayEventsPopover`, `StorageLockedOverlay` (multi-tab lock), `CyberFrame`, … · shadcn primitives in `src/components/ui/`.
-- **`src/lib/`** — React-free domain logic: `storage` (SQLite-WASM in a Web Worker; CRUD + `.sqlite3` backup export/import), `recurrence` (expand/edit/delete series + occurrence overrides), `dateGrid` (month-grid construction), `balance` (running balance from deposits/withdrawals).
+- **`src/components/`** — UI: `MonthGrid`, `DayCell`, `EventChip`, `EventDialog`, `CategoryCombobox`, `ManageCategoriesDialog`, `RecurrenceScopeDialog`, `CalendarToolbar` (month/year nav), `DataDialog` (JSON backup export/import), `DayEventsPopover`, `CyberFrame`, … · shadcn primitives in `src/components/ui/`.
+- **`src/lib/`** — React-free domain logic: `storage` (IndexedDB via `idb`; CRUD + JSON backup export/import), `recurrence` (expand/edit/delete series + occurrence overrides), `dateGrid` (month-grid construction), `balance` (running balance from deposits/withdrawals).
 - **`src/types/`** — shared types + guards (`CalendarEvent`, `Category`, `Recurrence`, `isCalendarEvent`, …).
 - **`src/utils/`** — small shared helpers (e.g. `formatCurrency`).
 
 Each module is a directory named after its primary export, containing `index.ts` and optionally `consts.ts` (constants), `types.ts` (types + guards), and `tests.ts`.
 
-**Rendering**: all UI lives under a `"use client"` boundary (`page.tsx` down); `layout.tsx` stays a thin Server Component for fonts/metadata only. Never add SSR/SSG data fetching or Server Components that render app state — the SQLite-WASM database is browser-only, so server-rendered markup would hydrate-mismatch.
+**Rendering**: all UI lives under a `"use client"` boundary (`page.tsx` down); `layout.tsx` stays a thin Server Component for fonts/metadata only. Never add SSR/SSG data fetching or Server Components that render app state — IndexedDB is browser-only, so server-rendered markup would hydrate-mismatch.
 
 ## Commands
 
 ```bash
-pnpm dev         # Next.js dev (Turbopack); auto-runs copy-sqlite first — http://localhost:3000
-pnpm build       # Production build; auto-runs copy-sqlite first
+pnpm dev         # Next.js dev (Turbopack) — http://localhost:3000
+pnpm build       # Production build
 pnpm start       # Serve the production build (next start)
 pnpm test        # Run tests once (vitest run)
 pnpm test:watch  # Run tests in watch mode
@@ -41,17 +41,15 @@ pnpm format      # Auto-fix formatting (prettier --write)
 
 - **Next.js 16** (App Router, Turbopack) + **React 19** + **TypeScript** (ESM)
 - **Tailwind CSS v4** + **shadcn/ui** (Radix); shadcn primitives live in `src/components/ui/`
-- **react-hook-form** + **zod** (event editor) · **date-fns** · **react-day-picker** (calendar) · **remeda** (array/object utils) · client-side **SQLite** via **@sqlite.org/sqlite-wasm** in a Web Worker (OPFS-persisted, no backend)
-- Tests: **vitest** + **@testing-library/react**; storage tests run against an in-memory SQLite connection (no real worker/OPFS)
+- **react-hook-form** + **zod** (event editor) · **date-fns** · **react-day-picker** (calendar) · **remeda** (array/object utils) · client-side **IndexedDB** via **idb**
+- Tests: **vitest** + **@testing-library/react**; storage tests run against **fake-indexeddb** (fresh in-memory DB per test)
 
 ## Gotchas
 
 - **Cyberpunk styles are unlayered**: `.cy-*` classes in `src/app/globals.css` sit outside `@layer`, so they override Tailwind utilities. Keep them to visual props — never set `position` on `.cy-dialog` (it overrides shadcn's `fixed` centering and renders the dialog off-screen).
 - **jsdom has no layout engine**: vitest can't catch CSS positioning/visibility bugs. Verify dialogs/layout in a real browser (chrome-devtools) and screenshot the render — the a11y tree reports off-screen elements as "present."
 - **Turbopack stale CSS**: `globals.css` edits may not hot-reload; `rm -rf .next && pnpm dev` forces a rebuild.
-- **sqlite-wasm can't be bundled**: its Worker1 entry uses a dynamic `new Worker(new URL(...))` Turbopack can't trace. `scripts/copy-sqlite-wasm.mjs` copies the runtime into `public/sqlite/`; `dev`/`build` run it automatically. Don't import the package into the client bundle, and `optimizeDeps.exclude` it in `vitest.config.ts`.
-- **Single-tab OPFS lock**: only one tab can hold the local DB at a time. `StorageLockedOverlay` renders when another tab owns it; closing the other tab lets this one take over automatically.
-- **Storage tests bypass the worker**: tests inject an in-memory SQLite connection via `setTestConnection` (`src/lib/storage/connection/testing.ts`) — they don't spin up the Web Worker or OPFS.
+- **Storage tests use fake-indexeddb**: `resetDbForTests()` (`src/lib/storage/testing.ts`) swaps in a fresh in-memory `IDBFactory` per test — import it only from test files so fake-indexeddb stays out of the production bundle.
 
 ## Coding Standards
 
