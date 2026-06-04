@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Build a full-page, single-user month calendar (Next.js + React + TypeScript) with a Cyberpunk 2077–inspired UI, local IndexedDB persistence, and recurring events editable at three scopes.
+**Goal:** Build a full-page, single-user month calendar (Next.js + React + TypeScript) with a cyberpunk-inspired UI, local IndexedDB persistence, and recurring events editable at three scopes.
 
 **Architecture:** 100% client-side. Pure logic (date grid, recurrence expansion + mutation) and an IndexedDB repository sit beneath a React Context that holds calendar state and CRUD actions. UI components (custom month grid + shadcn/ui dialogs) consume the context. No backend, no auth.
 

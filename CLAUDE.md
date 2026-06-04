@@ -1,6 +1,6 @@
 # tuxbank
 
-A single-user, full-page **month calendar** web app with a **Cyberpunk 2077–inspired** UI. All-day, date-based events — each with an amount and a deposit/withdrawal direction — are created, edited, and deleted entirely in the browser and persist in **IndexedDB** (via the `idb` library; no backend, no accounts). Events can recur, and recurring events edit/delete at three scopes (this occurrence / this and following / the whole series).
+A single-user, full-page **month calendar** web app with a **cyberpunk-inspired** UI. All-day, date-based events — each with an amount and a deposit/withdrawal direction — are created, edited, and deleted entirely in the browser and persist in **IndexedDB** (via the `idb` library; no backend, no accounts). Events can recur, and recurring events edit/delete at three scopes (this occurrence / this and following / the whole series).
 
 See [docs/TRD.md](docs/TRD.md) for the full technical reference.
 

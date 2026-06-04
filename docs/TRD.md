@@ -4,7 +4,7 @@
 
 **Status:** Draft for review · **Date:** 2026-05-30 · **Owner:** Derek Petersen
 
-A single-user, full-page **month calendar** web app with a **Cyberpunk 2077–inspired** interface. Events are created, edited, and deleted entirely in the browser and persist locally in **IndexedDB** (via the `idb` library) — no backend, no accounts. Events can repeat, and repeating events can be edited or deleted at three scopes (this occurrence / this and following / the whole series).
+A single-user, full-page **month calendar** web app with a **cyberpunk-inspired** interface. Events are created, edited, and deleted entirely in the browser and persist locally in **IndexedDB** (via the `idb` library) — no backend, no accounts. Events can repeat, and repeating events can be edited or deleted at three scopes (this occurrence / this and following / the whole series).
 
 ---
 
@@ -212,7 +212,7 @@ This mirrors iCalendar semantics (`EXDATE` / `RECURRENCE-ID` for single override
 
 ## 10. Design Language — "Night City"
 
-A bold, cohesive **Cyberpunk 2077–inspired** treatment. This section is the canonical visual spec; final pixel-level polish happens during implementation.
+A bold, cohesive **cyberpunk-inspired** treatment. This section is the canonical visual spec; final pixel-level polish happens during implementation.
 
 ### Palette — **cyan/magenta synthwave-forward**
 - **Dominant neons:** cyan `#00F0FF` and magenta `#FF2A6D`.

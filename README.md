@@ -1,6 +1,6 @@
 # tuxbank
 
-A single-user, full-page month calendar for tracking money in and out — wrapped in a Cyberpunk 2077–inspired interface. Every event is an all-day, date-based entry with an amount and a deposit/withdrawal direction, and the calendar keeps a running balance as the month plays out. Everything runs in your browser: no backend, no accounts, no network.
+A single-user, full-page month calendar for tracking money in and out — wrapped in a cyberpunk-inspired interface. Every event is an all-day, date-based entry with an amount and a deposit/withdrawal direction, and the calendar keeps a running balance as the month plays out. Everything runs in your browser: no backend, no accounts, no network.
 
 ## Features
 
