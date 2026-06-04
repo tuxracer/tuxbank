@@ -112,7 +112,7 @@ const DataDialog = ({
               ref={inputRef}
               type="file"
               accept=".json,application/json"
-              aria-label="Import database file"
+              data-testid="import-database-file"
               hidden
               onChange={(e) => {
                 const file = e.target.files?.[0];

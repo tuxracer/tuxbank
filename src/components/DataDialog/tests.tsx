@@ -17,8 +17,7 @@ const base = {
   onOpenChange: vi.fn(),
 };
 
-const fileInput = (): HTMLElement =>
-  screen.getByLabelText(/import database file/i);
+const fileInput = (): HTMLElement => screen.getByTestId("import-database-file");
 
 describe("DataDialog", () => {
   it("triggers export when the export button is clicked", async () => {

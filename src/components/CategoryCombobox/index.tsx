@@ -76,7 +76,6 @@ const CategoryCombobox = ({
       <PopoverTrigger asChild>
         <button
           type="button"
-          aria-label="Category"
           className="cy-btn flex items-center gap-2 px-3 py-2 text-sm"
         >
           {selected ? (
@@ -126,7 +125,7 @@ const CategoryCombobox = ({
                 <button
                   key={color}
                   type="button"
-                  aria-label={color}
+                  title={color}
                   onClick={() => setNewColor(color)}
                   className="rounded-full p-0.5"
                   style={{

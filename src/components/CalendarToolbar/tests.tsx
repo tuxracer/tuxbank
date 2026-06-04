@@ -30,8 +30,8 @@ const baseProps = (
 describe("CalendarToolbar month/year selects", () => {
   it("renders 12 month options and one option per year in range", () => {
     render(<CalendarToolbar {...baseProps()} />);
-    const monthSelect = screen.getByLabelText("Month");
-    const yearSelect = screen.getByLabelText("Year");
+    const monthSelect = screen.getByTitle("Month");
+    const yearSelect = screen.getByTitle("Year");
     expect(within(monthSelect).getAllByRole("option")).toHaveLength(12);
     // 2024..2030 inclusive
     expect(within(yearSelect).getAllByRole("option")).toHaveLength(7);
@@ -43,21 +43,21 @@ describe("CalendarToolbar month/year selects", () => {
         {...baseProps({ selectedMonth: 4, selectedYear: 2027 })}
       />,
     );
-    expect(screen.getByLabelText("Month")).toHaveValue("4");
-    expect(screen.getByLabelText("Year")).toHaveValue("2027");
+    expect(screen.getByTitle("Month")).toHaveValue("4");
+    expect(screen.getByTitle("Year")).toHaveValue("2027");
   });
 
   it("calls onSelectMonth with the chosen month index", async () => {
     const onSelectMonth = vi.fn();
     render(<CalendarToolbar {...baseProps({ onSelectMonth })} />);
-    await userEvent.selectOptions(screen.getByLabelText("Month"), "6");
+    await userEvent.selectOptions(screen.getByTitle("Month"), "6");
     expect(onSelectMonth).toHaveBeenCalledWith(6);
   });
 
   it("calls onSelectYear with the chosen year", async () => {
     const onSelectYear = vi.fn();
     render(<CalendarToolbar {...baseProps({ onSelectYear })} />);
-    await userEvent.selectOptions(screen.getByLabelText("Year"), "2029");
+    await userEvent.selectOptions(screen.getByTitle("Year"), "2029");
     expect(onSelectYear).toHaveBeenCalledWith(2029);
   });
 });

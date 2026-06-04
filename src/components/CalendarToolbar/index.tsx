@@ -53,14 +53,14 @@ const CalendarToolbar = ({
         <div className="flex items-center gap-3">
           <button
             type="button"
-            aria-label="Previous month"
+            title="Previous month"
             className="cy-nav grid h-8 w-8 place-items-center"
             onClick={onPrev}
           >
             ‹
           </button>
           <select
-            aria-label="Month"
+            title="Month"
             className="cy-btn px-3 py-1.5 text-sm uppercase"
             value={selectedMonth}
             onChange={(e) => onSelectMonth(Number(e.target.value))}
@@ -72,7 +72,7 @@ const CalendarToolbar = ({
             ))}
           </select>
           <select
-            aria-label="Year"
+            title="Year"
             className="cy-btn px-3 py-1.5 text-sm"
             value={selectedYear}
             onChange={(e) => onSelectYear(Number(e.target.value))}
@@ -85,7 +85,7 @@ const CalendarToolbar = ({
           </select>
           <button
             type="button"
-            aria-label="Next month"
+            title="Next month"
             className="cy-nav grid h-8 w-8 place-items-center"
             onClick={onNext}
           >
@@ -101,11 +101,7 @@ const CalendarToolbar = ({
         </div>
 
         <div className="flex items-center gap-3">
-          <div
-            className="flex items-center gap-1.5"
-            role="group"
-            aria-label="Filter by category"
-          >
+          <div className="flex items-center gap-1.5" role="group">
             {usedCategories.map((c) => {
               const active = activeCategoryIds.has(c.id);
               const colorVar = catColorVar(c.color);
@@ -113,7 +109,6 @@ const CalendarToolbar = ({
                 <button
                   key={c.id}
                   type="button"
-                  aria-pressed={active}
                   title={c.name}
                   onClick={() => onToggleCategory(c.id)}
                   className="cy-mono flex items-center gap-1.5 border px-2 py-1 text-[10px] uppercase"

@@ -23,7 +23,7 @@ const EventChip = ({ occurrence, onSelect }: EventChipProps) => {
       }}
       title={occurrence.title}
     >
-      {occurrence.isRecurring && <span aria-label="repeats">↻</span>}
+      {occurrence.isRecurring && <span>↻</span>}
       <span className="truncate">{occurrence.title}</span>
       <span className="cy-mono ml-auto pl-1">{formatSignedCompact(delta)}</span>
     </button>

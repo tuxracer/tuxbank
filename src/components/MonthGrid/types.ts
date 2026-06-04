@@ -6,7 +6,6 @@ export type MonthGridProps = {
   todayISO: string;
   occurrencesByDate: Partial<Record<string, Occurrence[]>>;
   balancesByDate?: Record<string, number>;
-  gridLabel?: string;
   onSelectDate: (iso: string) => void;
   onSelectOccurrence: (occurrence: Occurrence) => void;
 };

@@ -35,7 +35,7 @@ describe("MonthGrid", () => {
   });
 
   it("moves day focus with arrow keys (roving tabindex)", async () => {
-    render(
+    const { container } = render(
       <MonthGrid
         cells={buildMonthGrid(new Date(2026, 4, 1))}
         todayISO="2026-05-14"
@@ -44,18 +44,14 @@ describe("MonthGrid", () => {
         onSelectOccurrence={vi.fn()}
       />,
     );
+    const cellByIso = (iso: string) =>
+      container.querySelector(`[data-iso="${iso}"]`);
     await userEvent.tab();
-    expect(document.activeElement).toBe(
-      screen.getByLabelText("Thursday, May 14"),
-    );
+    expect(document.activeElement).toBe(cellByIso("2026-05-14"));
     await userEvent.keyboard("{ArrowRight}");
-    expect(document.activeElement).toBe(
-      screen.getByLabelText("Friday, May 15"),
-    );
+    expect(document.activeElement).toBe(cellByIso("2026-05-15"));
     await userEvent.keyboard("{ArrowDown}");
-    expect(document.activeElement).toBe(
-      screen.getByLabelText("Friday, May 22"),
-    );
+    expect(document.activeElement).toBe(cellByIso("2026-05-22"));
   });
 
   it("renders the running balance for a day when provided", () => {

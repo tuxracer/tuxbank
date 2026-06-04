@@ -84,7 +84,7 @@ export const CyberFrame = ({
       : "";
 
   return (
-    <div ref={ref} aria-hidden className="pointer-events-none absolute inset-0">
+    <div ref={ref} className="pointer-events-none absolute inset-0">
       {points && (
         <svg width={w} height={h} className="absolute inset-0">
           <polygon

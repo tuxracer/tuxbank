@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { Category } from "@/types";
 import ManageCategoriesDialog from "./index";
@@ -32,8 +32,8 @@ describe("ManageCategoriesDialog", () => {
   it("recolors a category", async () => {
     const onRecolor = vi.fn();
     render(<ManageCategoriesDialog {...base} onRecolor={onRecolor} />);
-    // each category row exposes 5 color swatches labelled by color
-    const greenSwatches = screen.getAllByRole("button", { name: "green" });
+    // each category row exposes 5 color swatches titled by color
+    const greenSwatches = screen.getAllByTitle("green");
     await userEvent.click(greenSwatches[0]); // recolor "Work" -> green
     expect(onRecolor).toHaveBeenCalledWith("work", "green");
   });
@@ -44,8 +44,12 @@ describe("ManageCategoriesDialog", () => {
     await userEvent.click(
       screen.getAllByRole("button", { name: /delete/i })[0],
     ); // delete "Work" (used by 2)
-    expect(await screen.findByText(/2 events use/i)).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: /^delete$/i }));
+    const usage = await screen.findByText(/2 events use/i);
+    // scope to the confirmation section — the row buttons are also named "Delete"
+    const confirmSection = usage.parentElement as HTMLElement;
+    await userEvent.click(
+      within(confirmSection).getByRole("button", { name: /^delete$/i }),
+    );
     expect(onDelete).toHaveBeenCalledWith("work");
   });
 

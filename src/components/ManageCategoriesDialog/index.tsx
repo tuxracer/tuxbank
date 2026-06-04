@@ -64,7 +64,6 @@ const ManageCategoriesDialog = ({
               <div className="flex items-center gap-2">
                 <Input
                   defaultValue={c.name}
-                  aria-label={`Name for ${c.name}`}
                   onBlur={(e) => {
                     const v = e.target.value.trim();
                     if (v && v !== c.name) {
@@ -91,7 +90,7 @@ const ManageCategoriesDialog = ({
                     <button
                       key={color}
                       type="button"
-                      aria-label={color}
+                      title={color}
                       onClick={() => onRecolor(c.id, color)}
                       className="rounded-full p-0.5"
                       style={{
@@ -114,7 +113,6 @@ const ManageCategoriesDialog = ({
                 <Button
                   type="button"
                   variant="ghost"
-                  aria-label={`Delete ${c.name}`}
                   className="text-[color:var(--cy-magenta)]"
                   onClick={() => setConfirmId(c.id)}
                 >

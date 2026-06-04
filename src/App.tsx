@@ -159,7 +159,6 @@ const CalendarScreen = () => {
         occurrencesByDate={cal.occurrencesByDate}
         onSelectDate={openCreate}
         onSelectOccurrence={openEdit}
-        gridLabel={`Calendar for ${cal.monthLabel}`}
         balancesByDate={cal.balancesByDate}
       />
 

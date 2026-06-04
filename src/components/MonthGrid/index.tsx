@@ -26,7 +26,6 @@ const MonthGrid = ({
   todayISO,
   occurrencesByDate,
   balancesByDate = {},
-  gridLabel,
   onSelectDate,
   onSelectOccurrence,
 }: MonthGridProps) => {
@@ -89,7 +88,6 @@ const MonthGrid = ({
         ref={gridRef}
         className="grid min-h-0 flex-1 grid-cols-7 grid-rows-6 gap-1.5"
         role="grid"
-        aria-label={gridLabel}
         onKeyDown={onKeyDown}
       >
         {cells.map((cell, index) => (
