@@ -1,5 +1,3 @@
-"use client";
-
 import { useMemo, useState } from "react";
 import type { CalendarEvent, Occurrence } from "@/types";
 import type { EventInput } from "@/lib/recurrence";
@@ -223,10 +221,10 @@ const CalendarScreen = () => {
   );
 };
 
-const Page = () => (
+const App = () => (
   <CalendarProvider>
     <CalendarScreen />
   </CalendarProvider>
 );
 
-export default Page;
+export default App;

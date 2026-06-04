@@ -4,6 +4,12 @@
 
 @custom-variant dark (@media (prefers-color-scheme: dark));
 
+:root {
+  --font-display: "Rajdhani";
+  --font-ui: "Chakra Petch";
+  --font-mono: "Share Tech Mono";
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
