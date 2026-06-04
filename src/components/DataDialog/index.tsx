@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { CyberFrame } from "@/components/CyberFrame";
+import { CyControlFrame } from "@/components/CyControlFrame";
 
 import type { DataDialogProps } from "./types";
 
@@ -94,14 +95,16 @@ const DataDialog = ({
               Download a full backup of your database ({currentEventCount}{" "}
               events, {currentCategoryCount} categories).
             </p>
-            <Button
-              type="button"
-              className="cy-btn justify-start"
-              disabled={!storageAvailable}
-              onClick={handleExport}
-            >
-              ◢ EXPORT DATABASE
-            </Button>
+            <CyControlFrame>
+              <Button
+                type="button"
+                className="cy-btn justify-start"
+                disabled={!storageAvailable}
+                onClick={handleExport}
+              >
+                ◢ EXPORT DATABASE
+              </Button>
+            </CyControlFrame>
           </section>
 
           <section className="flex flex-col gap-2 border-t border-[color:var(--cy-line)] pt-3">
@@ -120,19 +123,21 @@ const DataDialog = ({
                 if (file) void handleFile(file);
               }}
             />
-            <Button
-              type="button"
-              className="cy-btn justify-start"
-              disabled={
-                !storageAvailable ||
-                stage.kind === "validating" ||
-                stage.kind === "importing" ||
-                stage.kind === "confirm"
-              }
-              onClick={() => inputRef.current?.click()}
-            >
-              ◢ IMPORT DATABASE
-            </Button>
+            <CyControlFrame>
+              <Button
+                type="button"
+                className="cy-btn justify-start"
+                disabled={
+                  !storageAvailable ||
+                  stage.kind === "validating" ||
+                  stage.kind === "importing" ||
+                  stage.kind === "confirm"
+                }
+                onClick={() => inputRef.current?.click()}
+              >
+                ◢ IMPORT DATABASE
+              </Button>
+            </CyControlFrame>
           </section>
 
           {stage.kind === "validating" && (

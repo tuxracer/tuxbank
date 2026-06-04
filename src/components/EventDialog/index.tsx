@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label";
 import { eventFormSchema, toEventInput, type EventFormValues } from "./schema";
 import CategoryCombobox from "@/components/CategoryCombobox";
 import { CyberFrame } from "@/components/CyberFrame";
+import { CyControlFrame } from "@/components/CyControlFrame";
 
 import type { EventDialogProps } from "./types";
 
@@ -160,14 +161,16 @@ const EventDialog = (props: EventDialogProps) => {
             </div>
             <div className="flex flex-1 flex-col gap-1">
               <Label htmlFor="direction">Type</Label>
-              <select
-                id="direction"
-                className="cy-btn px-3 py-2 text-sm"
-                {...register("direction")}
-              >
-                <option value="deposit">Deposit</option>
-                <option value="withdrawal">Withdrawal</option>
-              </select>
+              <CyControlFrame>
+                <select
+                  id="direction"
+                  className="cy-btn px-3 py-2 text-sm"
+                  {...register("direction")}
+                >
+                  <option value="deposit">Deposit</option>
+                  <option value="withdrawal">Withdrawal</option>
+                </select>
+              </CyControlFrame>
             </div>
           </div>
 
@@ -179,17 +182,19 @@ const EventDialog = (props: EventDialogProps) => {
           <div className="flex gap-2">
             <div className="flex flex-1 flex-col gap-1">
               <Label htmlFor="repeat">Repeat</Label>
-              <select
-                id="repeat"
-                className="cy-btn px-3 py-2 text-sm"
-                {...register("repeat")}
-              >
-                <option value="none">Does not repeat</option>
-                <option value="daily">Daily</option>
-                <option value="weekly">Weekly</option>
-                <option value="monthly">Monthly</option>
-                <option value="yearly">Yearly</option>
-              </select>
+              <CyControlFrame>
+                <select
+                  id="repeat"
+                  className="cy-btn px-3 py-2 text-sm"
+                  {...register("repeat")}
+                >
+                  <option value="none">Does not repeat</option>
+                  <option value="daily">Daily</option>
+                  <option value="weekly">Weekly</option>
+                  <option value="monthly">Monthly</option>
+                  <option value="yearly">Yearly</option>
+                </select>
+              </CyControlFrame>
             </div>
             {repeat !== "none" && (
               <>

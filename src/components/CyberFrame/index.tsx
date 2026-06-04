@@ -51,6 +51,9 @@ const cornerPoints = (
  * Render as a child of a `position`ed host whose chamfered fill lives on a
  * pseudo-element (so this SVG isn't clipped away). The host's own `clip-path`
  * must be removed. `chamfer`/`corners` must match that pseudo-element's shape.
+ * For controls that can't contain children or pseudo-elements (`<select>`),
+ * render it instead as an overlay sibling inside a positioned wrapper, with
+ * the clipped fill staying on the control itself — see <CyControlFrame>.
  */
 export const CyberFrame = ({
   chamfer = 20,

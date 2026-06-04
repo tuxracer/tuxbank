@@ -321,9 +321,13 @@ body {
   );
 }
 
+/* Chamfered controls. The clip-path here only shapes the fill; the border is
+   NOT a CSS `border` (the clip would slice it off at the bottom-right chamfer,
+   leaving that corner borderless). Wrap each control in <CyControlFrame>,
+   which overlays a <CyberFrame> SVG stroke tracing the full outline. The
+   chamfer sizes (9px nav / 8px btn) must match CyControlFrame's VARIANTS. */
 .cy-nav {
   color: var(--cy-cyan);
-  border: 1px solid var(--cy-cyan);
   background: transparent;
   text-shadow: 0 0 8px var(--cy-glow-cyan);
   clip-path: polygon(
@@ -339,7 +343,6 @@ body {
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--cy-text);
-  border: 1px solid var(--cy-line);
   background: rgba(255, 255, 255, 0.02);
   clip-path: polygon(
     0 0,

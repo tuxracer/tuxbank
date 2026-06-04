@@ -237,6 +237,7 @@ A bold, cohesive **cyberpunk-inspired** treatment. This section is the canonical
 - Primary CTA: neon fill with clipped corners and glow.
 - Dialogs: dark glass panels, neon border, corner brackets, mono uppercase labels.
 - Chamfered panels (`.cy-dialog`, `.cy-toolbar`, `.cy-cell`) split shape from border: a `::before` `clip-path` paints the dark fill, and `<CyberFrame>` (`src/components/CyberFrame`) draws the neon border as an SVG vector stroke so it stays a uniform width/brightness on the 45° chamfers (a CSS clip-path fill rasterizes diagonal edges brighter than straight ones, leaving square corners comparatively dark). CyberFrame props (`chamfer`, `corners`, `color`) must match each host's `::before` shape: dialogs cut top-right + bottom-left (cyan); the toolbar likewise (dim `--cy-line`); cells cut only top-right (`--cy-line`, or `--cy-yellow` on today).
+- Chamfered controls (`.cy-btn` and `.cy-nav` buttons/selects) split shape from border the same way: the class clips the control's fill and sets no CSS `border` (the clip-path would slice the border off at the bottom-right chamfer, leaving that corner open). Each control is wrapped in `<CyControlFrame>` (`src/components/CyControlFrame`), which overlays a `<CyberFrame>` stroke tracing the full outline. The frame renders as an overlay sibling rather than a child, so it works for `<select>` (which cannot contain children or pseudo-elements) and is never clipped by the host. Chamfer sizes (8px btn with `--cy-line`, 9px nav with `--cy-cyan`) must match the clip-paths in `globals.css`.
 
 ### Theming: light/dark (auto, follows OS)
 - Both themes are selected automatically from `prefers-color-scheme`; there is **no in-app toggle and no persistence**. Pure CSS: no JS, no theme class.
@@ -265,6 +266,7 @@ src/
     DayCell/                # date number, today glow, chips, "+N more"
     EventChip/              # neon chip
     CyberFrame/             # SVG vector-stroke neon border for chamfered panels (.cy-dialog, .cy-toolbar, .cy-cell)
+    CyControlFrame/         # wraps a .cy-btn/.cy-nav control; overlays a CyberFrame border that follows the chamfer
     DayEventsPopover/       # overflow list (shadcn Popover)
     EventDialog/            # create/edit form (shadcn Form + react-hook-form/zod, Dialog/Select/Textarea + date picker)
     RecurrenceScopeDialog/  # This / This & following / All (shadcn Dialog + RadioGroup)
