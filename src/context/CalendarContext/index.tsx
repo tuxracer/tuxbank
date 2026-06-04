@@ -38,6 +38,7 @@ import {
   validateImport,
   commitImport,
 } from "@/lib/storage";
+import { subscribeToDataChanges } from "@/lib/tabSync";
 import { downloadBlob } from "@/utils/downloadBlob";
 import { computeRunningBalances } from "@/lib/balance";
 
@@ -128,16 +129,41 @@ export const CalendarProvider = ({
     }
   }, []);
 
-  const reloadData = useCallback(async () => {
-    const [loadedEvents, loadedCategories] = await Promise.all([
-      getAllEvents(),
-      getAllCategories(),
-    ]);
-    categoriesRef.current = loadedCategories;
-    setCategories(loadedCategories);
-    setEvents(loadedEvents);
-    setHiddenCategoryIds(new Set());
+  const refreshSeqRef = useRef(0);
+
+  /**
+   * Re-read events + categories from storage (e.g. after another tab writes).
+   * Leaves per-tab UI state (visible month, hidden categories) alone.
+   */
+  const refreshFromStorage = useCallback(async () => {
+    const seq = ++refreshSeqRef.current;
+    try {
+      const [loadedEvents, loadedCategories] = await Promise.all([
+        getAllEvents(),
+        getAllCategories(),
+      ]);
+      if (seq !== refreshSeqRef.current) return; // superseded by a newer refresh
+      categoriesRef.current = loadedCategories;
+      setCategories(loadedCategories);
+      setEvents(loadedEvents);
+    } catch (error) {
+      if (seq !== refreshSeqRef.current) return;
+      if (isStorageError(error) && error.code === "UNAVAILABLE")
+        setStorageAvailable(false);
+      // Otherwise keep the current (stale) state; the next notification retries.
+    }
   }, []);
+
+  const reloadData = useCallback(async () => {
+    await refreshFromStorage();
+    setHiddenCategoryIds(new Set());
+  }, [refreshFromStorage]);
+
+  useEffect(() => {
+    return subscribeToDataChanges(() => {
+      void refreshFromStorage();
+    });
+  }, [refreshFromStorage]);
 
   const exportData = useCallback(async () => {
     const json = await exportDatabase();
@@ -225,7 +251,12 @@ export const CalendarProvider = ({
       occurrenceDate: string,
     ) => {
       const current = events.find((e) => e.id === id);
-      if (!current) return;
+      if (!current) {
+        // The event vanished (deleted in another tab). The save still wins:
+        // recreate it from the form input under a new id, whatever the scope.
+        await createEvent(input);
+        return;
+      }
 
       if (!current.recurrence || scope === "all") {
         const next: CalendarEvent = {
@@ -266,7 +297,7 @@ export const CalendarProvider = ({
         await putEvent(created);
       });
     },
-    [events, persist],
+    [events, persist, createEvent],
   );
 
   const deleteEvent = useCallback(

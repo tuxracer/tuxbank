@@ -1,7 +1,14 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { act, renderHook, waitFor } from "@testing-library/react";
+import type { CalendarEvent } from "@/types";
 import { resetDbForTests } from "@/lib/storage/testing";
-import { exportDatabase } from "@/lib/storage";
+import {
+  deleteEvent as dbDeleteEvent,
+  exportDatabase,
+  getAllEvents,
+  putEvent,
+} from "@/lib/storage";
+import { resetChannelForTests, SYNC_CHANNEL_NAME } from "@/lib/tabSync";
 import { CalendarProvider, useCalendar } from "./index";
 
 const wrapper = ({ children }: { children: React.ReactNode }) => (
@@ -406,5 +413,136 @@ describe("CalendarContext", () => {
       expect(result.current.visibleMonth.getFullYear()).toBe(pastYear),
     );
     expect(result.current.yearRange.min).toBe(pastYear);
+  });
+});
+
+describe("cross-tab sync", () => {
+  // 2026-05-08 falls inside the May 2026 grid used by goToDate below.
+  const otherTabEvent = (id: string, title: string): CalendarEvent => ({
+    id,
+    title,
+    date: "2026-05-08",
+    categoryId: "work",
+    amount: 50,
+    direction: "deposit",
+    recurrence: null,
+    overrides: [],
+    createdAt: "t",
+    updatedAt: "t",
+  });
+
+  beforeEach(async () => {
+    await resetDbForTests();
+  });
+
+  afterEach(() => {
+    resetChannelForTests();
+  });
+
+  it("applies events written by another tab when a notification arrives", async () => {
+    const { result } = renderHook(() => useCalendar(), { wrapper });
+    await waitFor(() => expect(result.current.loaded).toBe(true));
+
+    await putEvent(otherTabEvent("remote", "Paycheck"));
+    const otherTab = new BroadcastChannel(SYNC_CHANNEL_NAME);
+    otherTab.postMessage("data-changed");
+
+    await waitFor(() => expect(result.current.events).toHaveLength(1));
+    expect(result.current.events[0].title).toBe("Paycheck");
+    otherTab.close();
+  });
+
+  it("keeps per-tab category filters across a sync refresh", async () => {
+    const { result } = renderHook(() => useCalendar(), { wrapper });
+    await waitFor(() => expect(result.current.loaded).toBe(true));
+
+    let categoryId = "";
+    await act(async () => {
+      const c = await result.current.createCategory("Work", "cyan");
+      categoryId = c.id;
+      result.current.goToDate(new Date(2026, 4, 1));
+      await result.current.createEvent({
+        title: "Standup",
+        date: "2026-05-08",
+        categoryId,
+        notes: undefined,
+        amount: 0,
+        direction: "deposit",
+        recurrence: null,
+      });
+    });
+    await waitFor(() =>
+      expect(result.current.occurrencesByDate["2026-05-08"]).toBeDefined(),
+    );
+
+    // Hide the category in this tab, then sync a change from another tab.
+    await act(async () => result.current.toggleCategory(categoryId));
+    await waitFor(() =>
+      expect(result.current.occurrencesByDate["2026-05-08"]).toBeUndefined(),
+    );
+
+    await putEvent({ ...otherTabEvent("remote", "Lunch"), date: "2026-05-09" });
+    const otherTab = new BroadcastChannel(SYNC_CHANNEL_NAME);
+    otherTab.postMessage("data-changed");
+
+    await waitFor(() => expect(result.current.events).toHaveLength(2));
+    expect(result.current.occurrencesByDate["2026-05-09"]?.[0]?.title).toBe(
+      "Lunch",
+    );
+    // The category hidden in this tab stays hidden after the refresh.
+    expect(result.current.occurrencesByDate["2026-05-08"]).toBeUndefined();
+    otherTab.close();
+  });
+
+  it("recreates an event on save when another tab deleted it (last save wins)", async () => {
+    const { result } = renderHook(() => useCalendar(), { wrapper });
+    await waitFor(() => expect(result.current.loaded).toBe(true));
+
+    await act(async () => {
+      result.current.goToDate(new Date(2026, 4, 1));
+      await result.current.createEvent({
+        title: "Dentist",
+        date: "2026-05-08",
+        categoryId: "health",
+        amount: 100,
+        direction: "deposit",
+        notes: undefined,
+        recurrence: null,
+      });
+    });
+    await waitFor(() => expect(result.current.events).toHaveLength(1));
+    const originalId = result.current.events[0].id;
+
+    // Another tab deletes the event while our edit dialog is open.
+    await dbDeleteEvent(originalId);
+    const otherTab = new BroadcastChannel(SYNC_CHANNEL_NAME);
+    otherTab.postMessage("data-changed");
+    await waitFor(() => expect(result.current.events).toHaveLength(0));
+
+    // Saving the open edit still wins: the event is recreated under a new id.
+    await act(async () => {
+      await result.current.updateEvent(
+        originalId,
+        {
+          title: "Dentist (rescheduled)",
+          date: "2026-05-09",
+          categoryId: "health",
+          amount: 100,
+          direction: "deposit",
+          notes: undefined,
+          recurrence: null,
+        },
+        "all",
+        "2026-05-08",
+      );
+    });
+
+    await waitFor(() => expect(result.current.events).toHaveLength(1));
+    expect(result.current.events[0].title).toBe("Dentist (rescheduled)");
+    expect(result.current.events[0].id).not.toBe(originalId);
+    expect((await getAllEvents()).map((e) => e.title)).toEqual([
+      "Dentist (rescheduled)",
+    ]);
+    otherTab.close();
   });
 });
