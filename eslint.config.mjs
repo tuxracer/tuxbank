@@ -4,15 +4,15 @@ import tseslint from "typescript-eslint";
 import react from "eslint-plugin-react";
 import reactHooks from "eslint-plugin-react-hooks";
 import reactRefresh from "eslint-plugin-react-refresh";
-import jsxA11y from "eslint-plugin-jsx-a11y";
 import globals from "globals";
 
+// No jsx-a11y: accessibility lint is intentionally off — see CLAUDE.md
+// ("No accessibility (a11y) lint" under Coding Standards).
 const eslintConfig = defineConfig([
   globalIgnores(["dist/**"]),
   js.configs.recommended,
   tseslint.configs.recommended,
   react.configs.flat.recommended,
-  jsxA11y.flatConfigs.recommended,
   reactHooks.configs.flat["recommended-latest"],
   {
     plugins: { "react-refresh": reactRefresh },
@@ -26,12 +26,6 @@ const eslintConfig = defineConfig([
         "warn",
         { allowConstantExport: true },
       ],
-      // jsx-a11y recommended sets these to error; eslint-config-next never
-      // enabled them, so they are NEW findings — kept at warn to keep the
-      // migration lint-clean. Real issues: triage after the migration lands.
-      "jsx-a11y/no-noninteractive-element-interactions": "warn",
-      "jsx-a11y/interactive-supports-focus": "warn",
-      "jsx-a11y/click-events-have-key-events": "warn",
     },
   },
   {
