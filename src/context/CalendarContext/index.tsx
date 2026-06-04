@@ -42,7 +42,9 @@ import { downloadBlob } from "@/utils/downloadBlob";
 import { computeRunningBalances } from "@/lib/balance";
 
 import type { CalendarContextValue, EditScope } from "./types";
+import { YEAR_LOOKAHEAD } from "./consts";
 
+export * from "./consts";
 export * from "./types";
 
 const newId = (): string => crypto.randomUUID();
@@ -51,8 +53,6 @@ const monthFormatter = new Intl.DateTimeFormat(undefined, {
   month: "long",
   year: "numeric",
 });
-
-const YEAR_LOOKAHEAD = 10;
 
 const CalendarContext = createContext<CalendarContextValue | null>(null);
 
