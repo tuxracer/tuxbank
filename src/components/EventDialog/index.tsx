@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useForm, type Resolver } from "react-hook-form";
+import { useForm, useWatch, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   Dialog,
@@ -71,7 +71,7 @@ const EventDialog = (props: EventDialogProps) => {
     register,
     handleSubmit,
     reset,
-    watch,
+    control,
     setValue,
     formState: { errors },
   } = form;
@@ -81,7 +81,8 @@ const EventDialog = (props: EventDialogProps) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  const repeat = watch("repeat");
+  const repeat = useWatch({ control, name: "repeat" });
+  const categoryId = useWatch({ control, name: "categoryId" });
   // Per TRD: per-occurrence date moves are out of scope; lock the date when editing a recurring event.
   const lockDate = mode === "edit" && Boolean(sourceEvent?.recurrence);
 
@@ -128,7 +129,7 @@ const EventDialog = (props: EventDialogProps) => {
             <Label htmlFor="categoryId">Category</Label>
             <CategoryCombobox
               categories={categories}
-              value={watch("categoryId")}
+              value={categoryId}
               onChange={(id) =>
                 setValue("categoryId", id, { shouldValidate: true })
               }
