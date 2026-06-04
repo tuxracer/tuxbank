@@ -1,12 +1,9 @@
 # Build artifacts & generated
 node_modules
-.next
 dist
-out
 build
 coverage
 pnpm-lock.yaml
-next-env.d.ts
 *.tsbuildinfo
 
 # Hand-maintained prose (not subject to Prettier prose-wrap)
