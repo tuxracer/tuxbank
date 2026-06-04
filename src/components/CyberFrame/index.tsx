@@ -1,5 +1,3 @@
-"use client";
-
 import { useLayoutEffect, useRef, useState } from "react";
 
 const CORNERS = ["tl", "tr", "br", "bl"] as const;

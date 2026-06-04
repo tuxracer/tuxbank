@@ -1,5 +1,3 @@
-"use client";
-
 import { useRef, useState } from "react";
 import type { DateCell } from "@/lib/dateGrid";
 import DayCell from "@/components/DayCell";

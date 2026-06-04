@@ -1,5 +1,3 @@
-"use client";
-
 import { useState } from "react";
 import type { CategoryColor } from "@/types";
 import { categoryKey } from "@/types";

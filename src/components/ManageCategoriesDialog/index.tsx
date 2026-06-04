@@ -1,5 +1,3 @@
-"use client";
-
 import { useState } from "react";
 import { categoryKey } from "@/types";
 import { catColorVar, catGlowVar } from "@/utils/categoryColor";

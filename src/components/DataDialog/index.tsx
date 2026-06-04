@@ -1,5 +1,3 @@
-"use client";
-
 import { useRef, useState } from "react";
 import type { ImportPreview } from "@/lib/storage";
 import { isStorageError } from "@/lib/storage";
