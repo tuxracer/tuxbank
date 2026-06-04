@@ -36,7 +36,7 @@ A single person managing their own schedule of **all-day, date-based events** �
 
 | Concern | Choice | Notes |
 | --- | --- | --- |
-| Framework | **Next.js (App Router)** | Calendar page is a client component (`'use client'`); deployable as a static client app. |
+| Framework | **Vite 8 (React SPA)** | Static client app; `index.html` + `src/main.tsx` entry, no server runtime. |
 | Language | **TypeScript** (ESM) | Per repo conventions in `CLAUDE.md`. |
 | UI library | **React** | — |
 | Styling | **Tailwind CSS** | Utility-first; cyberpunk design tokens defined as CSS variables in `globals.css`. |
@@ -45,12 +45,12 @@ A single person managing their own schedule of **all-day, date-based events** �
 | Date math | **date-fns** | Grid generation, recurrence stepping, comparisons. |
 | Date picker | **Native `<input type="date">`** | Used for the event form's Date field; main month grid is custom-built. The shadcn `calendar` primitive remains available for future use. |
 | Persistence | **IndexedDB** via **idb** | Two object stores (events, categories); see §"Persistence: IndexedDB". |
-| Fonts | **Rajdhani**, **Chakra Petch**, **Share Tech Mono** | Loaded via `next/font`. Display / UI / data, respectively. |
+| Fonts | **Rajdhani**, **Chakra Petch**, **Share Tech Mono** | Self-hosted via `@fontsource` packages (latin subsets), imported in `src/main.tsx`. Display / UI / data, respectively. |
 | Testing | **vitest** + **@testing-library/react** | Behavior-focused tests per `CLAUDE.md`; storage tests run against fake-indexeddb. |
 
-> **As-built stack versions:** Next.js 16 (App Router, Turbopack), React 19, Tailwind v4, zod v4, react-day-picker v10.
+> **As-built stack versions:** Vite 8 (Rolldown), React 19, Tailwind v4, zod v4, react-day-picker v10.
 
-> **Build note:** `package.json` scripts map to Next: `pnpm dev` → `next dev`, `pnpm build` → `next build`, `pnpm start` → `next start`. `pnpm test` runs vitest. `pnpm check` continues to run format + lint + typecheck and must pass before commits.
+> **Build note:** `package.json` scripts: `pnpm dev` → `vite`, `pnpm build` → `vite build`, `pnpm start` → `vite preview`. `pnpm test` runs vitest. `pnpm check` continues to run format + lint + typecheck and must pass before commits.
 
 ---
 
@@ -254,11 +254,11 @@ Client-side layered architecture; UI ← state (Context) ← pure logic (recurre
 Per `CLAUDE.md` module conventions — each module is a **directory** named after its primary export, containing `index.ts(x)` and, as needed, `types.ts`, `consts.ts`, `tests.ts`; `index` re-exports the module's types/consts. Import from the module, not its internal files. No barrel-only files.
 
 ```
+index.html                  # Vite HTML entry
 src/
-  app/
-    layout.tsx              # root layout, next/font registration
-    page.tsx                # 'use client' calendar page
-    globals.css             # Tailwind layers + cyberpunk tokens & overlays
+  main.tsx                  # Vite entry: fonts, globals.css, mounts <App />
+  App.tsx                   # calendar page composition
+  globals.css               # Tailwind layers + cyberpunk tokens & overlays
   components/
     CalendarToolbar/        # month nav, Today, category filter, New Event, HUD line
     MonthGrid/              # 6x7 grid; consumes dateGrid + grouped occurrences

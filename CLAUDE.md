@@ -8,9 +8,10 @@ See [docs/TRD.md](docs/TRD.md) for the full technical reference.
 
 ## Architecture
 
-Client-only Next.js App Router app — **no backend, no API routes**, **client-side rendered only (no SSR, no server-side hydration of app state)**. Data flows `src/app/page.tsx` → `CalendarProvider` → `src/lib/*` → IndexedDB (via `idb`).
+Client-only **Vite 8 React SPA** — **no backend, no API routes, no server runtime at all** (the build is a static `dist/`). Data flows `src/App.tsx` → `CalendarProvider` → `src/lib/*` → IndexedDB (via `idb`).
 
-- **`src/app/`** — App Router entry (`layout.tsx`, `page.tsx`) and `globals.css` (Tailwind + cyberpunk theme).
+- **`index.html` + `src/main.tsx`** — Vite entry: mounts `<App />` under `StrictMode`, imports the `@fontsource` fonts and `src/globals.css` (Tailwind + cyberpunk theme).
+- **`src/App.tsx`** — top-level calendar screen composition.
 - **`src/context/CalendarContext/`** — app-wide state via React context; consume with the `useCalendar()` hook (events, categories, CRUD, recurrence-scope handling).
 - **`src/components/`** — UI: `MonthGrid`, `DayCell`, `EventChip`, `EventDialog`, `CategoryCombobox`, `ManageCategoriesDialog`, `RecurrenceScopeDialog`, `CalendarToolbar` (month/year nav), `DataDialog` (JSON backup export/import), `DayEventsPopover`, `CyberFrame`, … · shadcn primitives in `src/components/ui/`.
 - **`src/lib/`** — React-free domain logic: `storage` (IndexedDB via `idb`; CRUD + JSON backup export/import), `recurrence` (expand/edit/delete series + occurrence overrides), `dateGrid` (month-grid construction), `balance` (running balance from deposits/withdrawals).
@@ -19,14 +20,14 @@ Client-only Next.js App Router app — **no backend, no API routes**, **client-s
 
 Each module is a directory named after its primary export, containing `index.ts` and optionally `consts.ts` (constants), `types.ts` (types + guards), and `tests.ts`.
 
-**Rendering**: all UI lives under a `"use client"` boundary (`page.tsx` down); `layout.tsx` stays a thin Server Component for fonts/metadata only. Never add SSR/SSG data fetching or Server Components that render app state — IndexedDB is browser-only, so server-rendered markup would hydrate-mismatch.
+**Rendering**: pure client-side SPA — there is no server rendering of any kind. IndexedDB is browser-only; never introduce SSR/SSG or anything that renders app state outside the browser.
 
 ## Commands
 
 ```bash
-pnpm dev         # Next.js dev (Turbopack) — http://localhost:3000
-pnpm build       # Production build
-pnpm start       # Serve the production build (next start)
+pnpm dev         # Vite dev server — http://localhost:5173
+pnpm build       # Production build (vite build → dist/)
+pnpm start       # Serve the production build (vite preview)
 pnpm test        # Run tests once (vitest run)
 pnpm test:watch  # Run tests in watch mode
 pnpm check       # Verify formatting + lint + typecheck (run before commits)
@@ -39,16 +40,15 @@ pnpm format      # Auto-fix formatting (prettier --write)
 
 ## Tech Stack
 
-- **Next.js 16** (App Router, Turbopack) + **React 19** + **TypeScript** (ESM)
+- **Vite 8** (Rolldown) + **React 19** + **TypeScript** (ESM)
 - **Tailwind CSS v4** + **shadcn/ui** (Radix); shadcn primitives live in `src/components/ui/`
 - **react-hook-form** + **zod** (event editor) · **date-fns** · **react-day-picker** (calendar) · **remeda** (array/object utils) · client-side **IndexedDB** via **idb**
 - Tests: **vitest** + **@testing-library/react**; storage tests run against **fake-indexeddb** (fresh in-memory DB per test)
 
 ## Gotchas
 
-- **Cyberpunk styles are unlayered**: `.cy-*` classes in `src/app/globals.css` sit outside `@layer`, so they override Tailwind utilities. Keep them to visual props — never set `position` on `.cy-dialog` (it overrides shadcn's `fixed` centering and renders the dialog off-screen).
+- **Cyberpunk styles are unlayered**: `.cy-*` classes in `src/globals.css` sit outside `@layer`, so they override Tailwind utilities. Keep them to visual props — never set `position` on `.cy-dialog` (it overrides shadcn's `fixed` centering and renders the dialog off-screen).
 - **jsdom has no layout engine**: vitest can't catch CSS positioning/visibility bugs. Verify dialogs/layout in a real browser (chrome-devtools) and screenshot the render — the a11y tree reports off-screen elements as "present."
-- **Turbopack stale CSS**: `globals.css` edits may not hot-reload; `rm -rf .next && pnpm dev` forces a rebuild.
 - **Storage tests use fake-indexeddb**: `resetDbForTests()` (`src/lib/storage/testing.ts`) swaps in a fresh in-memory `IDBFactory` per test — import it only from test files so fake-indexeddb stays out of the production bundle.
 
 ## Coding Standards
