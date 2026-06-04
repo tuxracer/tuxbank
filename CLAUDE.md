@@ -14,7 +14,7 @@ Client-only **Vite 8 React SPA** — **no backend, no API routes, no server runt
 - **`src/App.tsx`** — top-level calendar screen composition.
 - **`src/context/CalendarContext/`** — app-wide state via React context; consume with the `useCalendar()` hook (events, categories, CRUD, recurrence-scope handling).
 - **`src/components/`** — UI: `MonthGrid`, `DayCell`, `EventChip`, `EventDialog`, `CategoryCombobox`, `ManageCategoriesDialog`, `RecurrenceScopeDialog`, `CalendarToolbar` (month/year nav), `DataDialog` (JSON backup export/import), `DayEventsPopover`, `CyberFrame`, … · shadcn primitives in `src/components/ui/`.
-- **`src/lib/`** — React-free domain logic: `storage` (IndexedDB via `idb`; CRUD + JSON backup export/import), `recurrence` (expand/edit/delete series + occurrence overrides), `dateGrid` (month-grid construction), `balance` (running balance from deposits/withdrawals).
+- **`src/lib/`** — React-free domain logic: `storage` (IndexedDB via `idb`; CRUD + JSON backup export/import; broadcasts a cross-tab signal after successful writes), `tabSync` (cross-tab change notifications over `BroadcastChannel`: `notifyDataChanged` + `subscribeToDataChanges`), `recurrence` (expand/edit/delete series + occurrence overrides), `dateGrid` (month-grid construction), `balance` (running balance from deposits/withdrawals).
 - **`src/types/`** — shared types + guards (`CalendarEvent`, `Category`, `Recurrence`, `isCalendarEvent`, …).
 - **`src/utils/`** — small shared helpers (e.g. `formatCurrency`).
 

@@ -273,8 +273,10 @@ src/
     CalendarContext/        # visible month, events, CRUD actions, filter state
   lib/
     storage/                # IndexedDB (idb); StorageError + guards; JSON backup
+    tabSync/                # cross-tab change signal (BroadcastChannel)
     recurrence/             # expand(window) + recurrence override/split helpers (pure)
     dateGrid/               # month -> 6x7 date matrix
+    balance/                # running balance from deposits/withdrawals
   types/                    # CalendarEvent, Category, Recurrence + type guards
   components/
     ui/                     # shadcn primitives (shadcn CLI default location)
@@ -301,6 +303,10 @@ Vitest, **behavior-focused** (verify behavior, not implementation constants, per
 - **`dateGrid`:** correct 6×7 matrix, Sunday-first, accurate leading/trailing days across month/year boundaries.
 - **`recurrence`:** daily/weekly/monthly/yearly expansion within a window; interval honored; `endsOn` boundary inclusive; month-skip (31st) and Feb-29 leap rules; overrides (cancel + patch); **split-series** ("this and following"); single-occurrence exception.
 - **`storage`:** CRUD round-trips against fake-indexeddb (`resetDbForTests()` per test); errors map to the correct `StorageError` codes; backup export → validate → commit round-trips.
+- **`tabSync`:** notifications cross channel instances and never echo to the
+  sender; unsubscribe stops callbacks; both functions are no-ops without
+  `BroadcastChannel`. Storage writes broadcast on success only (one signal per
+  import). The provider refreshes on a notification and keeps per-tab filters.
 - **Components** (RTL): create/edit/delete flow; **form validation** (empty title, `interval < 1`, or `endsOn` before the anchor block submission and surface field errors); the recurring-scope prompt appears only for recurring events; "+N more" opens the day popover; category filter hides/shows chips.
 
 ---
@@ -340,7 +346,8 @@ Vitest, **behavior-focused** (verify behavior, not implementation constants, per
 
 ## 17. Assumptions
 
-- Single user on a single device; no concurrent editing.
+- Single user. Multiple open tabs stay in sync via `src/lib/tabSync` with
+  last-write-wins semantics; there is no cross-device sync.
 - Personal-scale data volume (hundreds to low thousands of events); in-memory expansion is acceptable.
 - Modern evergreen browser with IndexedDB support.
 - Sunday-first week (can be made configurable later).
@@ -364,8 +371,12 @@ No backend; the database lives entirely in the browser profile.
 - **Errors:** every repository function throws a typed `StorageError`
   (`UNAVAILABLE | QUOTA_EXCEEDED | BLOCKED | READ_FAILED | WRITE_FAILED |
   IMPORT_INVALID | EXPORT_FAILED`).
-- **Multi-tab:** no locking; IndexedDB supports concurrent connections. Tabs
-  don't live-sync state; last write wins and a refresh shows other-tab changes.
+- **Multi-tab:** no locking; IndexedDB supports concurrent connections. After
+  every successful write the storage layer broadcasts a signal-only message on
+  a `BroadcastChannel` (`src/lib/tabSync`); other tabs re-read events and
+  categories from IndexedDB and update live. Last write wins: saving an edit
+  whose event another tab deleted recreates it. Per-tab UI state (visible
+  month, hidden-category filters) stays independent per tab.
 - **Testing:** vitest swaps in a fresh `fake-indexeddb` `IDBFactory` per test
   via `resetDbForTests()` (`src/lib/storage/testing.ts`).
 
