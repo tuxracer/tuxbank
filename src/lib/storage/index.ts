@@ -16,6 +16,7 @@ import {
   type ImportPreview,
   type StorageErrorCode,
 } from "./types";
+import { notifyDataChanged } from "@/lib/tabSync";
 
 export * from "./consts";
 export * from "./types";
@@ -76,6 +77,7 @@ export const putEvent = async (event: CalendarEvent): Promise<void> => {
   } catch (error) {
     throw toWriteError(error);
   }
+  notifyDataChanged();
 };
 
 export const deleteEvent = async (id: string): Promise<void> => {
@@ -85,6 +87,7 @@ export const deleteEvent = async (id: string): Promise<void> => {
   } catch (error) {
     throw toWriteError(error);
   }
+  notifyDataChanged();
 };
 
 export const getAllCategories = async (): Promise<Category[]> => {
@@ -104,6 +107,7 @@ export const putCategory = async (category: Category): Promise<void> => {
   } catch (error) {
     throw toWriteError(error);
   }
+  notifyDataChanged();
 };
 
 export const deleteCategory = async (id: string): Promise<void> => {
@@ -113,6 +117,7 @@ export const deleteCategory = async (id: string): Promise<void> => {
   } catch (error) {
     throw toWriteError(error);
   }
+  notifyDataChanged();
 };
 
 export const exportDatabase = async (): Promise<string> => {
@@ -193,4 +198,5 @@ export const commitImport = async (text: string): Promise<void> => {
   } catch (error) {
     throw toWriteError(error);
   }
+  notifyDataChanged();
 };

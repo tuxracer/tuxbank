@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import type { CalendarEvent, Category } from "@/types";
 import {
   getAllEvents,
@@ -12,6 +12,7 @@ import {
   commitImport,
 } from "./index";
 import { resetDbForTests } from "./testing";
+import { resetChannelForTests, SYNC_CHANNEL_NAME } from "@/lib/tabSync";
 
 const make = (id: string): CalendarEvent => ({
   id,
@@ -268,5 +269,61 @@ describe("export / import (JSON backup)", () => {
     }
 
     expect((await getAllEvents()).map((e) => e.id)).toEqual(["existing"]);
+  });
+});
+
+describe("cross-tab change notifications", () => {
+  let otherTab: BroadcastChannel;
+  let broadcasts: unknown[];
+
+  beforeEach(async () => {
+    await resetDbForTests();
+    broadcasts = [];
+    otherTab = new BroadcastChannel(SYNC_CHANNEL_NAME);
+    otherTab.onmessage = (event) => broadcasts.push(event.data);
+  });
+
+  afterEach(() => {
+    otherTab.close();
+    resetChannelForTests();
+  });
+
+  /** Wait until all broadcasts posted so far have been delivered, then return them. */
+  const settledBroadcasts = async (): Promise<unknown[]> => {
+    const marker = new BroadcastChannel(SYNC_CHANNEL_NAME);
+    marker.postMessage("marker");
+    await vi.waitFor(() => expect(broadcasts).toContain("marker"));
+    marker.close();
+    return broadcasts.filter((message) => message !== "marker");
+  };
+
+  it("broadcasts after each successful event write and delete", async () => {
+    await putEvent(make("a"));
+    await deleteEvent("a");
+    expect(await settledBroadcasts()).toHaveLength(2);
+  });
+
+  it("broadcasts after each successful category write and delete", async () => {
+    await putCategory({ id: "rent", name: "Rent", color: "magenta" });
+    await deleteCategory("rent");
+    expect(await settledBroadcasts()).toHaveLength(2);
+  });
+
+  it("broadcasts exactly once for a whole import", async () => {
+    await putEvent(make("a"));
+    const text = await exportDatabase();
+    await settledBroadcasts(); // flush the setup write's broadcast
+    broadcasts.length = 0;
+
+    await commitImport(text);
+    expect(await settledBroadcasts()).toHaveLength(1);
+  });
+
+  it("does not broadcast when a write fails", async () => {
+    // Missing keyPath ("id") makes IndexedDB reject the put.
+    await expect(
+      putEvent({} as unknown as CalendarEvent),
+    ).rejects.toMatchObject({ code: "WRITE_FAILED" });
+    expect(await settledBroadcasts()).toHaveLength(0);
   });
 });
