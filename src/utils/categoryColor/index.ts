@@ -14,3 +14,15 @@ export const catColorVar = (color: CategoryColor): string =>
  */
 export const catGlowVar = (color: CategoryColor): string =>
   `var(--cat-${color}-glow)`;
+
+/** Ordered category color palette, shown left to right in color pickers. */
+export const PALETTE: CategoryColor[] = [
+  "cyan",
+  "magenta",
+  "yellow",
+  "green",
+  "orange",
+];
+
+/** Default color for a newly created category. */
+export const DEFAULT_CATEGORY_COLOR: CategoryColor = PALETTE[0];
