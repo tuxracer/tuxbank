@@ -117,6 +117,26 @@ export const shiftISO = (iso: string, days: number): string =>
 export const daysBetweenISO = (from: string, to: string): number =>
   differenceInCalendarDays(parseISO(to), parseISO(from));
 
+export const shiftSeries = (
+  event: CalendarEvent,
+  offsetDays: number,
+): CalendarEvent => ({
+  ...event,
+  date: shiftISO(event.date, offsetDays),
+  recurrence: event.recurrence
+    ? {
+        ...event.recurrence,
+        endsOn: event.recurrence.endsOn
+          ? shiftISO(event.recurrence.endsOn, offsetDays)
+          : null,
+      }
+    : null,
+  overrides: event.overrides.map((o) => ({
+    ...o,
+    occurrenceDate: shiftISO(o.occurrenceDate, offsetDays),
+  })),
+});
+
 const upsertOverride = (
   overrides: OccurrenceOverride[],
   next: OccurrenceOverride,

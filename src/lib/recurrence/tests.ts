@@ -10,6 +10,7 @@ import {
   dayBeforeISO,
   shiftISO,
   daysBetweenISO,
+  shiftSeries,
 } from "./index";
 
 const getCategory = makeCategoryResolver(PRESET_CATEGORIES);
@@ -292,5 +293,42 @@ describe("date-shift helpers", () => {
     expect(daysBetweenISO("2026-05-04", "2026-05-12")).toBe(8);
     expect(daysBetweenISO("2026-05-12", "2026-05-04")).toBe(-8);
     expect(daysBetweenISO("2026-05-04", "2026-05-04")).toBe(0);
+  });
+});
+
+describe("shiftSeries (all-scope move)", () => {
+  const weekly: CalendarEvent = {
+    ...base,
+    date: "2026-05-04",
+    recurrence: { freq: "weekly", interval: 1, endsOn: "2026-05-25" },
+    overrides: [{ occurrenceDate: "2026-05-11", cancelled: true }],
+  };
+
+  it("slides the anchor, endsOn, and override keys by the offset", () => {
+    const shifted = shiftSeries(weekly, 1);
+    expect(shifted.date).toBe("2026-05-05");
+    expect(shifted.recurrence?.endsOn).toBe("2026-05-26");
+    expect(shifted.overrides).toEqual([
+      { occurrenceDate: "2026-05-12", cancelled: true },
+    ]);
+  });
+
+  it("keeps the cancelled occurrence aligned after the shift", () => {
+    const shifted = shiftSeries(weekly, 1);
+    // Original fired 05-04/11/18/25 with 05-11 cancelled.
+    // Shifted +1 fires 05-05/12/19/26 with 05-12 cancelled.
+    expect(datesOf(shifted, "2026-05-01", "2026-05-31")).toEqual([
+      "2026-05-05",
+      "2026-05-19",
+      "2026-05-26",
+    ]);
+  });
+
+  it("leaves a null endsOn null", () => {
+    const forever = {
+      ...weekly,
+      recurrence: { freq: "weekly" as const, interval: 1, endsOn: null },
+    };
+    expect(shiftSeries(forever, 3).recurrence?.endsOn).toBeNull();
   });
 });
