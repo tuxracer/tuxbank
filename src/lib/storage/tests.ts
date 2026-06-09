@@ -14,6 +14,7 @@ import {
   resetDbCache,
   getTombstones,
   getSyncCursor,
+  setSyncCursor,
   DB_NAME,
   STORE,
   CATEGORY_STORE,
@@ -472,5 +473,20 @@ describe("v2 migration", () => {
     // The new stores exist and are usable.
     expect(await getTombstones()).toEqual([]);
     expect(await getSyncCursor()).toBeUndefined();
+  });
+});
+
+describe("sync cursor", () => {
+  beforeEach(async () => {
+    await resetDbForTests();
+  });
+
+  it("returns undefined before any cursor is set", async () => {
+    expect(await getSyncCursor()).toBeUndefined();
+  });
+
+  it("round-trips a stored cursor value", async () => {
+    await setSyncCursor("2026-06-09T12:00:00.000Z");
+    expect(await getSyncCursor()).toBe("2026-06-09T12:00:00.000Z");
   });
 });
