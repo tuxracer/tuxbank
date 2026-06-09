@@ -1,7 +1,4 @@
 import { useState } from "react";
-import type { CategoryColor } from "@/types";
-import { categoryKey } from "@/types";
-import { catColorVar, catGlowVar } from "@/utils/categoryColor";
 import {
   Popover,
   PopoverContent,
@@ -16,22 +13,15 @@ import {
 } from "@/components/ui/command";
 import { CyberFrame } from "@/components/CyberFrame";
 import { CyControlFrame } from "@/components/CyControlFrame";
+import { CategoryDot } from "@/components/CategoryDot";
+import {
+  CategoryCreateRow,
+  useCategorySearch,
+} from "@/components/CategoryCreateRow";
 
-import { PALETTE } from "./consts";
 import type { CategoryComboboxProps } from "./types";
 
-export * from "./consts";
 export * from "./types";
-
-const Dot = ({ color }: { color: CategoryColor }) => (
-  <span
-    className="inline-block h-2.5 w-2.5 shrink-0 rounded-full"
-    style={{
-      background: catColorVar(color),
-      boxShadow: `0 0 6px ${catGlowVar(color)}`,
-    }}
-  />
-);
 
 const CategoryCombobox = ({
   categories,
@@ -40,35 +30,31 @@ const CategoryCombobox = ({
   onCreateCategory,
 }: CategoryComboboxProps) => {
   const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState("");
-  const [newColor, setNewColor] = useState<CategoryColor>("cyan");
+  const {
+    query,
+    setQuery,
+    filtered,
+    showCreate,
+    newColor,
+    setNewColor,
+    reset,
+  } = useCategorySearch(categories);
 
   const selected = categories.find((c) => c.id === value);
-  const q = query.trim();
-  const filtered = categories.filter((c) =>
-    c.name.toLowerCase().includes(q.toLowerCase()),
-  );
-  const hasExact = categories.some(
-    (c) => categoryKey(c.name) === categoryKey(q),
-  );
-  const showCreate = q.length > 0 && !hasExact;
 
   const choose = (id: string) => {
     onChange(id);
     setOpen(false);
-    setQuery("");
+    reset();
   };
 
   const create = async () => {
-    const category = await onCreateCategory(q, newColor);
+    const category = await onCreateCategory(query.trim(), newColor);
     choose(category.id);
   };
 
   const handleOpenChange = (next: boolean) => {
-    if (!next) {
-      setQuery("");
-      setNewColor("cyan");
-    }
+    if (!next) reset();
     setOpen(next);
   };
 
@@ -82,7 +68,7 @@ const CategoryCombobox = ({
           >
             {selected ? (
               <>
-                <Dot color={selected.color} />
+                <CategoryDot color={selected.color} />
                 {selected.name}
               </>
             ) : (
@@ -100,6 +86,12 @@ const CategoryCombobox = ({
             placeholder="Search or create…"
             value={query}
             onValueChange={setQuery}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && showCreate && filtered.length === 0) {
+                e.preventDefault();
+                void create();
+              }
+            }}
           />
           <CommandList>
             <CommandGroup>
@@ -109,39 +101,18 @@ const CategoryCombobox = ({
                   value={c.id}
                   onSelect={() => choose(c.id)}
                 >
-                  <Dot color={c.color} /> {c.name}
+                  <CategoryDot color={c.color} /> {c.name}
                 </CommandItem>
               ))}
-              {showCreate && (
-                <CommandItem value={`__create__${q}`} onSelect={create}>
-                  <Dot color={newColor} /> Create &quot;{q}&quot;
-                </CommandItem>
-              )}
             </CommandGroup>
           </CommandList>
           {showCreate && (
-            <div className="flex items-center gap-2 border-t border-[color:var(--cy-line)] p-2">
-              <span className="cy-mono text-[10px] uppercase text-[color:var(--cy-muted)]">
-                Color
-              </span>
-              {PALETTE.map((color) => (
-                <button
-                  key={color}
-                  type="button"
-                  title={color}
-                  onClick={() => setNewColor(color)}
-                  className="rounded-full p-0.5"
-                  style={{
-                    outline:
-                      newColor === color
-                        ? `2px solid ${catColorVar(color)}`
-                        : "none",
-                  }}
-                >
-                  <Dot color={color} />
-                </button>
-              ))}
-            </div>
+            <CategoryCreateRow
+              query={query.trim()}
+              color={newColor}
+              onPickColor={setNewColor}
+              onCreate={() => void create()}
+            />
           )}
         </Command>
       </PopoverContent>
