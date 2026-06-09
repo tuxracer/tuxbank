@@ -243,17 +243,21 @@ export const commitImport = async (text: string): Promise<void> => {
   const backup = parseBackup(text);
   try {
     const db = await getDb();
-    const tx = db.transaction([STORE, CATEGORY_STORE], "readwrite");
+    const tx = db.transaction(
+      [STORE, CATEGORY_STORE, TOMBSTONE_STORE],
+      "readwrite",
+    );
     // Accumulate request promises as they are queued so we can silence any
     // pending AbortError rejections if we need to abort the transaction.
     const requests: Promise<unknown>[] = [];
     try {
       const events = tx.objectStore(STORE);
       const categories = tx.objectStore(CATEGORY_STORE);
+      const tombstones = tx.objectStore(TOMBSTONE_STORE);
       // Requests are queued synchronously in push order — both clears are
       // enqueued before any put, and IndexedDB runs same-store requests in
       // creation order. The whole transaction rolls back on failure.
-      requests.push(events.clear(), categories.clear());
+      requests.push(events.clear(), categories.clear(), tombstones.clear());
       for (const event of backup.events) {
         requests.push(events.put(event));
       }

@@ -419,6 +419,34 @@ describe("tombstones", () => {
   });
 });
 
+describe("import clears tombstones", () => {
+  beforeEach(async () => {
+    await resetDbForTests();
+  });
+
+  it("removes tombstones when a backup is imported", async () => {
+    await putEvent({
+      id: "e1",
+      title: "t",
+      date: "2026-06-09",
+      categoryId: "work",
+      amount: 1,
+      direction: "deposit",
+      recurrence: null,
+      overrides: [],
+      createdAt: "2026-06-09T00:00:00.000Z",
+      updatedAt: "2026-06-09T00:00:00.000Z",
+    });
+    await deleteEvent("e1");
+    expect(await getTombstones()).toHaveLength(1);
+
+    const backup = await exportDatabase();
+    await commitImport(backup);
+
+    expect(await getTombstones()).toEqual([]);
+  });
+});
+
 describe("v2 migration", () => {
   beforeEach(async () => {
     await resetDbForTests();
