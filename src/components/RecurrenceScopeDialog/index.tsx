@@ -34,7 +34,9 @@ const RecurrenceScopeDialog = ({
           <DialogTitle className="cy-display uppercase tracking-wide">
             {action === "edit"
               ? "Edit recurring event"
-              : "Delete recurring event"}
+              : action === "delete"
+                ? "Delete recurring event"
+                : "Move recurring event"}
           </DialogTitle>
         </DialogHeader>
 
