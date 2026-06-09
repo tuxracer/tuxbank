@@ -5,6 +5,7 @@ import { BACKUP_APP, BACKUP_SCHEMA_VERSION } from "./consts";
 
 export type StorageErrorCode =
   | "UNAVAILABLE"
+  | "OPEN_FAILED"
   | "QUOTA_EXCEEDED"
   | "BLOCKED"
   | "READ_FAILED"
@@ -14,6 +15,7 @@ export type StorageErrorCode =
 
 const STORAGE_ERROR_CODES: readonly StorageErrorCode[] = [
   "UNAVAILABLE",
+  "OPEN_FAILED",
   "QUOTA_EXCEEDED",
   "BLOCKED",
   "READ_FAILED",

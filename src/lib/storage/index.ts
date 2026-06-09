@@ -1,4 +1,4 @@
-import { openDB, type IDBPDatabase } from "idb";
+import { openDB, deleteDB, type IDBPDatabase } from "idb";
 import { isString } from "remeda";
 import type { CalendarEvent, Category } from "@/types";
 import { isCalendarEvent, isCategory } from "@/types";
@@ -46,7 +46,11 @@ const getDb = (): Promise<IDBPDatabase> => {
       },
     }).catch((cause) => {
       dbPromise = null;
-      throw new StorageError("UNAVAILABLE", cause);
+      // The database exists but could not be opened — most often a version
+      // mismatch (it was written by a newer, incompatible build) or corruption.
+      // Distinct from UNAVAILABLE (no IndexedDB at all) because deleting and
+      // recreating the database can recover from it.
+      throw new StorageError("OPEN_FAILED", cause);
     });
   }
   return dbPromise;
@@ -348,4 +352,24 @@ export const clearLocalData = async (): Promise<void> => {
     throw toWriteError(error);
   }
   notifyDataChanged();
+};
+
+/**
+ * Delete the entire local database. Recovery path for an OPEN_FAILED database
+ * (e.g. one written by a newer, incompatible build) that cannot be opened to
+ * clear normally; the next access recreates an empty one. Destroys all local
+ * data, so callers should confirm first and reload afterward.
+ */
+export const deleteDatabase = async (): Promise<void> => {
+  if (typeof indexedDB === "undefined") {
+    throw new StorageError("UNAVAILABLE");
+  }
+  // Drop any cached (failed) connection so deletion is not blocked by it and a
+  // later open starts fresh.
+  resetDbCache();
+  try {
+    await deleteDB(DB_NAME);
+  } catch (error) {
+    throw toStorageError(error, "WRITE_FAILED");
+  }
 };

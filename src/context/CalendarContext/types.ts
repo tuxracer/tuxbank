@@ -24,6 +24,8 @@ export type CalendarContextValue = {
   categoryUsageCount: Record<string, number>;
   activeCategoryIds: Set<string>;
   storageAvailable: boolean;
+  /** Storage failed because the database can't be opened; deleting it can recover. */
+  storageResettable: boolean;
   loaded: boolean;
   goToPrevMonth: () => void;
   goToNextMonth: () => void;
@@ -58,6 +60,8 @@ export type CalendarContextValue = {
   importData: (file: File) => Promise<void>;
   /** Delete every event and category (tombstoned, so it also clears the cloud). */
   clearAllData: () => Promise<void>;
+  /** Delete the whole local database to recover from an unopenable one. */
+  resetLocalData: () => Promise<void>;
   /** Re-read events + categories from storage (used after a sync pulls). */
   refreshFromStorage: () => Promise<void>;
 };

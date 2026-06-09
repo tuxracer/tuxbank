@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { act, renderHook, waitFor } from "@testing-library/react";
+import { openDB } from "idb";
 import type { CalendarEvent } from "@/types";
 import { resetDbForTests } from "@/lib/storage/testing";
 import {
@@ -7,6 +8,13 @@ import {
   exportDatabase,
   getAllEvents,
   putEvent,
+  resetDbCache,
+  DB_NAME,
+  DB_VERSION,
+  STORE,
+  CATEGORY_STORE,
+  TOMBSTONE_STORE,
+  SYNC_META_STORE,
 } from "@/lib/storage";
 import { resetChannelForTests, SYNC_CHANNEL_NAME } from "@/lib/tabSync";
 import { CalendarProvider, useCalendar } from "./index";
@@ -494,6 +502,48 @@ describe("CalendarContext", () => {
       expect(result.current.visibleMonth.getFullYear()).toBe(pastYear),
     );
     expect(result.current.yearRange.min).toBe(pastYear);
+  });
+});
+
+describe("storage recovery (unopenable database)", () => {
+  beforeEach(async () => {
+    await resetDbForTests();
+  });
+
+  const openNewerDb = () =>
+    openDB(DB_NAME, DB_VERSION + 1, {
+      upgrade(db) {
+        db.createObjectStore(STORE, { keyPath: "id" });
+        db.createObjectStore(CATEGORY_STORE, { keyPath: "id" });
+        db.createObjectStore(TOMBSTONE_STORE, { keyPath: "id" });
+        db.createObjectStore(SYNC_META_STORE);
+      },
+    });
+
+  it("marks storage unavailable and resettable when the database can't be opened", async () => {
+    const newer = await openNewerDb();
+    newer.close();
+    resetDbCache();
+
+    const { result } = renderHook(() => useCalendar(), { wrapper });
+    await waitFor(() => expect(result.current.loaded).toBe(true));
+    expect(result.current.storageAvailable).toBe(false);
+    expect(result.current.storageResettable).toBe(true);
+  });
+
+  it("resetLocalData deletes the bad database so storage opens fresh", async () => {
+    const newer = await openNewerDb();
+    newer.close();
+    resetDbCache();
+
+    const { result } = renderHook(() => useCalendar(), { wrapper });
+    await waitFor(() => expect(result.current.storageResettable).toBe(true));
+
+    await act(async () => {
+      await result.current.resetLocalData();
+    });
+
+    await expect(getAllEvents()).resolves.toEqual([]);
   });
 });
 

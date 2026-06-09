@@ -296,7 +296,8 @@ src/
     DayEventsPopover/       # overflow list (shadcn Popover)
     EventDialog/            # create/edit form (shadcn Form + react-hook-form/zod, Dialog/Select/Textarea + date picker)
     RecurrenceScopeDialog/  # This / This & following / All (shadcn Dialog + RadioGroup)
-    DataDialog/             # JSON backup export/import (validate -> confirm -> swap)
+    DataDialog/             # JSON backup export/import (validate -> confirm -> swap) + guarded clear-all
+    StorageUnavailableBanner/ # shown when storage fails; offers a reset when the DB is unopenable
   context/
     CalendarContext/        # visible month, events, CRUD actions (including moveEvent), filter state
   lib/
@@ -531,6 +532,16 @@ tombstone; writing a row clears any tombstone for its id; importing a backup
 clears all tombstones. `applyRemoteDelete` removes a row **without** writing a
 new tombstone, so an applied remote delete does not bounce back to the server.
 `getSyncCursor` / `setSyncCursor` persist the sync cursor in `syncMeta`.
+
+Opening the database distinguishes two failure modes. `UNAVAILABLE` means there
+is no IndexedDB at all (e.g. a hostile private-mode context); nothing can be
+done. `OPEN_FAILED` means the database exists but cannot be opened, almost always
+because it was written by a newer, incompatible build (IndexedDB cannot
+downgrade) or is corrupt. The latter is recoverable: `deleteDatabase()` drops the
+whole database so the next open recreates an empty one. `CalendarContext` exposes
+`storageResettable` (true on `OPEN_FAILED`) and `resetLocalData`, and the
+`StorageUnavailableBanner` surfaces a confirm-gated "Reset local data" button
+that deletes the database and reloads.
 
 ### Sync engine (`src/lib/sync`)
 

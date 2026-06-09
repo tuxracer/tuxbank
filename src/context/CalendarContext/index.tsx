@@ -41,6 +41,7 @@ import {
   validateImport,
   commitImport,
   clearAllData as dbClearAllData,
+  deleteDatabase,
 } from "@/lib/storage";
 import { subscribeToDataChanges } from "@/lib/tabSync";
 import { downloadBlob } from "@/utils/downloadBlob";
@@ -73,7 +74,18 @@ export const CalendarProvider = ({
   const [categories, setCategories] = useState<Category[]>([]);
   const categoriesRef = useRef<Category[]>([]);
   const [storageAvailable, setStorageAvailable] = useState<boolean>(true);
+  const [storageResettable, setStorageResettable] = useState<boolean>(false);
   const [loaded, setLoaded] = useState<boolean>(false);
+
+  // Record a storage failure: mark storage unavailable, and resettable when the
+  // database exists but could not be opened (OPEN_FAILED) — deleting it can
+  // recover. Returns whether the error was a StorageError (vs. a real bug).
+  const handleStorageError = useCallback((error: unknown): boolean => {
+    if (!isStorageError(error)) return false;
+    setStorageAvailable(false);
+    if (error.code === "OPEN_FAILED") setStorageResettable(true);
+    return true;
+  }, []);
   const [hiddenCategoryIds, setHiddenCategoryIds] = useState<Set<string>>(
     () => new Set(),
   );
@@ -115,23 +127,24 @@ export const CalendarProvider = ({
       })
       .catch((error) => {
         if (!active) return;
-        if (isStorageError(error) && error.code === "UNAVAILABLE")
-          setStorageAvailable(false);
+        handleStorageError(error);
         setLoaded(true);
       });
     return () => {
       active = false;
     };
-  }, []);
+  }, [handleStorageError]);
 
-  const persist = useCallback(async (write: () => Promise<void>) => {
-    try {
-      await write();
-    } catch (error) {
-      if (isStorageError(error)) setStorageAvailable(false);
-      else throw error;
-    }
-  }, []);
+  const persist = useCallback(
+    async (write: () => Promise<void>) => {
+      try {
+        await write();
+      } catch (error) {
+        if (!handleStorageError(error)) throw error;
+      }
+    },
+    [handleStorageError],
+  );
 
   const refreshSeqRef = useRef(0);
 
@@ -152,10 +165,13 @@ export const CalendarProvider = ({
       setEvents(loadedEvents);
     } catch (error) {
       if (seq !== refreshSeqRef.current) return;
-      if (isStorageError(error) && error.code === "UNAVAILABLE")
-        setStorageAvailable(false);
+      handleStorageError(error);
       // Otherwise keep the current (stale) state; the next notification retries.
     }
+  }, [handleStorageError]);
+
+  const resetLocalData = useCallback(async () => {
+    await deleteDatabase();
   }, []);
 
   const reloadData = useCallback(async () => {
@@ -516,6 +532,7 @@ export const CalendarProvider = ({
     categoryUsageCount,
     activeCategoryIds,
     storageAvailable,
+    storageResettable,
     loaded,
     goToPrevMonth: () => setVisibleMonth((m) => addMonths(m, -1)),
     goToNextMonth: () => setVisibleMonth((m) => addMonths(m, 1)),
@@ -533,6 +550,7 @@ export const CalendarProvider = ({
     previewImport,
     importData,
     clearAllData,
+    resetLocalData,
     refreshFromStorage,
   };
 

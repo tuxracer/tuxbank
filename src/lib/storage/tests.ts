@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { openDB } from "idb";
 import type { CalendarEvent, Category } from "@/types";
 import {
   getAllEvents,
@@ -16,6 +17,14 @@ import {
   applyRemoteDelete,
   clearLocalData,
   clearAllData,
+  deleteDatabase,
+  resetDbCache,
+  DB_NAME,
+  DB_VERSION,
+  STORE,
+  CATEGORY_STORE,
+  TOMBSTONE_STORE,
+  SYNC_META_STORE,
 } from "./index";
 import { resetDbForTests } from "./testing";
 import { resetChannelForTests, SYNC_CHANNEL_NAME } from "@/lib/tabSync";
@@ -494,6 +503,43 @@ describe("applyRemoteDelete", () => {
     expect(await getTombstones()).toHaveLength(1);
     await applyRemoteDelete("k1", "category");
     expect(await getTombstones()).toEqual([]);
+  });
+});
+
+describe("obsolete / unopenable database", () => {
+  beforeEach(async () => {
+    await resetDbForTests();
+  });
+
+  // Stand up a database one version ahead of what the app supports, the way a
+  // browser left behind by a newer build would look.
+  const openNewerDb = () =>
+    openDB(DB_NAME, DB_VERSION + 1, {
+      upgrade(db) {
+        db.createObjectStore(STORE, { keyPath: "id" });
+        db.createObjectStore(CATEGORY_STORE, { keyPath: "id" });
+        db.createObjectStore(TOMBSTONE_STORE, { keyPath: "id" });
+        db.createObjectStore(SYNC_META_STORE);
+      },
+    });
+
+  it("reports OPEN_FAILED when the stored database is a newer, unopenable version", async () => {
+    const newer = await openNewerDb();
+    newer.close();
+    resetDbCache();
+    await expect(getAllEvents()).rejects.toMatchObject({ code: "OPEN_FAILED" });
+  });
+
+  it("deleteDatabase removes the bad database so a fresh one opens empty", async () => {
+    const newer = await openNewerDb();
+    await newer.put(STORE, make("ghost"));
+    newer.close();
+    resetDbCache();
+    await expect(getAllEvents()).rejects.toMatchObject({ code: "OPEN_FAILED" });
+
+    await deleteDatabase();
+
+    expect(await getAllEvents()).toEqual([]);
   });
 });
 

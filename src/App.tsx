@@ -27,6 +27,7 @@ import EventDialog from "@/components/EventDialog";
 import RecurrenceScopeDialog from "@/components/RecurrenceScopeDialog";
 import ManageCategoriesDialog from "@/components/ManageCategoriesDialog";
 import DataDialog from "@/components/DataDialog";
+import StorageUnavailableBanner from "@/components/StorageUnavailableBanner";
 import { SyncDialog } from "@/components/SyncDialog";
 import { Toaster } from "@/components/ui/sonner";
 
@@ -89,6 +90,13 @@ const CalendarScreen = () => {
   const clearAllData = async () => {
     await cal.clearAllData();
     await sync.syncNow();
+  };
+
+  // Recover from an unopenable local database by deleting it and reloading, so
+  // the app reopens against a fresh one.
+  const handleResetLocalData = async () => {
+    await cal.resetLocalData();
+    window.location.reload();
   };
 
   const onKeyDown = (e: React.KeyboardEvent) => {
@@ -203,10 +211,10 @@ const CalendarScreen = () => {
       onKeyDown={onKeyDown}
     >
       {cal.loaded && !cal.storageAvailable && (
-        <div className="cy-mono border border-[color:var(--cy-magenta)] px-4 py-2 text-xs text-[color:var(--cy-magenta)]">
-          ◢ LOCAL STORAGE UNAVAILABLE — changes won&apos;t be saved this
-          session.
-        </div>
+        <StorageUnavailableBanner
+          resettable={cal.storageResettable}
+          onReset={handleResetLocalData}
+        />
       )}
 
       <CalendarToolbar
