@@ -87,8 +87,10 @@ export const SyncDialog = ({ open, onOpenChange }: SyncDialogProps) => {
             </p>
           )}
 
-          {/* SYNCED / SYNCING */}
-          {(sync.status === "synced" || sync.status === "syncing") &&
+          {/* SYNCED / SYNCING / ERROR (all post-onboarding, account active) */}
+          {(sync.status === "synced" ||
+            sync.status === "syncing" ||
+            sync.status === "error") &&
             sync.step === "idle" && (
               <section className="flex flex-col gap-3">
                 <p className="cy-mono text-xs">
@@ -97,9 +99,11 @@ export const SyncDialog = ({ open, onOpenChange }: SyncDialogProps) => {
                 <p className="cy-mono text-xs text-[color:var(--cy-muted)]">
                   {sync.status === "syncing"
                     ? "Syncing…"
-                    : sync.lastSyncedAt
-                      ? `Last sync ${new Date(sync.lastSyncedAt).toLocaleString()}`
-                      : "Synced"}
+                    : sync.status === "error"
+                      ? "Sync failed. Retry below."
+                      : sync.lastSyncedAt
+                        ? `Last sync ${new Date(sync.lastSyncedAt).toLocaleString()}`
+                        : "Synced"}
                 </p>
                 <Button
                   className="cy-btn justify-start"
