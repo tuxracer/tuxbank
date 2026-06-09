@@ -1,4 +1,5 @@
-import EventChip from "@/components/EventChip";
+import { useDroppable } from "@dnd-kit/core";
+import DraggableEventChip from "@/components/DraggableEventChip";
 import DayEventsPopover from "@/components/DayEventsPopover";
 import { CyberFrame } from "@/components/CyberFrame";
 import { formatCurrency } from "@/utils/formatCurrency";
@@ -19,14 +20,17 @@ const DayCell = ({
   onSelectDate,
   onSelectOccurrence,
 }: DayCellProps) => {
+  const { setNodeRef, isOver } = useDroppable({ id: cell.iso });
   const visible = occurrences.slice(0, MAX_VISIBLE_CHIPS);
   const overflow = occurrences.slice(MAX_VISIBLE_CHIPS);
   const classes = ["cy-cell", "flex", "min-h-0", "flex-col", "gap-1", "p-1.5"];
   if (!cell.inMonth) classes.push("out");
   if (isToday) classes.push("today");
+  if (isOver) classes.push("drop");
 
   return (
     <div
+      ref={setNodeRef}
       role="gridcell"
       tabIndex={tabIndex}
       data-iso={cell.iso}
@@ -46,7 +50,7 @@ const DayCell = ({
       </span>
       <div className="flex flex-col gap-1 overflow-hidden">
         {visible.map((o) => (
-          <EventChip
+          <DraggableEventChip
             key={`${o.eventId}:${o.date}`}
             occurrence={o}
             onSelect={onSelectOccurrence}

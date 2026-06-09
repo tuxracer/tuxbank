@@ -8,6 +8,10 @@ import {
   truncateBefore,
   buildFollowingSeries,
   dayBeforeISO,
+  shiftISO,
+  daysBetweenISO,
+  shiftSeries,
+  buildMovedFollowing,
 } from "./index";
 
 const getCategory = makeCategoryResolver(PRESET_CATEGORIES);
@@ -271,6 +275,155 @@ describe("recurrence mutations", () => {
     expect(created.title).toBe("Standup v2");
     expect(created.overrides).toEqual([
       { occurrenceDate: "2026-05-25", patch: { notes: "keep" } },
+    ]);
+  });
+});
+
+describe("date-shift helpers", () => {
+  it("shifts an ISO date forward and backward in local time", () => {
+    expect(shiftISO("2026-05-04", 8)).toBe("2026-05-12");
+    expect(shiftISO("2026-05-12", -8)).toBe("2026-05-04");
+  });
+
+  it("crosses month and non-leap-year boundaries correctly", () => {
+    expect(shiftISO("2026-02-27", 2)).toBe("2026-03-01");
+    expect(shiftISO("2026-03-01", -1)).toBe("2026-02-28");
+  });
+
+  it("counts whole days between two ISO dates, signed", () => {
+    expect(daysBetweenISO("2026-05-04", "2026-05-12")).toBe(8);
+    expect(daysBetweenISO("2026-05-12", "2026-05-04")).toBe(-8);
+    expect(daysBetweenISO("2026-05-04", "2026-05-04")).toBe(0);
+  });
+});
+
+describe("shiftSeries (all-scope move)", () => {
+  const weekly: CalendarEvent = {
+    ...base,
+    date: "2026-05-04",
+    recurrence: { freq: "weekly", interval: 1, endsOn: "2026-05-25" },
+    overrides: [{ occurrenceDate: "2026-05-11", cancelled: true }],
+  };
+
+  it("slides the anchor, endsOn, and override keys by the offset", () => {
+    const shifted = shiftSeries(weekly, 1);
+    expect(shifted.date).toBe("2026-05-05");
+    expect(shifted.recurrence?.endsOn).toBe("2026-05-26");
+    expect(shifted.overrides).toEqual([
+      { occurrenceDate: "2026-05-12", cancelled: true },
+    ]);
+  });
+
+  it("keeps the cancelled occurrence aligned after the shift", () => {
+    const shifted = shiftSeries(weekly, 1);
+    // Original fired 05-04/11/18/25 with 05-11 cancelled.
+    // Shifted +1 fires 05-05/12/19/26 with 05-12 cancelled.
+    expect(datesOf(shifted, "2026-05-01", "2026-05-31")).toEqual([
+      "2026-05-05",
+      "2026-05-19",
+      "2026-05-26",
+    ]);
+  });
+
+  it("leaves a null endsOn null", () => {
+    const forever = {
+      ...weekly,
+      recurrence: { freq: "weekly" as const, interval: 1, endsOn: null },
+    };
+    expect(shiftSeries(forever, 3).recurrence?.endsOn).toBeNull();
+  });
+
+  it("passes a non-recurring event through, shifting only the date", () => {
+    const nonRecurring = { ...base, date: "2026-05-04", recurrence: null };
+    const shifted = shiftSeries(nonRecurring, 3);
+    expect(shifted.recurrence).toBeNull();
+    expect(shifted.date).toBe("2026-05-07");
+  });
+});
+
+describe("buildMovedFollowing (following-scope move)", () => {
+  const series: CalendarEvent = {
+    ...base,
+    date: "2026-05-04",
+    recurrence: { freq: "weekly", interval: 1, endsOn: null },
+    overrides: [
+      { occurrenceDate: "2026-05-11", cancelled: true },
+      { occurrenceDate: "2026-05-25", patch: { notes: "keep" } },
+    ],
+  };
+
+  it("anchors the tail at the drop date with a fresh id", () => {
+    const tail = buildMovedFollowing(
+      series,
+      "2026-05-18",
+      "2026-05-19",
+      "new-id",
+      "2026-05-30T00:00:00.000Z",
+    );
+    expect(tail.id).toBe("new-id");
+    expect(tail.date).toBe("2026-05-19");
+    expect(tail.createdAt).toBe("2026-05-30T00:00:00.000Z");
+  });
+
+  it("carries forward only on/after overrides, shifted by the offset", () => {
+    const tail = buildMovedFollowing(
+      series,
+      "2026-05-18",
+      "2026-05-19",
+      "new-id",
+      "2026-05-30T00:00:00.000Z",
+    );
+    // 05-11 is before the split (dropped); 05-25 carries forward shifted +1 to 05-26.
+    expect(tail.overrides).toEqual([
+      { occurrenceDate: "2026-05-26", patch: { notes: "keep" } },
+    ]);
+  });
+
+  it("shifts a non-null endsOn by the offset and leaves null as null", () => {
+    const bounded = {
+      ...series,
+      recurrence: {
+        freq: "weekly" as const,
+        interval: 1,
+        endsOn: "2026-06-15",
+      },
+    };
+    const tail = buildMovedFollowing(
+      bounded,
+      "2026-05-18",
+      "2026-05-20",
+      "id2",
+      "2026-05-30T00:00:00.000Z",
+    );
+    expect(tail.recurrence?.endsOn).toBe("2026-06-17");
+    expect(
+      buildMovedFollowing(
+        series,
+        "2026-05-18",
+        "2026-05-20",
+        "id3",
+        "2026-05-30T00:00:00.000Z",
+      ).recurrence?.endsOn,
+    ).toBeNull();
+  });
+
+  it("pairs with truncateBefore to split the series with no overlap", () => {
+    const head = truncateBefore(series, "2026-05-18");
+    const tail = buildMovedFollowing(
+      series,
+      "2026-05-18",
+      "2026-05-19",
+      "new-id",
+      "2026-05-30T00:00:00.000Z",
+    );
+    // Head stops 05-04/11(cancelled)/... ending 05-17; tail resumes 05-19 onward.
+    expect(datesOf(head, "2026-05-01", "2026-05-31")).toEqual([
+      "2026-05-04",
+      // 05-11 cancelled
+    ]);
+    expect(datesOf(tail, "2026-05-01", "2026-05-31")).toEqual([
+      "2026-05-19",
+      "2026-05-26",
     ]);
   });
 });

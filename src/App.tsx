@@ -1,4 +1,17 @@
 import { useMemo, useState } from "react";
+import { parseISO } from "date-fns";
+import {
+  DndContext,
+  DragOverlay,
+  PointerSensor,
+  pointerWithin,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+  type DragStartEvent,
+} from "@dnd-kit/core";
+import { toast } from "sonner";
+import { isOccurrence } from "@/types";
 import type { CalendarEvent, Occurrence } from "@/types";
 import type { EventInput } from "@/lib/recurrence";
 import {
@@ -8,10 +21,21 @@ import {
 } from "@/context/CalendarContext";
 import CalendarToolbar from "@/components/CalendarToolbar";
 import MonthGrid from "@/components/MonthGrid";
+import EventChip from "@/components/EventChip";
 import EventDialog from "@/components/EventDialog";
 import RecurrenceScopeDialog from "@/components/RecurrenceScopeDialog";
 import ManageCategoriesDialog from "@/components/ManageCategoriesDialog";
 import DataDialog from "@/components/DataDialog";
+import { Toaster } from "@/components/ui/sonner";
+
+const noop = () => {};
+// Pointer travel before a chip press becomes a drag; below this a press is a
+// click that opens the editor instead.
+const DRAG_ACTIVATION_DISTANCE_PX = 5;
+const dropDateFormatter = new Intl.DateTimeFormat(undefined, {
+  month: "short",
+  day: "numeric",
+});
 
 type EditorState =
   | { mode: "create"; date: string }
@@ -24,7 +48,8 @@ type ScopeState =
       event: CalendarEvent;
       occurrenceDate: string;
     }
-  | { action: "delete"; event: CalendarEvent; occurrenceDate: string };
+  | { action: "delete"; event: CalendarEvent; occurrenceDate: string }
+  | { action: "move"; occurrence: Occurrence; toDate: string };
 
 const CalendarScreen = () => {
   const cal = useCalendar();
@@ -34,6 +59,14 @@ const CalendarScreen = () => {
   const [scope, setScope] = useState<ScopeState | null>(null);
   const [manageOpen, setManageOpen] = useState(false);
   const [dataOpen, setDataOpen] = useState(false);
+  const [activeOccurrence, setActiveOccurrence] = useState<Occurrence | null>(
+    null,
+  );
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: DRAG_ACTIVATION_DISTANCE_PX },
+    }),
+  );
 
   const totalOccurrences = useMemo(
     () =>
@@ -104,6 +137,39 @@ const CalendarScreen = () => {
     setEditor(null);
   };
 
+  const runMove = async (
+    occurrence: Occurrence,
+    toDate: string,
+    moveScope: EditScope,
+  ) => {
+    const undo = await cal.moveEvent(occurrence, toDate, moveScope);
+    toast(`Moved to ${dropDateFormatter.format(parseISO(toDate))}`, {
+      action: { label: "Undo", onClick: () => void undo() },
+    });
+  };
+
+  const handleDragStart = (e: DragStartEvent) => {
+    const occurrence = e.active.data.current?.occurrence;
+    if (isOccurrence(occurrence)) setActiveOccurrence(occurrence);
+  };
+
+  const handleDragEnd = (e: DragEndEvent) => {
+    setActiveOccurrence(null);
+    const { active, over } = e;
+    if (!over) return;
+    const occurrence = active.data.current?.occurrence;
+    if (!isOccurrence(occurrence)) return;
+    const toDate = String(over.id);
+    if (toDate === occurrence.date) return;
+    const event = cal.events.find((ev) => ev.id === occurrence.eventId);
+    if (!event) return;
+    if (!event.recurrence) {
+      void runMove(occurrence, toDate, "all");
+      return;
+    }
+    setScope({ action: "move", occurrence, toDate });
+  };
+
   const confirmScope = (chosen: EditScope) => {
     if (!scope) return;
     if (scope.action === "edit")
@@ -113,7 +179,9 @@ const CalendarScreen = () => {
         chosen,
         scope.occurrenceDate,
       );
-    else void cal.deleteEvent(scope.event.id, chosen, scope.occurrenceDate);
+    else if (scope.action === "delete")
+      void cal.deleteEvent(scope.event.id, chosen, scope.occurrenceDate);
+    else void runMove(scope.occurrence, scope.toDate, chosen);
     setScope(null);
   };
 
@@ -153,14 +221,26 @@ const CalendarScreen = () => {
         }
       />
 
-      <MonthGrid
-        cells={cal.cells}
-        todayISO={cal.todayISO}
-        occurrencesByDate={cal.occurrencesByDate}
-        onSelectDate={openCreate}
-        onSelectOccurrence={openEdit}
-        balancesByDate={cal.balancesByDate}
-      />
+      <DndContext
+        sensors={sensors}
+        collisionDetection={pointerWithin}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+      >
+        <MonthGrid
+          cells={cal.cells}
+          todayISO={cal.todayISO}
+          occurrencesByDate={cal.occurrencesByDate}
+          onSelectDate={openCreate}
+          onSelectOccurrence={openEdit}
+          balancesByDate={cal.balancesByDate}
+        />
+        <DragOverlay>
+          {activeOccurrence ? (
+            <EventChip occurrence={activeOccurrence} onSelect={noop} />
+          ) : null}
+        </DragOverlay>
+      </DndContext>
 
       {cal.loaded && totalOccurrences === 0 && (
         <p className="cy-mono text-center text-xs text-[color:var(--cy-muted)]">
@@ -216,6 +296,7 @@ const CalendarScreen = () => {
         onCommitImport={cal.importData}
         onOpenChange={setDataOpen}
       />
+      <Toaster />
     </main>
   );
 };

@@ -1,4 +1,4 @@
-import { isString, isArray, isPlainObject } from "remeda";
+import { isString, isArray, isPlainObject, isNumber, isBoolean } from "remeda";
 
 export type CategoryColor = "cyan" | "magenta" | "yellow" | "green" | "orange";
 
@@ -86,5 +86,15 @@ export const isCalendarEvent = (value: unknown): value is CalendarEvent =>
   isString(value.categoryId) &&
   isArray(value.overrides) &&
   (value.recurrence === null || isPlainObject(value.recurrence));
+
+export const isOccurrence = (value: unknown): value is Occurrence =>
+  isPlainObject(value) &&
+  isString(value.eventId) &&
+  isString(value.date) &&
+  isString(value.title) &&
+  isCategory(value.category) &&
+  isNumber(value.amount) &&
+  (value.direction === "deposit" || value.direction === "withdrawal") &&
+  isBoolean(value.isRecurring);
 
 export * from "./consts";

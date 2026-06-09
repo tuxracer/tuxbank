@@ -517,3 +517,35 @@ body {
   color: var(--cy-magenta);
   text-shadow: 0 0 8px var(--cy-glow-magenta-soft);
 }
+
+/* Drop target highlight while a chip is dragged over a day cell. Mirrors the
+   `today` cyan treatment: outer glow on the host, inset glow on the chamfered
+   fill so the highlight follows the cell's clipped shape. */
+.cy-cell.drop {
+  box-shadow: 0 0 16px var(--cy-glow-cyan-soft);
+}
+.cy-cell.drop::before {
+  box-shadow: inset 0 0 22px var(--cy-glow-cyan-soft);
+}
+/* The source chip dims while its DragOverlay copy follows the pointer. */
+.cy-chip-dragging {
+  opacity: 0.35;
+}
+/* sonner toast themed to the cyberpunk panel look. */
+.cy-toast {
+  background: linear-gradient(
+    180deg,
+    var(--cy-dialog-top),
+    var(--cy-dialog-bottom)
+  );
+  color: var(--cy-text);
+  border: 1px solid var(--cy-line);
+  border-radius: 0;
+  font-family: var(--font-mono), monospace;
+  font-size: 12px;
+}
+.cy-toast-action {
+  background: var(--cy-cyan);
+  color: var(--cy-cta-fg);
+  border-radius: 0;
+}
