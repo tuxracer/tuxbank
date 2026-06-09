@@ -5,6 +5,7 @@ import {
   KDF_OPSLIMIT,
   KEK_CONTEXT,
   KEY_BYTES,
+  RECOVERY_KEY_BYTES,
 } from "./consts";
 import type { DerivedKeys, SealedBox } from "./types";
 
@@ -110,6 +111,21 @@ export const unwrapKey = async (
 ): Promise<Uint8Array> => {
   const s = await getSodium();
   return open(s, box, wrappingKey);
+};
+
+export const generateRecoveryKey = async (): Promise<string> => {
+  const s = await getSodium();
+  const bytes = s.randombytes_buf(RECOVERY_KEY_BYTES);
+  return s.to_base64(bytes, s.base64_variants.URLSAFE_NO_PADDING);
+};
+
+export const deriveRecoveryKek = async (
+  recoveryKey: string,
+): Promise<Uint8Array> => {
+  const s = await getSodium();
+  // The recovery key is already high-entropy, so a fast hash (not Argon2id) is
+  // sufficient to stretch it to a 32-byte wrapping key.
+  return s.crypto_generichash(KEY_BYTES, recoveryKey, null);
 };
 
 export const deriveKeys = async (

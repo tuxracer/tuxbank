@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { deriveKeys } from "./index";
 import { encryptPayload, decryptPayload } from "./index";
 import { generateDek, wrapKey, unwrapKey } from "./index";
+import { generateRecoveryKey, deriveRecoveryKek } from "./index";
 
 describe("deriveKeys", () => {
   it("is deterministic for the same password and email", async () => {
@@ -99,6 +100,47 @@ describe("generateDek / wrapKey / unwrapKey", () => {
       crypto.getRandomValues(new Uint8Array(32)),
     );
     const wrongKek = crypto.getRandomValues(new Uint8Array(32));
+    await expect(unwrapKey(wrapped, wrongKek)).rejects.toThrow();
+  });
+});
+
+describe("recovery key", () => {
+  it("generates a non-empty unique string each call", async () => {
+    const a = await generateRecoveryKey();
+    const b = await generateRecoveryKey();
+    expect(typeof a).toBe("string");
+    expect(a.length).toBeGreaterThan(0);
+    expect(a).not.toEqual(b);
+  });
+
+  it("derives a deterministic 32-byte key from a recovery key", async () => {
+    const recoveryKey = await generateRecoveryKey();
+    const a = await deriveRecoveryKek(recoveryKey);
+    const b = await deriveRecoveryKek(recoveryKey);
+    expect(a).toBeInstanceOf(Uint8Array);
+    expect(a.length).toBe(32);
+    expect(a).toEqual(b);
+  });
+
+  it("recovers a DEK wrapped under the recovery key", async () => {
+    const dek = await generateDek();
+    const recoveryKey = await generateRecoveryKey();
+    const recoveryKek = await deriveRecoveryKek(recoveryKey);
+    const wrapped = await wrapKey(dek, recoveryKek);
+    // Later, with only the recovery key, re-derive and unwrap.
+    const unwrapped = await unwrapKey(
+      wrapped,
+      await deriveRecoveryKek(recoveryKey),
+    );
+    expect(unwrapped).toEqual(dek);
+  });
+
+  it("fails to recover with the wrong recovery key", async () => {
+    const wrapped = await wrapKey(
+      await generateDek(),
+      await deriveRecoveryKek(await generateRecoveryKey()),
+    );
+    const wrongKek = await deriveRecoveryKek(await generateRecoveryKey());
     await expect(unwrapKey(wrapped, wrongKek)).rejects.toThrow();
   });
 });
