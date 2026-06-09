@@ -97,6 +97,7 @@ describe("ManageCategoriesDialog", () => {
     await userEvent.click(screen.getByTitle("green"));
     await userEvent.click(screen.getByText(/create "Food"/i));
     expect(onCreate).toHaveBeenCalledWith("Food", "green");
+    expect(screen.getByPlaceholderText(/search or create/i)).toHaveValue("");
   });
 
   it("does not offer create when the name matches an existing category", async () => {

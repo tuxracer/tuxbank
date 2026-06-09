@@ -73,7 +73,10 @@ const ManageCategoriesDialog = ({
         <Input
           placeholder="Search or create…"
           value={query}
-          onChange={(e) => setQuery(e.target.value)}
+          onChange={(e) => {
+            setQuery(e.target.value);
+            setRenameError(null);
+          }}
         />
 
         {categories.length === 0 && (
