@@ -332,6 +332,13 @@ describe("shiftSeries (all-scope move)", () => {
     };
     expect(shiftSeries(forever, 3).recurrence?.endsOn).toBeNull();
   });
+
+  it("passes a non-recurring event through, shifting only the date", () => {
+    const nonRecurring = { ...base, date: "2026-05-04", recurrence: null };
+    const shifted = shiftSeries(nonRecurring, 3);
+    expect(shifted.recurrence).toBeNull();
+    expect(shifted.date).toBe("2026-05-07");
+  });
 });
 
 describe("buildMovedFollowing (following-scope move)", () => {

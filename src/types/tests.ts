@@ -6,8 +6,8 @@ import {
   isCategory,
   categoryKey,
   isOccurrence,
+  PRESET_CATEGORIES,
 } from "./index";
-import { PRESET_CATEGORIES } from "./consts";
 
 describe("domain guards", () => {
   it("validates recurrence frequencies", () => {
