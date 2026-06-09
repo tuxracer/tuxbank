@@ -191,11 +191,11 @@ describe("runSync", () => {
   });
 
   it("pushes a record stamped at the epoch cursor on the first sync", async () => {
-    // The v2 migration backfilled missing updatedAt to LEGACY_UPDATED_AT, which
-    // is byte-identical to EPOCH_CURSOR. The strict `>` push gate used to skip
-    // such a row forever, so it never reached the cloud (categories, which are
-    // created once and never edited, were the systemic victim). The first sync
-    // (no stored cursor) must upload every local row regardless of timestamp.
+    // A row stamped at the Unix epoch (byte-identical to EPOCH_CURSOR, e.g.
+    // restored from an old backup that predates per-row timestamps) used to be
+    // skipped forever by the strict `>` push gate, so it never reached the
+    // cloud. The first sync (no stored cursor) must upload every local row
+    // regardless of timestamp.
     const dek = await generateDek();
     const { tables, remote } = makeFakeRemote();
     await putEvent(event({ updatedAt: "1970-01-01T00:00:00.000Z" }));
@@ -205,9 +205,9 @@ describe("runSync", () => {
   });
 
   it("uploads an epoch-stamped category on the first sync (categories-never-synced regression)", async () => {
-    // The reported bug verbatim: a never-edited category keeps the v2 migration's
-    // LEGACY_UPDATED_AT (== EPOCH_CURSOR) stamp, so it never pushed and other
-    // devices showed every event as Uncategorized.
+    // The reported bug verbatim: a category stamped at the epoch (== the sync
+    // EPOCH_CURSOR) never pushed, so other devices showed every event as
+    // Uncategorized.
     const dek = await generateDek();
     const { tables, remote } = makeFakeRemote();
     await putCategory({

@@ -1,5 +1,5 @@
 import { openDB, type IDBPDatabase } from "idb";
-import { isPlainObject, isString } from "remeda";
+import { isString } from "remeda";
 import type { CalendarEvent, Category } from "@/types";
 import { isCalendarEvent, isCategory } from "@/types";
 import {
@@ -8,7 +8,6 @@ import {
   CATEGORY_STORE,
   DB_NAME,
   DB_VERSION,
-  LEGACY_UPDATED_AT,
   STORE,
   SYNC_CURSOR_KEY,
   SYNC_META_STORE,
@@ -39,29 +38,11 @@ const getDb = (): Promise<IDBPDatabase> => {
   }
   if (!dbPromise) {
     dbPromise = openDB(DB_NAME, DB_VERSION, {
-      async upgrade(db, oldVersion, _newVersion, tx) {
-        if (oldVersion < 1) {
-          db.createObjectStore(STORE, { keyPath: "id" });
-          db.createObjectStore(CATEGORY_STORE, { keyPath: "id" });
-        }
-        if (oldVersion < 2) {
-          db.createObjectStore(TOMBSTONE_STORE, { keyPath: "id" });
-          db.createObjectStore(SYNC_META_STORE);
-          // Backfill updatedAt on pre-v2 rows. Awaited so the upgrade
-          // transaction stays open until every row is stamped. The loop keeps
-          // the isPlainObject narrowing, so no cast is needed to spread `row`.
-          for (const name of [STORE, CATEGORY_STORE]) {
-            const store = tx.objectStore(name);
-            const rows: unknown[] = await store.getAll();
-            const puts: Promise<unknown>[] = [];
-            for (const row of rows) {
-              if (isPlainObject(row) && !isString(row.updatedAt)) {
-                puts.push(store.put({ ...row, updatedAt: LEGACY_UPDATED_AT }));
-              }
-            }
-            await Promise.all(puts);
-          }
-        }
+      upgrade(db) {
+        db.createObjectStore(STORE, { keyPath: "id" });
+        db.createObjectStore(CATEGORY_STORE, { keyPath: "id" });
+        db.createObjectStore(TOMBSTONE_STORE, { keyPath: "id" });
+        db.createObjectStore(SYNC_META_STORE);
       },
     }).catch((cause) => {
       dbPromise = null;

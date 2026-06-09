@@ -1,7 +1,7 @@
 import type { Category } from "./index";
 
-// Same value as storage's LEGACY_UPDATED_AT, inlined to avoid a types <-> storage
-// import cycle. These categories are synthetic and never persisted.
+// The Unix epoch: these categories are synthetic and never persisted or synced,
+// so the value only needs to satisfy the Category type.
 const SYNTHETIC_UPDATED_AT = "1970-01-01T00:00:00.000Z";
 
 export const PRESET_CATEGORIES: readonly Category[] = [

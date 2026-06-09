@@ -522,10 +522,12 @@ The pure key functions (`provisionAccountKeys`, `unlockWithPassword`,
 alongside the thin Supabase auth/MFA/key-material wrappers; base64 helpers are
 shared in `src/utils/base64`.
 
-### Local storage changes (`src/lib/storage`, DB v2)
+### Local storage (`src/lib/storage`, DB v1)
 
-`Category` gained an `updatedAt` (events already had one). Deleting a row writes
-a tombstone; writing a row clears any tombstone for its id; importing a backup
+The database opens at v1 and creates all four stores up front (`events`,
+`categories`, `tombstones`, `syncMeta`); there is no migration history. Both
+`CalendarEvent` and `Category` carry an `updatedAt`. Deleting a row writes a
+tombstone; writing a row clears any tombstone for its id; importing a backup
 clears all tombstones. `applyRemoteDelete` removes a row **without** writing a
 new tombstone, so an applied remote delete does not bounce back to the server.
 `getSyncCursor` / `setSyncCursor` persist the sync cursor in `syncMeta`.
@@ -539,10 +541,10 @@ applies remote rows whose `updated_at` is strictly greater than the local copy
 (decrypt and upsert, or delete); push uploads local rows and tombstones newer
 than the cursor that were not just pulled (which prevents an echo). On the
 **first sync** (no stored cursor) push uploads every local row regardless of
-timestamp, so rows stamped at the epoch (e.g. `LEGACY_UPDATED_AT` backfills)
-still reach the cloud; a cursor is always persisted afterward so later syncs stay
-incremental. Each row's payload is encrypted with the DEK before it leaves the
-device. Known limitation:
+timestamp, so a row stamped at the epoch (e.g. restored from an old backup that
+predates per-row timestamps) still reaches the cloud; a cursor is always
+persisted afterward so later syncs stay incremental. Each row's payload is
+encrypted with the DEK before it leaves the device. Known limitation:
 last-write-wins by client timestamp is vulnerable to clock skew across devices,
 which is acceptable for a single user.
 

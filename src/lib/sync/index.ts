@@ -58,9 +58,9 @@ export const runSync = async (
 ): Promise<SyncResult> => {
   // No stored cursor means this account has never synced, so every local row
   // must be uploaded regardless of its timestamp. Relying on `updatedAt >
-  // startCursor` alone would skip rows stamped at EPOCH_CURSOR (the value the
-  // v2 migration backfills as LEGACY_UPDATED_AT), which is why such rows
-  // (typically never-edited categories) never reached the cloud.
+  // startCursor` alone would skip a row stamped at EPOCH_CURSOR (e.g. an old
+  // backup that predates per-row timestamps), which would never reach the
+  // cloud (never-edited categories were the original such victim).
   const storedCursor = await getSyncCursor();
   const firstSync = storedCursor === undefined;
   const startCursor = storedCursor ?? EPOCH_CURSOR;
