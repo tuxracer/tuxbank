@@ -87,15 +87,22 @@ export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
     await doSync();
   }, [doSync]);
 
-  // Detect an existing session on mount: the DEK is gone, so we are "locked".
+  // Detect an existing session on mount.
   useEffect(() => {
     if (!remote) return;
     let active = true;
     void getActiveSession()
       .then((session) => {
         if (!active || !session) return;
-        setEmail(session.email);
-        setStatus("locked");
+        if (session.aal2) {
+          // Fully set-up session: the DEK is gone, so we are "locked".
+          setEmail(session.email);
+          setStatus("locked");
+        } else {
+          // An aal1 session (e.g. email confirmed but setup never finished):
+          // clear it so the user signs in cleanly, which runs TOTP + setup.
+          void authSignOut();
+        }
       })
       .catch(() => undefined);
     return () => {
@@ -255,11 +262,31 @@ export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
         return;
       }
       try {
-        const material = await fetchKeyMaterial();
-        dekRef.current = await unlockWithPassword(password, email, material);
-        setStatus("synced");
-        setError(null);
-        void doSync();
+        let material: KeyMaterial | null = null;
+        try {
+          material = await fetchKeyMaterial();
+        } catch (caught) {
+          if (!(isAccountError(caught) && caught.code === "NO_KEY_MATERIAL")) {
+            throw caught;
+          }
+        }
+        if (material) {
+          // Existing data: unlock the data key with the password.
+          dekRef.current = await unlockWithPassword(password, email, material);
+          setStatus("synced");
+          setError(null);
+          void doSync();
+        } else {
+          // No data yet: first-time setup on an already-verified session.
+          // Provision keys and show the recovery key instead of erroring.
+          const provisioned = await provisionAccountKeys(password, email);
+          await uploadKeyMaterial(provisioned.keyMaterial);
+          dekRef.current = provisioned.dek;
+          setRecoveryKey(provisioned.recoveryKey);
+          setStep("create-recovery");
+          setError(null);
+          void doSync();
+        }
       } catch (caught) {
         setError(describeError(caught));
       }
