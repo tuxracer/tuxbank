@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CyberFrame } from "@/components/CyberFrame";
+import { toast } from "sonner";
 import { useSync } from "@/context/SyncContext";
 import { MIN_PASSWORD_LENGTH } from "./consts";
 
@@ -29,6 +30,8 @@ const ERROR_TEXT: Record<string, string> = {
   NO_KEY_MATERIAL: "No encrypted data found for this account.",
   KEY_MATERIAL_FAILED: "Could not reach the encrypted store.",
   NOT_CONFIGURED: "Sync is not configured.",
+  PASSWORD_CHANGE_FAILED: "Could not change your password. Please try again.",
+  RECOVERY_FAILED: "Could not recover. Check your recovery key and try again.",
 };
 
 const errorText = (code: string): string => ERROR_TEXT[code] ?? code;
@@ -47,6 +50,9 @@ export const SyncDialog = ({ open, onOpenChange }: SyncDialogProps) => {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
+  const [changingPw, setChangingPw] = useState(false);
+  const [recovering, setRecovering] = useState(false);
+  const [recoveryKeyInput, setRecoveryKeyInput] = useState("");
 
   const reset = () => {
     setMode("choose");
@@ -55,6 +61,9 @@ export const SyncDialog = ({ open, onOpenChange }: SyncDialogProps) => {
     setConfirmPassword("");
     setCode("");
     setBusy(false);
+    setChangingPw(false);
+    setRecovering(false);
+    setRecoveryKeyInput("");
   };
 
   const run = async (fn: () => Promise<void>) => {
@@ -101,7 +110,8 @@ export const SyncDialog = ({ open, onOpenChange }: SyncDialogProps) => {
           {(sync.status === "synced" ||
             sync.status === "syncing" ||
             sync.status === "error") &&
-            sync.step === "idle" && (
+            sync.step === "idle" &&
+            !changingPw && (
               <section className="flex flex-col gap-3">
                 <p className="cy-mono text-xs">
                   Signed in as <span className="cy-hud on">{sync.email}</span>
@@ -122,14 +132,88 @@ export const SyncDialog = ({ open, onOpenChange }: SyncDialogProps) => {
                 >
                   Sync now
                 </Button>
+                <Button
+                  variant="ghost"
+                  onClick={() => {
+                    setPassword("");
+                    setConfirmPassword("");
+                    setChangingPw(true);
+                  }}
+                >
+                  Change password
+                </Button>
                 <Button variant="ghost" onClick={() => void sync.signOut()}>
                   Sign out
                 </Button>
               </section>
             )}
 
+          {/* CHANGE PASSWORD (from the synced state) */}
+          {(sync.status === "synced" ||
+            sync.status === "syncing" ||
+            sync.status === "error") &&
+            sync.step === "idle" &&
+            changingPw && (
+              <section className="flex flex-col gap-3">
+                <p className="cy-mono text-xs">Set a new password.</p>
+                <Label htmlFor="cp-new">New password</Label>
+                <Input
+                  id="cp-new"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+                <Label htmlFor="cp-confirm">Confirm new password</Label>
+                <Input
+                  id="cp-confirm"
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                />
+                {passwordTooShort && (
+                  <p className="cy-mono text-[10px] text-[color:var(--cy-muted)]">
+                    At least {MIN_PASSWORD_LENGTH} characters.
+                  </p>
+                )}
+                {confirmPassword.length > 0 && password !== confirmPassword && (
+                  <p className="cy-mono text-[10px] text-[color:var(--cy-magenta)]">
+                    Passwords do not match.
+                  </p>
+                )}
+                <Button
+                  className="cy-btn justify-start"
+                  disabled={
+                    busy || passwordTooShort || password !== confirmPassword
+                  }
+                  onClick={async () => {
+                    setBusy(true);
+                    const ok = await sync.changePassword(password);
+                    setBusy(false);
+                    if (ok) {
+                      toast.success("Password changed");
+                      setChangingPw(false);
+                      setPassword("");
+                      setConfirmPassword("");
+                    }
+                  }}
+                >
+                  Save new password
+                </Button>
+                <Button
+                  variant="ghost"
+                  onClick={() => {
+                    setChangingPw(false);
+                    setPassword("");
+                    setConfirmPassword("");
+                  }}
+                >
+                  Cancel
+                </Button>
+              </section>
+            )}
+
           {/* LOCKED: session exists, need password to unlock the key */}
-          {sync.status === "locked" && (
+          {sync.status === "locked" && !recovering && (
             <section className="flex flex-col gap-3">
               <p className="cy-mono text-xs">
                 Unlock <span className="cy-hud on">{sync.email}</span> to resume
@@ -149,8 +233,89 @@ export const SyncDialog = ({ open, onOpenChange }: SyncDialogProps) => {
               >
                 Unlock
               </Button>
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setPassword("");
+                  setConfirmPassword("");
+                  setRecovering(true);
+                }}
+              >
+                Forgot password? Use recovery key
+              </Button>
               <Button variant="ghost" onClick={() => void sync.signOut()}>
                 Sign out
+              </Button>
+            </section>
+          )}
+
+          {/* RECOVER with the recovery key, then set a new password */}
+          {sync.status === "locked" && recovering && (
+            <section className="flex flex-col gap-3">
+              <p className="cy-mono text-xs">
+                Enter your recovery key and choose a new password.
+              </p>
+              <Label htmlFor="rec-key">Recovery key</Label>
+              <Input
+                id="rec-key"
+                value={recoveryKeyInput}
+                onChange={(e) => setRecoveryKeyInput(e.target.value)}
+              />
+              <Label htmlFor="rec-new">New password</Label>
+              <Input
+                id="rec-new"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+              <Label htmlFor="rec-confirm">Confirm new password</Label>
+              <Input
+                id="rec-confirm"
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+              />
+              {confirmPassword.length > 0 && password !== confirmPassword && (
+                <p className="cy-mono text-[10px] text-[color:var(--cy-magenta)]">
+                  Passwords do not match.
+                </p>
+              )}
+              <Button
+                className="cy-btn justify-start"
+                disabled={
+                  busy ||
+                  !recoveryKeyInput ||
+                  passwordTooShort ||
+                  password !== confirmPassword
+                }
+                onClick={async () => {
+                  setBusy(true);
+                  const ok = await sync.recoverWithKey(
+                    recoveryKeyInput.trim(),
+                    password,
+                  );
+                  setBusy(false);
+                  if (ok) {
+                    toast.success("Recovered. Password updated.");
+                    setRecovering(false);
+                    setRecoveryKeyInput("");
+                    setPassword("");
+                    setConfirmPassword("");
+                  }
+                }}
+              >
+                Recover
+              </Button>
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setRecovering(false);
+                  setRecoveryKeyInput("");
+                  setPassword("");
+                  setConfirmPassword("");
+                }}
+              >
+                Cancel
               </Button>
             </section>
           )}

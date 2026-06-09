@@ -16,10 +16,14 @@ import {
   getTotpFactorId,
   isAccountError,
   provisionAccountKeys,
+  rewrapForNewPassword,
   signIn as authSignIn,
   signOut as authSignOut,
   signUp,
   unlockWithPassword,
+  unlockWithRecoveryKey,
+  updateAuthPassword,
+  updatePasswordColumns,
   uploadKeyMaterial,
   verifyTotp,
   type KeyMaterial,
@@ -296,6 +300,56 @@ export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
     [remote, email, doSync],
   );
 
+  const changePassword = useCallback(
+    async (newPassword: string): Promise<boolean> => {
+      if (!remote || !email || !dekRef.current) {
+        setError("Sync is not configured");
+        return false;
+      }
+      try {
+        const rewrapped = await rewrapForNewPassword(
+          newPassword,
+          email,
+          dekRef.current,
+        );
+        await updateAuthPassword(rewrapped.authSecret);
+        await updatePasswordColumns(rewrapped);
+        setError(null);
+        return true;
+      } catch (caught) {
+        setError(describeError(caught));
+        return false;
+      }
+    },
+    [remote, email],
+  );
+
+  const recoverWithKey = useCallback(
+    async (recoveryKey: string, newPassword: string): Promise<boolean> => {
+      if (!remote || !email) {
+        setError("Sync is not configured");
+        return false;
+      }
+      try {
+        const material = await fetchKeyMaterial();
+        const dek = await unlockWithRecoveryKey(recoveryKey, material);
+        dekRef.current = dek;
+        // The password was forgotten, so set a new one while we have the DEK.
+        const rewrapped = await rewrapForNewPassword(newPassword, email, dek);
+        await updateAuthPassword(rewrapped.authSecret);
+        await updatePasswordColumns(rewrapped);
+        setStatus("synced");
+        setError(null);
+        void doSync();
+        return true;
+      } catch (caught) {
+        setError(isAccountError(caught) ? caught.code : "RECOVERY_FAILED");
+        return false;
+      }
+    },
+    [remote, email, doSync],
+  );
+
   const signOut = useCallback(async () => {
     try {
       await authSignOut();
@@ -327,6 +381,8 @@ export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
     finishCreate,
     signIn,
     unlock,
+    changePassword,
+    recoverWithKey,
     signOut,
     syncNow,
   };

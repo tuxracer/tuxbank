@@ -24,6 +24,13 @@ export interface SyncContextValue {
   finishCreate: () => void;
   signIn: (email: string, password: string) => Promise<void>;
   unlock: (password: string) => Promise<void>;
+  /** Re-wrap the data key under a new password. Returns true on success. */
+  changePassword: (newPassword: string) => Promise<boolean>;
+  /** Recover a locked account with the recovery key and set a new password. */
+  recoverWithKey: (
+    recoveryKey: string,
+    newPassword: string,
+  ) => Promise<boolean>;
   signOut: () => Promise<void>;
   syncNow: () => Promise<void>;
 }

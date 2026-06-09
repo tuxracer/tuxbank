@@ -180,3 +180,28 @@ export const fetchKeyMaterial = async (): Promise<KeyMaterial> => {
   if (!isKeyMaterial(data)) throw new AccountError("NO_KEY_MATERIAL");
   return data;
 };
+
+/** Set the Supabase auth password (to a new derived auth secret). */
+export const updateAuthPassword = async (authSecret: string): Promise<void> => {
+  const { error } = await client().auth.updateUser({ password: authSecret });
+  if (error) throw new AccountError("PASSWORD_CHANGE_FAILED", error);
+};
+
+/** Replace only the password-wrapped DEK columns, leaving recovery columns. */
+export const updatePasswordColumns = async (
+  rewrapped: RewrappedKeys,
+): Promise<void> => {
+  const c = client();
+  const {
+    data: { user },
+  } = await c.auth.getUser();
+  if (!user) throw new AccountError("PASSWORD_CHANGE_FAILED");
+  const { error } = await c
+    .from("key_material")
+    .update({
+      wrapped_dek: rewrapped.wrapped_dek,
+      wrapped_dek_nonce: rewrapped.wrapped_dek_nonce,
+    })
+    .eq("user_id", user.id);
+  if (error) throw new AccountError("KEY_MATERIAL_FAILED", error);
+};
