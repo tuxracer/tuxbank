@@ -8,5 +8,6 @@ export type DataDialogProps = {
   onExport: () => Promise<void>;
   onPreviewImport: (file: File) => Promise<ImportPreview>;
   onCommitImport: (file: File) => Promise<void>;
+  onClearAllData: () => Promise<void>;
   onOpenChange: (open: boolean) => void;
 };

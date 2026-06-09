@@ -306,6 +306,46 @@ export const commitImport = async (text: string): Promise<void> => {
 };
 
 /**
+ * Reset all data: delete every event and category, recording a tombstone for
+ * each so the deletions sync to the cloud. Unlike clearLocalData (the sign-out
+ * wipe), this keeps the tombstone store and the sync cursor, so a signed-in
+ * account is cleared on every device on the next sync.
+ */
+export const clearAllData = async (): Promise<void> => {
+  try {
+    const db = await getDb();
+    const tx = db.transaction(
+      [STORE, CATEGORY_STORE, TOMBSTONE_STORE],
+      "readwrite",
+    );
+    const events = tx.objectStore(STORE);
+    const categories = tx.objectStore(CATEGORY_STORE);
+    const tombstones = tx.objectStore(TOMBSTONE_STORE);
+    // Read the existing ids first (awaiting idb request promises keeps the
+    // transaction alive), then clear the stores and tombstone each id so the
+    // deletions propagate. Read sequentially, never via a non-idb promise like
+    // Promise.all, which could let the transaction auto-commit before the writes.
+    const eventIds = await events.getAllKeys();
+    const categoryIds = await categories.getAllKeys();
+    const stamp = nowISO();
+    const writes: Promise<unknown>[] = [events.clear(), categories.clear()];
+    const tombstone = (id: IDBValidKey, type: TombstoneType): void => {
+      if (isString(id)) {
+        const row: Tombstone = { id, type, updatedAt: stamp };
+        writes.push(tombstones.put(row));
+      }
+    };
+    for (const id of eventIds) tombstone(id, "event");
+    for (const id of categoryIds) tombstone(id, "category");
+    await Promise.all(writes);
+    await tx.done;
+  } catch (error) {
+    throw toWriteError(error);
+  }
+  notifyDataChanged();
+};
+
+/**
  * Wipe all locally stored data: events, categories, tombstones, and the sync
  * cursor. Used when signing out on a shared device. Does not touch the cloud.
  */

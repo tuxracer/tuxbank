@@ -19,7 +19,7 @@ import {
   useCalendar,
   type EditScope,
 } from "@/context/CalendarContext";
-import { SyncProvider } from "@/context/SyncContext";
+import { SyncProvider, useSync } from "@/context/SyncContext";
 import CalendarToolbar from "@/components/CalendarToolbar";
 import MonthGrid from "@/components/MonthGrid";
 import EventChip from "@/components/EventChip";
@@ -55,6 +55,7 @@ type ScopeState =
 
 const CalendarScreen = () => {
   const cal = useCalendar();
+  const sync = useSync();
   const selectedYear = cal.visibleMonth.getFullYear();
   const selectedMonth = cal.visibleMonth.getMonth();
   const [editor, setEditor] = useState<EditorState | null>(null);
@@ -81,6 +82,14 @@ const CalendarScreen = () => {
   );
 
   const openCreate = (date: string) => setEditor({ mode: "create", date });
+
+  // Wipe everything locally (tombstoned), then push so a signed-in account is
+  // cleared on every device. syncNow self-gates: it no-ops when signed out or
+  // locked, leaving the tombstones to push on the next unlock/sync.
+  const clearAllData = async () => {
+    await cal.clearAllData();
+    await sync.syncNow();
+  };
 
   const onKeyDown = (e: React.KeyboardEvent) => {
     if (
@@ -298,6 +307,7 @@ const CalendarScreen = () => {
         onExport={cal.exportData}
         onPreviewImport={cal.previewImport}
         onCommitImport={cal.importData}
+        onClearAllData={clearAllData}
         onOpenChange={setDataOpen}
       />
       <SyncDialog open={syncOpen} onOpenChange={setSyncOpen} />

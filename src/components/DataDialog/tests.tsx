@@ -14,8 +14,12 @@ const base = {
     .fn()
     .mockResolvedValue({ events: 5, categories: 4, schemaVersion: 1 }),
   onCommitImport: vi.fn().mockResolvedValue(undefined),
+  onClearAllData: vi.fn().mockResolvedValue(undefined),
   onOpenChange: vi.fn(),
 };
+
+const confirmField = (): HTMLElement =>
+  screen.getByTestId("clear-data-confirm");
 
 const fileInput = (): HTMLElement => screen.getByTestId("import-database-file");
 
@@ -91,7 +95,7 @@ describe("DataDialog", () => {
     ).toBeInTheDocument();
   });
 
-  it("disables both actions when storage is unavailable", () => {
+  it("disables every action when storage is unavailable", () => {
     render(<DataDialog {...base} storageAvailable={false} />);
     expect(
       screen.getByRole("button", { name: /export database/i }),
@@ -99,5 +103,85 @@ describe("DataDialog", () => {
     expect(
       screen.getByRole("button", { name: /import database/i }),
     ).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: /clear all data/i }),
+    ).toBeDisabled();
+  });
+});
+
+describe("DataDialog — clear all data", () => {
+  const startReset = async () =>
+    userEvent.click(screen.getByRole("button", { name: /clear all data/i }));
+
+  it("keeps the destructive button disabled until the word reset is typed", async () => {
+    render(<DataDialog {...base} />);
+    await startReset();
+    const confirm = screen.getByRole("button", { name: /reset everything/i });
+    expect(confirm).toBeDisabled();
+    await userEvent.type(confirmField(), "reset");
+    expect(confirm).toBeEnabled();
+  });
+
+  it("does not enable the destructive button for the wrong word", async () => {
+    render(<DataDialog {...base} />);
+    await startReset();
+    await userEvent.type(confirmField(), "delete");
+    expect(
+      screen.getByRole("button", { name: /reset everything/i }),
+    ).toBeDisabled();
+  });
+
+  it("clears all data after typing reset and confirming, then closes", async () => {
+    const onClearAllData = vi.fn().mockResolvedValue(undefined);
+    const onOpenChange = vi.fn();
+    render(
+      <DataDialog
+        {...base}
+        onClearAllData={onClearAllData}
+        onOpenChange={onOpenChange}
+      />,
+    );
+    await startReset();
+    await userEvent.type(confirmField(), "reset");
+    await userEvent.click(
+      screen.getByRole("button", { name: /reset everything/i }),
+    );
+    expect(onClearAllData).toHaveBeenCalledTimes(1);
+    await vi.waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false));
+  });
+
+  it("cancel hides the confirmation without clearing anything", async () => {
+    const onClearAllData = vi.fn().mockResolvedValue(undefined);
+    render(<DataDialog {...base} onClearAllData={onClearAllData} />);
+    await startReset();
+    await userEvent.type(confirmField(), "reset");
+    await userEvent.click(screen.getByRole("button", { name: /cancel/i }));
+    expect(
+      screen.queryByRole("button", { name: /reset everything/i }),
+    ).not.toBeInTheDocument();
+    expect(onClearAllData).not.toHaveBeenCalled();
+  });
+
+  it("shows an error and stays open when clearing fails", async () => {
+    const onClearAllData = vi
+      .fn()
+      .mockRejectedValue(new StorageError("WRITE_FAILED"));
+    const onOpenChange = vi.fn();
+    render(
+      <DataDialog
+        {...base}
+        onClearAllData={onClearAllData}
+        onOpenChange={onOpenChange}
+      />,
+    );
+    await startReset();
+    await userEvent.type(confirmField(), "reset");
+    await userEvent.click(
+      screen.getByRole("button", { name: /reset everything/i }),
+    );
+    expect(
+      await screen.findByText(/something went wrong\. please try again\./i),
+    ).toBeInTheDocument();
+    expect(onOpenChange).not.toHaveBeenCalledWith(false);
   });
 });

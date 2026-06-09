@@ -17,6 +17,7 @@ import {
   setSyncCursor,
   applyRemoteDelete,
   clearLocalData,
+  clearAllData,
   DB_NAME,
   STORE,
   CATEGORY_STORE,
@@ -527,6 +528,60 @@ describe("applyRemoteDelete", () => {
     expect(await getTombstones()).toHaveLength(1);
     await applyRemoteDelete("k1", "category");
     expect(await getTombstones()).toEqual([]);
+  });
+});
+
+describe("clearAllData", () => {
+  beforeEach(async () => {
+    await resetDbForTests();
+  });
+
+  it("wipes events and categories but records a tombstone for each, keeping the cursor", async () => {
+    await putEvent(make("e1"));
+    await putEvent(make("e2"));
+    await putCategory({
+      id: "k1",
+      name: "K",
+      color: "cyan",
+      updatedAt: "2026-06-09T00:00:00.000Z",
+    });
+    await setSyncCursor("2026-06-09T12:00:00.000Z");
+
+    await clearAllData();
+
+    expect(await getAllEvents()).toEqual([]);
+    expect(await getAllCategories()).toEqual([]);
+
+    // A tombstone per former row so the deletions propagate to the cloud.
+    const tombstones = await getTombstones();
+    expect(
+      tombstones
+        .filter((t) => t.type === "event")
+        .map((t) => t.id)
+        .sort(),
+    ).toEqual(["e1", "e2"]);
+    expect(
+      tombstones.filter((t) => t.type === "category").map((t) => t.id),
+    ).toEqual(["k1"]);
+    expect(tombstones.every((t) => typeof t.updatedAt === "string")).toBe(true);
+
+    // Unlike clearLocalData, the cursor stays so the tombstones (newer than it)
+    // are what gets pushed on the next sync.
+    expect(await getSyncCursor()).toBe("2026-06-09T12:00:00.000Z");
+  });
+
+  it("overwrites a stale tombstone for a re-created id with a fresh delete", async () => {
+    // An id that was deleted, then re-created, must end up tombstoned again so
+    // the cloud copy is removed rather than left behind.
+    await putEvent(make("e1"));
+    await deleteEvent("e1"); // old tombstone
+    await putEvent(make("e1")); // re-created (clears the tombstone)
+
+    await clearAllData();
+
+    const tombstones = await getTombstones();
+    expect(tombstones.map((t) => t.id)).toEqual(["e1"]);
+    expect(await getAllEvents()).toEqual([]);
   });
 });
 

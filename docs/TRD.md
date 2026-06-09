@@ -456,6 +456,16 @@ a separate, encrypted layer (see Optional account sync).
   on failure (explicit abort), so a failed import never half-wipes data. Any
   invalid input throws `StorageError("IMPORT_INVALID")`.
 
+- **Clear all data** is a guarded full reset in the Data dialog: the user types
+  the word `reset` to enable the destructive button. `clearAllData()` clears the
+  event and category stores and writes a tombstone for every former id in one
+  `readwrite` transaction, keeping the tombstone store and the sync cursor. The
+  tombstones are what make the reset propagate: when signed in, `CalendarScreen`
+  follows the local wipe with `useSync().syncNow()`, which pushes them so the
+  cloud account is cleared on every device (the push self-gates and retries
+  later if signed out or locked). This is the opposite of `clearLocalData()`
+  (the sign-out wipe), which drops tombstones and the cursor so nothing syncs.
+
 ## Optional account sync (end-to-end encrypted)
 
 Sync is **optional and additive**. With no account the app is exactly as

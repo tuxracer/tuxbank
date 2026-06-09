@@ -40,6 +40,7 @@ import {
   exportDatabase,
   validateImport,
   commitImport,
+  clearAllData as dbClearAllData,
 } from "@/lib/storage";
 import { subscribeToDataChanges } from "@/lib/tabSync";
 import { downloadBlob } from "@/utils/downloadBlob";
@@ -187,6 +188,11 @@ export const CalendarProvider = ({
     },
     [reloadData],
   );
+
+  const clearAllData = useCallback(async () => {
+    await dbClearAllData();
+    await reloadData();
+  }, [reloadData]);
 
   const cells = useMemo(() => buildMonthGrid(visibleMonth), [visibleMonth]);
   const todayISO = format(new Date(), "yyyy-MM-dd");
@@ -526,6 +532,7 @@ export const CalendarProvider = ({
     exportData,
     previewImport,
     importData,
+    clearAllData,
     refreshFromStorage,
   };
 

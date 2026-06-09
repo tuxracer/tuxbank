@@ -379,6 +379,38 @@ describe("CalendarContext", () => {
     expect(result.current.events[0].title).toBe("Paycheck");
   });
 
+  it("clearAllData wipes all events and categories from state and storage", async () => {
+    const { result } = renderHook(() => useCalendar(), { wrapper });
+    await waitFor(() => expect(result.current.loaded).toBe(true));
+
+    await act(async () => {
+      const c = await result.current.createCategory("Work", "cyan");
+      await result.current.createEvent({
+        title: "Paycheck",
+        date: "2026-05-08",
+        categoryId: c.id,
+        amount: 1000,
+        direction: "deposit",
+        notes: undefined,
+        recurrence: null,
+      });
+    });
+    await waitFor(() => {
+      expect(result.current.events).toHaveLength(1);
+      expect(result.current.categories).toHaveLength(1);
+    });
+
+    await act(async () => {
+      await result.current.clearAllData();
+    });
+
+    await waitFor(() => {
+      expect(result.current.events).toEqual([]);
+      expect(result.current.categories).toEqual([]);
+    });
+    expect(await getAllEvents()).toEqual([]);
+  });
+
   it("previewImport reports the backup's record counts", async () => {
     const { result } = renderHook(() => useCalendar(), { wrapper });
     await waitFor(() => expect(result.current.loaded).toBe(true));

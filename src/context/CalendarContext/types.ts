@@ -56,6 +56,8 @@ export type CalendarContextValue = {
   exportData: () => Promise<void>;
   previewImport: (file: File) => Promise<ImportPreview>;
   importData: (file: File) => Promise<void>;
+  /** Delete every event and category (tombstoned, so it also clears the cloud). */
+  clearAllData: () => Promise<void>;
   /** Re-read events + categories from storage (used after a sync pulls). */
   refreshFromStorage: () => Promise<void>;
 };
