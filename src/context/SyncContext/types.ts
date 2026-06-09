@@ -3,6 +3,7 @@ export type SyncStatus = "off" | "locked" | "syncing" | "synced" | "error";
 /** Which onboarding step the dialog should show, if any. */
 export type OnboardStep =
   | "idle"
+  | "confirm-email"
   | "create-totp"
   | "create-recovery"
   | "signin-totp";
@@ -18,10 +19,10 @@ export interface SyncContextValue {
   /** False when Supabase env is absent (sync cannot be used). */
   configured: boolean;
   createAccount: (email: string, password: string) => Promise<void>;
-  confirmCreateTotp: (code: string) => Promise<void>;
+  /** Verify a TOTP code (enrollment or challenge); used by both flows. */
+  confirmTotp: (code: string) => Promise<void>;
   finishCreate: () => void;
   signIn: (email: string, password: string) => Promise<void>;
-  confirmSignInTotp: (code: string) => Promise<void>;
   unlock: (password: string) => Promise<void>;
   signOut: () => Promise<void>;
   syncNow: () => Promise<void>;

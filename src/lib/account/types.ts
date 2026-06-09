@@ -40,6 +40,7 @@ export type AccountErrorCode =
   | "NOT_CONFIGURED"
   | "SIGNUP_FAILED"
   | "SIGNIN_FAILED"
+  | "EMAIL_NOT_CONFIRMED"
   | "MFA_ENROLL_FAILED"
   | "MFA_VERIFY_FAILED"
   | "NO_KEY_MATERIAL"

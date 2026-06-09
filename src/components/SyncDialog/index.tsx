@@ -22,6 +22,8 @@ type Mode = "choose" | "create" | "signin";
 const ERROR_TEXT: Record<string, string> = {
   SIGNUP_FAILED: "Could not create the account (is the email already used?).",
   SIGNIN_FAILED: "Wrong email or password.",
+  EMAIL_NOT_CONFIRMED:
+    "Confirm your email (check your inbox), then sign in to finish setup.",
   MFA_VERIFY_FAILED: "That code did not match. Try again.",
   MFA_ENROLL_FAILED: "Could not start 2FA enrollment.",
   NO_KEY_MATERIAL: "No encrypted data found for this account.",
@@ -147,6 +149,26 @@ export const SyncDialog = ({ open, onOpenChange }: SyncDialogProps) => {
             </section>
           )}
 
+          {/* SIGN UP: confirm email, then sign in to finish setup */}
+          {sync.step === "confirm-email" && (
+            <section className="flex flex-col gap-3">
+              <p className="cy-mono text-xs">
+                We sent a confirmation link to{" "}
+                <span className="cy-hud on">{sync.email}</span>. Confirm your
+                account, then sign in here to finish setup (2FA + recovery key).
+              </p>
+              <Button
+                className="cy-btn justify-start"
+                onClick={() => {
+                  setMode("signin");
+                  void sync.signOut();
+                }}
+              >
+                I confirmed it, sign in
+              </Button>
+            </section>
+          )}
+
           {/* CREATE: TOTP enrollment */}
           {sync.step === "create-totp" && sync.enrollment && (
             <section className="flex flex-col gap-3">
@@ -171,9 +193,18 @@ export const SyncDialog = ({ open, onOpenChange }: SyncDialogProps) => {
               <Button
                 className="cy-btn justify-start"
                 disabled={busy || code.length < 6}
-                onClick={() => void run(() => sync.confirmCreateTotp(code))}
+                onClick={() => void run(() => sync.confirmTotp(code))}
               >
                 Verify and continue
+              </Button>
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  reset();
+                  void sync.signOut();
+                }}
+              >
+                Cancel
               </Button>
             </section>
           )}
@@ -223,9 +254,18 @@ export const SyncDialog = ({ open, onOpenChange }: SyncDialogProps) => {
               <Button
                 className="cy-btn justify-start"
                 disabled={busy || code.length < 6}
-                onClick={() => void run(() => sync.confirmSignInTotp(code))}
+                onClick={() => void run(() => sync.confirmTotp(code))}
               >
                 Verify
+              </Button>
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  reset();
+                  void sync.signOut();
+                }}
+              >
+                Cancel
               </Button>
             </section>
           )}

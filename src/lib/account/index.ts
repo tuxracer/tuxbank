@@ -92,12 +92,17 @@ const client = () => {
   return supabase;
 };
 
+/** Returns true when Supabase issued a session (email confirmation is off). */
 export const signUp = async (
   email: string,
   authSecret: string,
-): Promise<void> => {
-  const { error } = await client().auth.signUp({ email, password: authSecret });
+): Promise<boolean> => {
+  const { data, error } = await client().auth.signUp({
+    email,
+    password: authSecret,
+  });
   if (error) throw new AccountError("SIGNUP_FAILED", error);
+  return data.session !== null;
 };
 
 export const signIn = async (
@@ -108,7 +113,12 @@ export const signIn = async (
     email,
     password: authSecret,
   });
-  if (error) throw new AccountError("SIGNIN_FAILED", error);
+  if (error) {
+    if (error.code === "email_not_confirmed") {
+      throw new AccountError("EMAIL_NOT_CONFIRMED", error);
+    }
+    throw new AccountError("SIGNIN_FAILED", error);
+  }
 };
 
 export const enrollTotp = async (): Promise<TotpEnrollment> => {

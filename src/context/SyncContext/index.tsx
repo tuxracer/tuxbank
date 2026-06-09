@@ -22,7 +22,7 @@ import {
   unlockWithPassword,
   uploadKeyMaterial,
   verifyTotp,
-  type ProvisionedKeys,
+  type KeyMaterial,
 } from "@/lib/account";
 import { createSupabaseRemote, runSync } from "@/lib/sync";
 import type { OnboardStep, SyncContextValue, SyncStatus } from "./types";
@@ -58,7 +58,6 @@ export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
   const [error, setError] = useState<string | null>(null);
 
   const dekRef = useRef<Uint8Array | null>(null);
-  const provisionRef = useRef<ProvisionedKeys | null>(null);
   const pendingRef = useRef<{
     email: string;
     password: string;
@@ -121,6 +120,21 @@ export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
     return () => clearTimeout(id);
   }, [events, categories, doSync]);
 
+  // Begin TOTP enrollment (first-time setup) and show the QR to the user.
+  const beginEnrollment = useCallback(
+    async (emailInput: string, password: string) => {
+      const enrolled = await enrollTotp();
+      pendingRef.current = {
+        email: emailInput,
+        password,
+        factorId: enrolled.factorId,
+      };
+      setEnrollment({ qrCode: enrolled.qrCode, secret: enrolled.secret });
+      setStep("create-totp");
+    },
+    [],
+  );
+
   const createAccount = useCallback(
     async (emailInput: string, password: string) => {
       if (!remote) {
@@ -128,54 +142,23 @@ export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
         return;
       }
       try {
-        const provisioned = await provisionAccountKeys(password, emailInput);
-        provisionRef.current = provisioned;
-        await signUp(emailInput, provisioned.authSecret);
-        const enrolled = await enrollTotp();
-        pendingRef.current = {
-          email: emailInput,
-          password,
-          factorId: enrolled.factorId,
-        };
+        const { authSecret } = await deriveKeys(password, emailInput);
+        const hasSession = await signUp(emailInput, authSecret);
         setEmail(emailInput);
-        setEnrollment({ qrCode: enrolled.qrCode, secret: enrolled.secret });
-        setStep("create-totp");
         setError(null);
+        if (hasSession) {
+          // Email confirmation is off: continue straight into 2FA setup.
+          await beginEnrollment(emailInput, password);
+        } else {
+          // Email confirmation is required: confirm, then sign in to finish.
+          setStep("confirm-email");
+        }
       } catch (caught) {
         setError(describeError(caught));
       }
     },
-    [remote],
+    [remote, beginEnrollment],
   );
-
-  const confirmCreateTotp = useCallback(
-    async (code: string) => {
-      const pending = pendingRef.current;
-      const provisioned = provisionRef.current;
-      if (!pending || !provisioned) return;
-      try {
-        await verifyTotp(pending.factorId, code); // reaches aal2
-        await uploadKeyMaterial(provisioned.keyMaterial);
-        dekRef.current = provisioned.dek;
-        setRecoveryKey(provisioned.recoveryKey);
-        setStep("create-recovery");
-        setError(null);
-        void doSync(); // initial push
-      } catch (caught) {
-        setError(describeError(caught));
-      }
-    },
-    [doSync],
-  );
-
-  const finishCreate = useCallback(() => {
-    provisionRef.current = null;
-    pendingRef.current = null;
-    setEnrollment(null);
-    setRecoveryKey(null);
-    setStep("idle");
-    setStatus("synced");
-  }, []);
 
   const signIn = useCallback(
     async (emailInput: string, password: string) => {
@@ -186,45 +169,84 @@ export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
       try {
         const { authSecret } = await deriveKeys(password, emailInput);
         await authSignIn(emailInput, authSecret);
-        const factorId = await getTotpFactorId();
-        if (!factorId) {
-          setError("This account has no 2FA factor enrolled");
-          return;
-        }
-        pendingRef.current = { email: emailInput, password, factorId };
         setEmail(emailInput);
-        setStep("signin-totp");
         setError(null);
+        const factorId = await getTotpFactorId();
+        if (factorId) {
+          // Returning device: challenge the existing 2FA factor.
+          pendingRef.current = { email: emailInput, password, factorId };
+          setStep("signin-totp");
+        } else {
+          // First sign-in after confirming email: enroll 2FA now.
+          await beginEnrollment(emailInput, password);
+        }
       } catch (caught) {
         setError(describeError(caught));
       }
     },
-    [remote],
+    [remote, beginEnrollment],
   );
 
-  const confirmSignInTotp = useCallback(
+  // Verify the TOTP code (completing enrollment or a challenge) to reach aal2,
+  // then either unlock existing key material or provision it on first setup.
+  const confirmTotp = useCallback(
     async (code: string) => {
       const pending = pendingRef.current;
       if (!pending) return;
       try {
         await verifyTotp(pending.factorId, code); // reaches aal2
-        const material = await fetchKeyMaterial();
-        dekRef.current = await unlockWithPassword(
-          pending.password,
-          pending.email,
-          material,
-        );
-        pendingRef.current = null;
-        setStep("idle");
-        setStatus("synced");
-        setError(null);
-        void doSync(); // initial pull
+
+        let material: KeyMaterial | null = null;
+        try {
+          material = await fetchKeyMaterial();
+        } catch (caught) {
+          if (!(isAccountError(caught) && caught.code === "NO_KEY_MATERIAL")) {
+            throw caught;
+          }
+        }
+
+        if (material) {
+          // Existing account: unlock the data key with the password.
+          dekRef.current = await unlockWithPassword(
+            pending.password,
+            pending.email,
+            material,
+          );
+          pendingRef.current = null;
+          setEnrollment(null);
+          setStep("idle");
+          setStatus("synced");
+          setError(null);
+          void doSync(); // initial pull
+        } else {
+          // First-time setup: provision keys, upload them, show the recovery key.
+          const provisioned = await provisionAccountKeys(
+            pending.password,
+            pending.email,
+          );
+          await uploadKeyMaterial(provisioned.keyMaterial);
+          dekRef.current = provisioned.dek;
+          pendingRef.current = null;
+          setEnrollment(null);
+          setRecoveryKey(provisioned.recoveryKey);
+          setStep("create-recovery");
+          setError(null);
+          void doSync(); // initial push
+        }
       } catch (caught) {
         setError(describeError(caught));
       }
     },
     [doSync],
   );
+
+  const finishCreate = useCallback(() => {
+    pendingRef.current = null;
+    setEnrollment(null);
+    setRecoveryKey(null);
+    setStep("idle");
+    setStatus("synced");
+  }, []);
 
   const unlock = useCallback(
     async (password: string) => {
@@ -252,7 +274,6 @@ export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
       // Local session is cleared regardless; ignore a failed server revoke.
     }
     dekRef.current = null;
-    provisionRef.current = null;
     pendingRef.current = null;
     setEmail(null);
     setEnrollment(null);
@@ -273,10 +294,9 @@ export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
     error,
     configured: remote !== null,
     createAccount,
-    confirmCreateTotp,
+    confirmTotp,
     finishCreate,
     signIn,
-    confirmSignInTotp,
     unlock,
     signOut,
     syncNow,
