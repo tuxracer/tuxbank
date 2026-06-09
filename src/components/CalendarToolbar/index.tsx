@@ -26,6 +26,7 @@ const CalendarToolbar = ({
   onToggleCategory,
   onManageCategories,
   onManageData,
+  onSync,
   onNewEvent,
 }: CalendarToolbarProps) => {
   // Years descending from maxYear down to minYear (inclusive).
@@ -137,6 +138,15 @@ const CalendarToolbar = ({
               );
             })}
           </div>
+          <CyControlFrame>
+            <button
+              type="button"
+              className="cy-btn px-3 py-1.5 text-xs"
+              onClick={onSync}
+            >
+              ◢ SYNC
+            </button>
+          </CyControlFrame>
           <CyControlFrame>
             <button
               type="button"
