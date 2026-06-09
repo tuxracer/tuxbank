@@ -22,6 +22,8 @@ Each module is a directory named after its primary export, containing `index.ts`
 
 **Rendering**: pure client-side SPA — there is no server rendering of any kind. IndexedDB is browser-only; never introduce SSR/SSG or anything that renders app state outside the browser.
 
+**Bundling**: ship all application code in the initial load. Do not lazy-load scripts, use dynamic `import()`, or set up route/feature code-splitting. Runtime chunk fetches break offline use, and offline support is a goal for this client-only app. A larger initial bundle (for example, including the crypto/sync libraries even for logged-out users) is an accepted trade for an app that always works offline. Optimize bundle size by other means (drop unused deps, prefer smaller libraries) rather than deferring loads.
+
 ## Commands
 
 ```bash
