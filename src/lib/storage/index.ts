@@ -304,3 +304,27 @@ export const commitImport = async (text: string): Promise<void> => {
   }
   notifyDataChanged();
 };
+
+/**
+ * Wipe all locally stored data: events, categories, tombstones, and the sync
+ * cursor. Used when signing out on a shared device. Does not touch the cloud.
+ */
+export const clearLocalData = async (): Promise<void> => {
+  try {
+    const db = await getDb();
+    const tx = db.transaction(
+      [STORE, CATEGORY_STORE, TOMBSTONE_STORE, SYNC_META_STORE],
+      "readwrite",
+    );
+    await Promise.all([
+      tx.objectStore(STORE).clear(),
+      tx.objectStore(CATEGORY_STORE).clear(),
+      tx.objectStore(TOMBSTONE_STORE).clear(),
+      tx.objectStore(SYNC_META_STORE).clear(),
+    ]);
+    await tx.done;
+  } catch (error) {
+    throw toWriteError(error);
+  }
+  notifyDataChanged();
+};

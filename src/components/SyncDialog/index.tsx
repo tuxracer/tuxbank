@@ -55,6 +55,7 @@ export const SyncDialog = ({ open, onOpenChange }: SyncDialogProps) => {
   const [recoveryKeyInput, setRecoveryKeyInput] = useState("");
   const [awaitingReauth, setAwaitingReauth] = useState(false);
   const [reauthCode, setReauthCode] = useState("");
+  const [confirmingSignOut, setConfirmingSignOut] = useState(false);
 
   const reset = () => {
     setMode("choose");
@@ -68,6 +69,7 @@ export const SyncDialog = ({ open, onOpenChange }: SyncDialogProps) => {
     setRecoveryKeyInput("");
     setAwaitingReauth(false);
     setReauthCode("");
+    setConfirmingSignOut(false);
   };
 
   const run = async (fn: () => Promise<void>) => {
@@ -162,12 +164,50 @@ export const SyncDialog = ({ open, onOpenChange }: SyncDialogProps) => {
             </section>
           )}
 
+          {/* CONFIRM SIGN OUT: optionally wipe local data on this device */}
+          {confirmingSignOut && (
+            <section className="flex flex-col gap-3">
+              <p className="cy-mono text-xs">
+                Sign out of <span className="cy-hud on">{sync.email}</span>?
+              </p>
+              <p className="cy-mono text-xs text-[color:var(--cy-muted)]">
+                Your data stays safe in your account. You can also erase the
+                copy stored in this browser, which is useful on a shared device.
+              </p>
+              <Button
+                className="cy-btn justify-start"
+                onClick={async () => {
+                  await sync.signOut(false);
+                  reset();
+                }}
+              >
+                Sign out
+              </Button>
+              <Button
+                className="cy-btn justify-start text-[color:var(--cy-magenta)]"
+                onClick={async () => {
+                  await sync.signOut(true);
+                  reset();
+                }}
+              >
+                Sign out and erase this device
+              </Button>
+              <Button
+                variant="ghost"
+                onClick={() => setConfirmingSignOut(false)}
+              >
+                Cancel
+              </Button>
+            </section>
+          )}
+
           {/* SYNCED / SYNCING / ERROR (all post-onboarding, account active) */}
           {(sync.status === "synced" ||
             sync.status === "syncing" ||
             sync.status === "error") &&
             sync.step === "idle" &&
-            !changingPw && (
+            !changingPw &&
+            !confirmingSignOut && (
               <section className="flex flex-col gap-3">
                 <p className="cy-mono text-xs">
                   Signed in as <span className="cy-hud on">{sync.email}</span>
@@ -198,7 +238,10 @@ export const SyncDialog = ({ open, onOpenChange }: SyncDialogProps) => {
                 >
                   Change password
                 </Button>
-                <Button variant="ghost" onClick={() => void sync.signOut()}>
+                <Button
+                  variant="ghost"
+                  onClick={() => setConfirmingSignOut(true)}
+                >
                   Sign out
                 </Button>
               </section>
@@ -272,7 +315,7 @@ export const SyncDialog = ({ open, onOpenChange }: SyncDialogProps) => {
             )}
 
           {/* LOCKED: session exists, need password to unlock the key */}
-          {sync.status === "locked" && !recovering && (
+          {sync.status === "locked" && !recovering && !confirmingSignOut && (
             <section className="flex flex-col gap-3">
               <p className="cy-mono text-xs">
                 Unlock <span className="cy-hud on">{sync.email}</span> to resume
@@ -302,7 +345,10 @@ export const SyncDialog = ({ open, onOpenChange }: SyncDialogProps) => {
               >
                 Forgot password? Use recovery key
               </Button>
-              <Button variant="ghost" onClick={() => void sync.signOut()}>
+              <Button
+                variant="ghost"
+                onClick={() => setConfirmingSignOut(true)}
+              >
                 Sign out
               </Button>
             </section>

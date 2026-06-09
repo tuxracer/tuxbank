@@ -29,6 +29,7 @@ import {
   verifyTotp,
   type KeyMaterial,
 } from "@/lib/account";
+import { clearLocalData } from "@/lib/storage";
 import { createSupabaseRemote, runSync } from "@/lib/sync";
 import type {
   OnboardStep,
@@ -384,22 +385,33 @@ export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
     [remote, email, doSync],
   );
 
-  const signOut = useCallback(async () => {
-    try {
-      await authSignOut();
-    } catch {
-      // Local session is cleared regardless; ignore a failed server revoke.
-    }
-    dekRef.current = null;
-    pendingRef.current = null;
-    setEmail(null);
-    setEnrollment(null);
-    setRecoveryKey(null);
-    setStep("idle");
-    setStatus("off");
-    setLastSyncedAt(null);
-    setError(null);
-  }, []);
+  const signOut = useCallback(
+    async (clearLocal?: boolean) => {
+      try {
+        await authSignOut();
+      } catch {
+        // Local session is cleared regardless; ignore a failed server revoke.
+      }
+      dekRef.current = null;
+      pendingRef.current = null;
+      setEmail(null);
+      setEnrollment(null);
+      setRecoveryKey(null);
+      setStep("idle");
+      setStatus("off");
+      setLastSyncedAt(null);
+      setError(null);
+      if (clearLocal) {
+        try {
+          await clearLocalData();
+          await refreshFromStorage();
+        } catch (caught) {
+          setError(describeError(caught));
+        }
+      }
+    },
+    [refreshFromStorage],
+  );
 
   const value: SyncContextValue = {
     status,

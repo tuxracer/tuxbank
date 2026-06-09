@@ -16,6 +16,7 @@ import {
   getSyncCursor,
   setSyncCursor,
   applyRemoteDelete,
+  clearLocalData,
   DB_NAME,
   STORE,
   CATEGORY_STORE,
@@ -526,5 +527,30 @@ describe("applyRemoteDelete", () => {
     expect(await getTombstones()).toHaveLength(1);
     await applyRemoteDelete("k1", "category");
     expect(await getTombstones()).toEqual([]);
+  });
+});
+
+describe("clearLocalData", () => {
+  beforeEach(async () => {
+    await resetDbForTests();
+  });
+
+  it("wipes events, categories, tombstones, and the sync cursor", async () => {
+    await putEvent(make("e1"));
+    await putCategory({
+      id: "k1",
+      name: "K",
+      color: "cyan",
+      updatedAt: "2026-06-09T00:00:00.000Z",
+    });
+    await deleteEvent("e1"); // leaves a tombstone
+    await setSyncCursor("2026-06-09T12:00:00.000Z");
+
+    await clearLocalData();
+
+    expect(await getAllEvents()).toEqual([]);
+    expect(await getAllCategories()).toEqual([]);
+    expect(await getTombstones()).toEqual([]);
+    expect(await getSyncCursor()).toBeUndefined();
   });
 });

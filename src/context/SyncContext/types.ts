@@ -38,6 +38,7 @@ export interface SyncContextValue {
     newPassword: string,
     nonce?: string,
   ) => Promise<PwResult>;
-  signOut: () => Promise<void>;
+  /** Sign out; when `clearLocal` is true, also wipe local browser data. */
+  signOut: (clearLocal?: boolean) => Promise<void>;
   syncNow: () => Promise<void>;
 }
