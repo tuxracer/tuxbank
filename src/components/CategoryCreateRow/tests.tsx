@@ -1,7 +1,8 @@
-import { describe, it, expect } from "vitest";
-import { act, renderHook } from "@testing-library/react";
+import { describe, it, expect, vi } from "vitest";
+import { act, render, renderHook, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import type { Category } from "@/types";
-import { useCategorySearch } from "./index";
+import { CategoryCreateRow, useCategorySearch } from "./index";
 
 const cats: Category[] = [
   {
@@ -54,5 +55,35 @@ describe("useCategorySearch", () => {
     act(() => result.current.reset());
     expect(result.current.query).toBe("");
     expect(result.current.newColor).toBe(initialColor);
+  });
+});
+
+describe("CategoryCreateRow", () => {
+  it("renders the create label and fires onCreate when clicked", async () => {
+    const onCreate = vi.fn();
+    render(
+      <CategoryCreateRow
+        query="Food"
+        color="cyan"
+        onPickColor={vi.fn()}
+        onCreate={onCreate}
+      />,
+    );
+    await userEvent.click(screen.getByText(/create "Food"/i));
+    expect(onCreate).toHaveBeenCalledTimes(1);
+  });
+
+  it("fires onPickColor when a swatch is clicked", async () => {
+    const onPickColor = vi.fn();
+    render(
+      <CategoryCreateRow
+        query="Food"
+        color="cyan"
+        onPickColor={onPickColor}
+        onCreate={vi.fn()}
+      />,
+    );
+    await userEvent.click(screen.getByTitle("green"));
+    expect(onPickColor).toHaveBeenCalledWith("green");
   });
 });
