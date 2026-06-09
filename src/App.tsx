@@ -19,6 +19,7 @@ import {
   useCalendar,
   type EditScope,
 } from "@/context/CalendarContext";
+import { SyncProvider } from "@/context/SyncContext";
 import CalendarToolbar from "@/components/CalendarToolbar";
 import MonthGrid from "@/components/MonthGrid";
 import EventChip from "@/components/EventChip";
@@ -26,6 +27,7 @@ import EventDialog from "@/components/EventDialog";
 import RecurrenceScopeDialog from "@/components/RecurrenceScopeDialog";
 import ManageCategoriesDialog from "@/components/ManageCategoriesDialog";
 import DataDialog from "@/components/DataDialog";
+import { SyncDialog } from "@/components/SyncDialog";
 import { Toaster } from "@/components/ui/sonner";
 
 const noop = () => {};
@@ -59,6 +61,7 @@ const CalendarScreen = () => {
   const [scope, setScope] = useState<ScopeState | null>(null);
   const [manageOpen, setManageOpen] = useState(false);
   const [dataOpen, setDataOpen] = useState(false);
+  const [syncOpen, setSyncOpen] = useState(false);
   const [activeOccurrence, setActiveOccurrence] = useState<Occurrence | null>(
     null,
   );
@@ -215,6 +218,7 @@ const CalendarScreen = () => {
         onToggleCategory={cal.toggleCategory}
         onManageCategories={() => setManageOpen(true)}
         onManageData={() => setDataOpen(true)}
+        onSync={() => setSyncOpen(true)}
         onNewEvent={() => openCreate(cal.todayISO)}
         endBalance={
           cal.balancesByDate[cal.cells[cal.cells.length - 1].iso] ?? 0
@@ -296,6 +300,7 @@ const CalendarScreen = () => {
         onCommitImport={cal.importData}
         onOpenChange={setDataOpen}
       />
+      <SyncDialog open={syncOpen} onOpenChange={setSyncOpen} />
       <Toaster />
     </main>
   );
@@ -303,7 +308,9 @@ const CalendarScreen = () => {
 
 const App = () => (
   <CalendarProvider>
-    <CalendarScreen />
+    <SyncProvider>
+      <CalendarScreen />
+    </SyncProvider>
   </CalendarProvider>
 );
 
