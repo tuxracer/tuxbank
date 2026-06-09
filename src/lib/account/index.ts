@@ -50,3 +50,16 @@ export const unlockWithPassword = async (
   const { kek } = await deriveKeys(password, email);
   return unwrapKey(passwordBox(material), kek);
 };
+
+const recoveryBox = (material: KeyMaterial): SealedBox => ({
+  nonce: fromBase64(material.recovery_nonce),
+  ciphertext: fromBase64(material.recovery_wrapped_dek),
+});
+
+export const unlockWithRecoveryKey = async (
+  recoveryKey: string,
+  material: KeyMaterial,
+): Promise<Uint8Array> => {
+  const recoveryKek = await deriveRecoveryKek(recoveryKey);
+  return unwrapKey(recoveryBox(material), recoveryKek);
+};
