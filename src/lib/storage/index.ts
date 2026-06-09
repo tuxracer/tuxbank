@@ -8,6 +8,7 @@ import {
   CATEGORY_STORE,
   DB_NAME,
   DB_VERSION,
+  DEK_KEY,
   STORE,
   SYNC_CURSOR_KEY,
   SYNC_META_STORE,
@@ -200,6 +201,49 @@ export const setSyncCursor = async (value: string): Promise<void> => {
   try {
     const db = await getDb();
     await db.put(SYNC_META_STORE, value, SYNC_CURSOR_KEY);
+  } catch (error) {
+    throw toWriteError(error);
+  }
+};
+
+/**
+ * Read the cached data-encryption key (DEK), if one was stored on this device.
+ * Returns undefined when nothing was cached (or the cached value is not raw
+ * bytes). Used to resume a signed-in account unlocked after a reload instead of
+ * re-prompting for the password.
+ */
+export const getStoredDek = async (): Promise<Uint8Array | undefined> => {
+  try {
+    const db = await getDb();
+    const value: unknown = await db.get(SYNC_META_STORE, DEK_KEY);
+    if (value instanceof Uint8Array) return value;
+    // A typed array round-tripped through IndexedDB can come back as a view
+    // from another realm (notably fake-indexeddb in tests), which fails the
+    // `instanceof` check above; rebuild a Uint8Array from its bytes.
+    if (ArrayBuffer.isView(value)) {
+      return new Uint8Array(value.buffer, value.byteOffset, value.byteLength);
+    }
+    return undefined;
+  } catch (error) {
+    throw toStorageError(error, "READ_FAILED");
+  }
+};
+
+/** Cache the data-encryption key so the account stays unlocked across reloads. */
+export const setStoredDek = async (dek: Uint8Array): Promise<void> => {
+  try {
+    const db = await getDb();
+    await db.put(SYNC_META_STORE, dek, DEK_KEY);
+  } catch (error) {
+    throw toWriteError(error);
+  }
+};
+
+/** Drop the cached data-encryption key (on sign-out) so the next load re-locks. */
+export const clearStoredDek = async (): Promise<void> => {
+  try {
+    const db = await getDb();
+    await db.delete(SYNC_META_STORE, DEK_KEY);
   } catch (error) {
     throw toWriteError(error);
   }

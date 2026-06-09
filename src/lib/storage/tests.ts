@@ -14,6 +14,9 @@ import {
   getTombstones,
   getSyncCursor,
   setSyncCursor,
+  getStoredDek,
+  setStoredDek,
+  clearStoredDek,
   applyRemoteDelete,
   clearLocalData,
   clearAllData,
@@ -466,6 +469,34 @@ describe("sync cursor", () => {
   it("round-trips a stored cursor value", async () => {
     await setSyncCursor("2026-06-09T12:00:00.000Z");
     expect(await getSyncCursor()).toBe("2026-06-09T12:00:00.000Z");
+  });
+});
+
+describe("stored data-encryption key (DEK)", () => {
+  beforeEach(async () => {
+    await resetDbForTests();
+  });
+
+  it("returns undefined before any key is stored", async () => {
+    expect(await getStoredDek()).toBeUndefined();
+  });
+
+  it("round-trips the raw key bytes", async () => {
+    const dek = new Uint8Array([1, 2, 3, 250, 251, 252]);
+    await setStoredDek(dek);
+    expect(await getStoredDek()).toEqual(dek);
+  });
+
+  it("clears a stored key so the next read is empty", async () => {
+    await setStoredDek(new Uint8Array([9, 9, 9]));
+    await clearStoredDek();
+    expect(await getStoredDek()).toBeUndefined();
+  });
+
+  it("is wiped by the sign-out local wipe (clearLocalData)", async () => {
+    await setStoredDek(new Uint8Array([7, 7, 7]));
+    await clearLocalData();
+    expect(await getStoredDek()).toBeUndefined();
   });
 });
 

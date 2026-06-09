@@ -29,7 +29,12 @@ import {
   verifyTotp,
   type KeyMaterial,
 } from "@/lib/account";
-import { clearLocalData } from "@/lib/storage";
+import {
+  clearLocalData,
+  clearStoredDek,
+  getStoredDek,
+  setStoredDek,
+} from "@/lib/storage";
 import { createSupabaseRemote, runSync } from "@/lib/sync";
 import type {
   OnboardStep,
@@ -94,6 +99,16 @@ export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
   } | null>(null);
   const syncingRef = useRef(false);
 
+  // Set the in-memory data key and cache it on the device so a reload or
+  // restart resumes unlocked instead of re-prompting for the password. The ref
+  // is set synchronously (callers fire doSync right after); persistence runs in
+  // the background and is non-fatal — a failed write only costs the next load
+  // an unlock, never this session.
+  const storeDek = useCallback((dek: Uint8Array): void => {
+    dekRef.current = dek;
+    void setStoredDek(dek).catch(() => undefined);
+  }, []);
+
   const doSync = useCallback(async () => {
     if (!remote || !dekRef.current || syncingRef.current) return;
     syncingRef.current = true;
@@ -118,28 +133,39 @@ export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
     await doSync();
   }, [doSync]);
 
-  // Detect an existing session on mount.
+  // Detect an existing session on mount and resume it without re-prompting.
   useEffect(() => {
     if (!remote) return;
     let active = true;
     void getActiveSession()
-      .then((session) => {
-        if (!active || !session) return;
-        if (session.aal2) {
-          // Fully set-up session: the DEK is gone, so we are "locked".
+      .then(async (session) => {
+        if (!active) return;
+        if (session?.aal2) {
+          // Fully set-up session. If the DEK was cached on this device, resume
+          // unlocked and sync; otherwise fall back to "locked" for a password.
           setEmail(session.email);
-          setStatus("locked");
+          const storedDek = await getStoredDek().catch(() => undefined);
+          if (!active) return;
+          if (storedDek) {
+            dekRef.current = storedDek;
+            setStatus("synced");
+            void doSync();
+          } else {
+            setStatus("locked");
+          }
         } else {
-          // An aal1 session (e.g. email confirmed but setup never finished):
-          // clear it so the user signs in cleanly, which runs TOTP + setup.
-          void authSignOut();
+          // No usable session: drop any orphaned cached key. For a half-set-up
+          // aal1 session (email confirmed but setup never finished), also sign
+          // out so the user signs in cleanly, which runs TOTP + setup.
+          void clearStoredDek();
+          if (session) void authSignOut();
         }
       })
       .catch(() => undefined);
     return () => {
       active = false;
     };
-  }, [remote]);
+  }, [remote, doSync]);
 
   // Sync when the window regains focus. doSync no-ops if the vault is locked,
   // so we always listen and let it self-gate (no dependency on status).
@@ -245,10 +271,8 @@ export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
 
         if (material) {
           // Existing account: unlock the data key with the password.
-          dekRef.current = await unlockWithPassword(
-            pending.password,
-            pending.email,
-            material,
+          storeDek(
+            await unlockWithPassword(pending.password, pending.email, material),
           );
           pendingRef.current = null;
           setEnrollment(null);
@@ -263,7 +287,7 @@ export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
             pending.email,
           );
           await uploadKeyMaterial(provisioned.keyMaterial);
-          dekRef.current = provisioned.dek;
+          storeDek(provisioned.dek);
           pendingRef.current = null;
           setEnrollment(null);
           setRecoveryKey(provisioned.recoveryKey);
@@ -275,7 +299,7 @@ export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
         setError(describeError(caught));
       }
     },
-    [doSync],
+    [doSync, storeDek],
   );
 
   const finishCreate = useCallback(() => {
@@ -303,7 +327,7 @@ export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
         }
         if (material) {
           // Existing data: unlock the data key with the password.
-          dekRef.current = await unlockWithPassword(password, email, material);
+          storeDek(await unlockWithPassword(password, email, material));
           setStatus("synced");
           setError(null);
           void doSync();
@@ -312,7 +336,7 @@ export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
           // Provision keys and show the recovery key instead of erroring.
           const provisioned = await provisionAccountKeys(password, email);
           await uploadKeyMaterial(provisioned.keyMaterial);
-          dekRef.current = provisioned.dek;
+          storeDek(provisioned.dek);
           setRecoveryKey(provisioned.recoveryKey);
           setStep("create-recovery");
           setError(null);
@@ -322,7 +346,7 @@ export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
         setError(describeError(caught));
       }
     },
-    [remote, email, doSync],
+    [remote, email, doSync, storeDek],
   );
 
   const changePassword = useCallback(
@@ -372,7 +396,7 @@ export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
           return "reauth";
         }
         await updatePasswordColumns(rewrapped);
-        dekRef.current = dek;
+        storeDek(dek);
         setStatus("synced");
         setError(null);
         void doSync();
@@ -382,7 +406,7 @@ export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
         return "error";
       }
     },
-    [remote, email, doSync],
+    [remote, email, doSync, storeDek],
   );
 
   const signOut = useCallback(
@@ -401,6 +425,14 @@ export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
       setStatus("off");
       setLastSyncedAt(null);
       setError(null);
+      // Drop the cached key so the next load re-locks. clearLocalData (below)
+      // also wipes it, but a non-clearing sign-out must drop it too; awaited so
+      // the key is gone before sign-out resolves.
+      try {
+        await clearStoredDek();
+      } catch {
+        // Best-effort: the next load can't resume without an active session.
+      }
       if (clearLocal) {
         try {
           await clearLocalData();

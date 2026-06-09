@@ -560,9 +560,13 @@ last-write-wins by client timestamp is vulnerable to clock skew across devices,
 which is acceptable for a single user.
 
 `SyncContext` drives the triggers: an initial sync on unlock/sign-in, on window
-focus, debounced after edits, and a manual "Sync now". The data key lives only
-in a ref and is dropped on reload; the app then shows a **locked** state until
-the user re-enters their password.
+focus, debounced after edits, and a manual "Sync now". The data key is held in a
+ref and also cached on the device (the `dek` key in the `syncMeta` store, via
+`setStoredDek`/`getStoredDek`), so a reload or restart resumes unlocked and
+re-syncs instead of re-prompting. The cache is cleared only on sign-out
+(`clearStoredDek`, and by the `clearLocalData` wipe). When a signed-in (`aal2`)
+session finds no cached key (a new device, or after sign-out), the app falls back
+to a **locked** state until the user re-enters their password.
 
 ### Auth, onboarding, and recovery flows (`SyncContext`, `SyncDialog`)
 
@@ -572,8 +576,9 @@ the user re-enters their password.
   local data.
 - **Sign in (returning device):** password, TOTP challenge, fetch
   `key_material`, unlock the DEK, pull.
-- **Unlock:** a persisted `aal2` session with no in-memory DEK; re-enter the
-  password. "No key material yet" is treated as first-time setup, not an error.
+- **Unlock:** a persisted `aal2` session with no cached DEK (a new device, or
+  after an explicit sign-out); re-enter the password, which re-caches the key.
+  "No key material yet" is treated as first-time setup, not an error.
 - **Change password / forgot password:** set a new password from the synced
   state, or recover from the locked state with the recovery key (which unlocks
   the DEK and sets a new password). Both support Supabase "Secure password
@@ -584,6 +589,12 @@ the user re-enters their password.
 - Local IndexedDB is **plaintext at rest** (the same as local-only mode); E2EE
   protects data on the server and in transit. The app works with no password
   when signed out or locked.
+- The data key is **cached at rest** in IndexedDB so a signed-in session stays
+  unlocked across reloads and restarts until an explicit sign-out. Local records
+  are already plaintext on the device, so this adds no local exposure beyond what
+  is there already. It does mean a device holding the cache can decrypt the
+  server copy without the password, so signing out (which clears the cache) is
+  how to lock a shared device.
 - Security is bounded by **password strength**; a minimum length is enforced.
 - A **lost authenticator** (no 2FA recovery factor exists) locks the user out of
   the cloud copy. Local data is unaffected; the path forward is a fresh account.
