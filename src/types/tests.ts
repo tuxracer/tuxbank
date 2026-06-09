@@ -5,6 +5,7 @@ import {
   isCalendarEvent,
   isCategory,
   categoryKey,
+  isOccurrence,
 } from "./index";
 import { PRESET_CATEGORIES } from "./consts";
 
@@ -55,5 +56,34 @@ describe("category helpers", () => {
   it("derives a normalized, case-insensitive key from a name", () => {
     expect(categoryKey("  Groceries ")).toBe("groceries");
     expect(categoryKey("GROCERIES")).toBe("groceries");
+  });
+});
+
+describe("isOccurrence", () => {
+  const valid = {
+    eventId: "e1",
+    date: "2026-05-04",
+    title: "Rent",
+    category: PRESET_CATEGORIES[0],
+    amount: 1200,
+    direction: "withdrawal",
+    isRecurring: true,
+  };
+
+  it("accepts a well-formed occurrence", () => {
+    expect(isOccurrence(valid)).toBe(true);
+  });
+
+  it("rejects non-objects and null", () => {
+    expect(isOccurrence(null)).toBe(false);
+    expect(isOccurrence("nope")).toBe(false);
+    expect(isOccurrence(undefined)).toBe(false);
+  });
+
+  it("rejects objects missing or mistyping required fields", () => {
+    expect(isOccurrence({ ...valid, amount: "1200" })).toBe(false);
+    expect(isOccurrence({ ...valid, direction: "sideways" })).toBe(false);
+    expect(isOccurrence({ ...valid, isRecurring: "yes" })).toBe(false);
+    expect(isOccurrence({ ...valid, category: { id: "x" } })).toBe(false);
   });
 });
