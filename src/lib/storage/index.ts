@@ -1,4 +1,5 @@
 import { openDB, type IDBPDatabase } from "idb";
+import { isPlainObject, isString } from "remeda";
 import type { CalendarEvent, Category } from "@/types";
 import { isCalendarEvent, isCategory } from "@/types";
 import {
@@ -7,14 +8,20 @@ import {
   CATEGORY_STORE,
   DB_NAME,
   DB_VERSION,
+  LEGACY_UPDATED_AT,
   STORE,
+  SYNC_CURSOR_KEY,
+  SYNC_META_STORE,
+  TOMBSTONE_STORE,
 } from "./consts";
 import {
   isBackupFile,
+  isTombstone,
   StorageError,
   type BackupFile,
   type ImportPreview,
   type StorageErrorCode,
+  type Tombstone,
 } from "./types";
 import { notifyDataChanged } from "@/lib/tabSync";
 
@@ -29,9 +36,29 @@ const getDb = (): Promise<IDBPDatabase> => {
   }
   if (!dbPromise) {
     dbPromise = openDB(DB_NAME, DB_VERSION, {
-      upgrade(db) {
-        db.createObjectStore(STORE, { keyPath: "id" });
-        db.createObjectStore(CATEGORY_STORE, { keyPath: "id" });
+      async upgrade(db, oldVersion, _newVersion, tx) {
+        if (oldVersion < 1) {
+          db.createObjectStore(STORE, { keyPath: "id" });
+          db.createObjectStore(CATEGORY_STORE, { keyPath: "id" });
+        }
+        if (oldVersion < 2) {
+          db.createObjectStore(TOMBSTONE_STORE, { keyPath: "id" });
+          db.createObjectStore(SYNC_META_STORE);
+          // Backfill updatedAt on pre-v2 rows. Awaited so the upgrade
+          // transaction stays open until every row is stamped. The loop keeps
+          // the isPlainObject narrowing, so no cast is needed to spread `row`.
+          for (const name of [STORE, CATEGORY_STORE]) {
+            const store = tx.objectStore(name);
+            const rows: unknown[] = await store.getAll();
+            const puts: Promise<unknown>[] = [];
+            for (const row of rows) {
+              if (isPlainObject(row) && !isString(row.updatedAt)) {
+                puts.push(store.put({ ...row, updatedAt: LEGACY_UPDATED_AT }));
+              }
+            }
+            await Promise.all(puts);
+          }
+        }
       },
     }).catch((cause) => {
       dbPromise = null;
@@ -136,6 +163,35 @@ export const exportDatabase = async (): Promise<string> => {
     return JSON.stringify(backup, null, 2);
   } catch (error) {
     throw toStorageError(error, "EXPORT_FAILED");
+  }
+};
+
+export const getTombstones = async (): Promise<Tombstone[]> => {
+  try {
+    const db = await getDb();
+    const rows: unknown[] = await db.getAll(TOMBSTONE_STORE);
+    return rows.filter(isTombstone);
+  } catch (error) {
+    throw toStorageError(error, "READ_FAILED");
+  }
+};
+
+export const getSyncCursor = async (): Promise<string | undefined> => {
+  try {
+    const db = await getDb();
+    const value: unknown = await db.get(SYNC_META_STORE, SYNC_CURSOR_KEY);
+    return isString(value) ? value : undefined;
+  } catch (error) {
+    throw toStorageError(error, "READ_FAILED");
+  }
+};
+
+export const setSyncCursor = async (value: string): Promise<void> => {
+  try {
+    const db = await getDb();
+    await db.put(SYNC_META_STORE, value, SYNC_CURSOR_KEY);
+  } catch (error) {
+    throw toWriteError(error);
   }
 };
 

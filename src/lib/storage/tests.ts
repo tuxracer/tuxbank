@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { openDB } from "idb";
 import type { CalendarEvent, Category } from "@/types";
 import {
   getAllEvents,
@@ -10,6 +11,13 @@ import {
   exportDatabase,
   validateImport,
   commitImport,
+  resetDbCache,
+  getTombstones,
+  getSyncCursor,
+  DB_NAME,
+  STORE,
+  CATEGORY_STORE,
+  LEGACY_UPDATED_AT,
 } from "./index";
 import { resetDbForTests } from "./testing";
 import { resetChannelForTests, SYNC_CHANNEL_NAME } from "@/lib/tabSync";
@@ -360,5 +368,33 @@ describe("cross-tab change notifications", () => {
       putEvent({} as unknown as CalendarEvent),
     ).rejects.toMatchObject({ code: "WRITE_FAILED" });
     expect(await settledBroadcasts()).toHaveLength(0);
+  });
+});
+
+describe("v2 migration", () => {
+  beforeEach(async () => {
+    await resetDbForTests();
+  });
+
+  it("backfills updatedAt on rows created under v1 and adds the sync stores", async () => {
+    // Build a v1 database with a legacy category that has no updatedAt.
+    const v1 = await openDB(DB_NAME, 1, {
+      upgrade(db) {
+        db.createObjectStore(STORE, { keyPath: "id" });
+        db.createObjectStore(CATEGORY_STORE, { keyPath: "id" });
+      },
+    });
+    await v1.put(CATEGORY_STORE, { id: "c1", name: "Legacy", color: "cyan" });
+    v1.close();
+    resetDbCache();
+
+    // Reading through the production accessor opens v2 and runs the migration.
+    const categories = await getAllCategories();
+    expect(categories).toHaveLength(1);
+    expect(categories[0].updatedAt).toBe(LEGACY_UPDATED_AT);
+
+    // The new stores exist and are usable.
+    expect(await getTombstones()).toEqual([]);
+    expect(await getSyncCursor()).toBeUndefined();
   });
 });
