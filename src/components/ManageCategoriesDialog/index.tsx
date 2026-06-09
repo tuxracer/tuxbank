@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { categoryKey } from "@/types";
-import { catColorVar, catGlowVar } from "@/utils/categoryColor";
 import {
   Dialog,
   DialogContent,
@@ -10,11 +9,14 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { CyberFrame } from "@/components/CyberFrame";
+import { CategoryColorPicker } from "@/components/CategoryColorPicker";
+import {
+  CategoryCreateRow,
+  useCategorySearch,
+} from "@/components/CategoryCreateRow";
 
-import { PALETTE } from "./consts";
 import type { ManageCategoriesDialogProps } from "./types";
 
-export * from "./consts";
 export * from "./types";
 
 const ManageCategoriesDialog = ({
@@ -24,6 +26,7 @@ const ManageCategoriesDialog = ({
   onRename,
   onRecolor,
   onDelete,
+  onCreate,
   onOpenChange,
 }: ManageCategoriesDialogProps) => {
   const [confirmId, setConfirmId] = useState<string | null>(null);
@@ -32,6 +35,20 @@ const ManageCategoriesDialog = ({
     id: string;
     message: string;
   } | null>(null);
+  const {
+    query,
+    setQuery,
+    filtered,
+    showCreate,
+    newColor,
+    setNewColor,
+    reset,
+  } = useCategorySearch(categories);
+
+  const handleCreate = () => {
+    onCreate(query.trim(), newColor);
+    reset();
+  };
 
   return (
     <Dialog
@@ -40,6 +57,7 @@ const ManageCategoriesDialog = ({
         if (!next) {
           setConfirmId(null);
           setRenameError(null);
+          reset();
         }
         onOpenChange(next);
       }}
@@ -52,6 +70,12 @@ const ManageCategoriesDialog = ({
           </DialogTitle>
         </DialogHeader>
 
+        <Input
+          placeholder="Search or create…"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+        />
+
         {categories.length === 0 && (
           <p className="cy-mono text-xs text-[color:var(--cy-muted)]">
             No categories yet.
@@ -59,7 +83,7 @@ const ManageCategoriesDialog = ({
         )}
 
         <div className="flex flex-col gap-2">
-          {categories.map((c) => (
+          {filtered.map((c) => (
             <div key={c.id} className="flex flex-col gap-1">
               <div className="flex items-center gap-2">
                 <Input
@@ -85,31 +109,10 @@ const ManageCategoriesDialog = ({
                     }
                   }}
                 />
-                <div className="flex items-center gap-1">
-                  {PALETTE.map((color) => (
-                    <button
-                      key={color}
-                      type="button"
-                      title={color}
-                      onClick={() => onRecolor(c.id, color)}
-                      className="rounded-full p-0.5"
-                      style={{
-                        outline:
-                          c.color === color
-                            ? `2px solid ${catColorVar(color)}`
-                            : "none",
-                      }}
-                    >
-                      <span
-                        className="inline-block h-3 w-3 rounded-full"
-                        style={{
-                          background: catColorVar(color),
-                          boxShadow: `0 0 6px ${catGlowVar(color)}`,
-                        }}
-                      />
-                    </button>
-                  ))}
-                </div>
+                <CategoryColorPicker
+                  value={c.color}
+                  onChange={(color) => onRecolor(c.id, color)}
+                />
                 <Button
                   type="button"
                   variant="ghost"
@@ -127,6 +130,15 @@ const ManageCategoriesDialog = ({
             </div>
           ))}
         </div>
+
+        {showCreate && (
+          <CategoryCreateRow
+            query={query.trim()}
+            color={newColor}
+            onPickColor={setNewColor}
+            onCreate={handleCreate}
+          />
+        )}
 
         {confirming && (
           <div className="cy-mono mt-2 flex flex-col gap-2 border-t border-[color:var(--cy-line)] pt-2 text-xs">

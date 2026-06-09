@@ -25,6 +25,7 @@ const base = {
   onRename: vi.fn(),
   onRecolor: vi.fn(),
   onDelete: vi.fn(),
+  onCreate: vi.fn(),
   onOpenChange: vi.fn(),
 };
 
@@ -73,5 +74,37 @@ describe("ManageCategoriesDialog", () => {
     await userEvent.tab(); // blur commits
     expect(onRename).not.toHaveBeenCalled();
     expect(await screen.findByText(/already exists/i)).toBeInTheDocument();
+  });
+
+  it("filters the rows by the search query", async () => {
+    render(<ManageCategoriesDialog {...base} />);
+    await userEvent.type(
+      screen.getByPlaceholderText(/search or create/i),
+      "rent",
+    );
+    expect(screen.getByDisplayValue("Rent")).toBeInTheDocument();
+    expect(screen.queryByDisplayValue("Work")).not.toBeInTheDocument();
+  });
+
+  it("creates a new category with the typed name and chosen color", async () => {
+    const onCreate = vi.fn();
+    render(<ManageCategoriesDialog {...base} onCreate={onCreate} />);
+    await userEvent.type(
+      screen.getByPlaceholderText(/search or create/i),
+      "Food",
+    );
+    // No existing category matches "Food", so the create row's swatch is the only one.
+    await userEvent.click(screen.getByTitle("green"));
+    await userEvent.click(screen.getByText(/create "Food"/i));
+    expect(onCreate).toHaveBeenCalledWith("Food", "green");
+  });
+
+  it("does not offer create when the name matches an existing category", async () => {
+    render(<ManageCategoriesDialog {...base} />);
+    await userEvent.type(
+      screen.getByPlaceholderText(/search or create/i),
+      "work",
+    );
+    expect(screen.queryByText(/create "work"/i)).not.toBeInTheDocument();
   });
 });

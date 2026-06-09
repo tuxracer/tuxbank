@@ -7,5 +7,6 @@ export type ManageCategoriesDialogProps = {
   onRename: (id: string, name: string) => void;
   onRecolor: (id: string, color: CategoryColor) => void;
   onDelete: (id: string) => void;
+  onCreate: (name: string, color: CategoryColor) => void;
   onOpenChange: (open: boolean) => void;
 };

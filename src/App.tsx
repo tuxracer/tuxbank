@@ -305,6 +305,7 @@ const CalendarScreen = () => {
         onRename={(id, name) => void cal.updateCategory(id, { name })}
         onRecolor={(id, color) => void cal.updateCategory(id, { color })}
         onDelete={(id) => void cal.deleteCategory(id)}
+        onCreate={(name, color) => void cal.createCategory(name, color)}
         onOpenChange={setManageOpen}
       />
       <DataDialog
