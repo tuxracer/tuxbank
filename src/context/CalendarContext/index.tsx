@@ -526,6 +526,7 @@ export const CalendarProvider = ({
     exportData,
     previewImport,
     importData,
+    refreshFromStorage,
   };
 
   return (
