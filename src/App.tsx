@@ -29,6 +29,9 @@ import DataDialog from "@/components/DataDialog";
 import { Toaster } from "@/components/ui/sonner";
 
 const noop = () => {};
+// Pointer travel before a chip press becomes a drag; below this a press is a
+// click that opens the editor instead.
+const DRAG_ACTIVATION_DISTANCE_PX = 5;
 const dropDateFormatter = new Intl.DateTimeFormat(undefined, {
   month: "short",
   day: "numeric",
@@ -60,7 +63,9 @@ const CalendarScreen = () => {
     null,
   );
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: DRAG_ACTIVATION_DISTANCE_PX },
+    }),
   );
 
   const totalOccurrences = useMemo(
