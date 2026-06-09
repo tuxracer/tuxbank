@@ -6,7 +6,7 @@ import {
   KEK_CONTEXT,
   KEY_BYTES,
 } from "./consts";
-import type { DerivedKeys } from "./types";
+import type { DerivedKeys, SealedBox } from "./types";
 
 export * from "./consts";
 export * from "./types";
@@ -47,6 +47,49 @@ const argon2id = (
     KDF_MEMLIMIT,
     s.crypto_pwhash_ALG_ARGON2ID13,
   );
+
+const seal = (
+  s: typeof sodium,
+  message: Uint8Array | string,
+  key: Uint8Array,
+): SealedBox => {
+  const nonce = s.randombytes_buf(
+    s.crypto_aead_xchacha20poly1305_ietf_NPUBBYTES,
+  );
+  const ciphertext = s.crypto_aead_xchacha20poly1305_ietf_encrypt(
+    message,
+    null,
+    null,
+    nonce,
+    key,
+  );
+  return { nonce, ciphertext };
+};
+
+const open = (s: typeof sodium, box: SealedBox, key: Uint8Array): Uint8Array =>
+  s.crypto_aead_xchacha20poly1305_ietf_decrypt(
+    null,
+    box.ciphertext,
+    null,
+    box.nonce,
+    key,
+  );
+
+export const encryptPayload = async (
+  value: unknown,
+  dek: Uint8Array,
+): Promise<SealedBox> => {
+  const s = await getSodium();
+  return seal(s, JSON.stringify(value), dek);
+};
+
+export const decryptPayload = async (
+  box: SealedBox,
+  dek: Uint8Array,
+): Promise<unknown> => {
+  const s = await getSodium();
+  return JSON.parse(s.to_string(open(s, box, dek)));
+};
 
 export const deriveKeys = async (
   password: string,
