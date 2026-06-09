@@ -1,8 +1,16 @@
 /** IndexedDB database + object store identity. Fresh DB name = fresh start. */
 export const DB_NAME = "tuxbank";
-export const DB_VERSION = 1;
+export const DB_VERSION = 2;
 export const STORE = "events";
 export const CATEGORY_STORE = "categories";
+export const TOMBSTONE_STORE = "tombstones";
+export const SYNC_META_STORE = "syncMeta";
+
+/** Key for the single sync-cursor value held in the syncMeta store. */
+export const SYNC_CURSOR_KEY = "cursor";
+
+/** Sentinel updatedAt stamped on rows that predate the v2 (sync) migration. */
+export const LEGACY_UPDATED_AT = "1970-01-01T00:00:00.000Z";
 
 /** JSON backup file identity + schema version. */
 export const BACKUP_APP = "tuxbank";

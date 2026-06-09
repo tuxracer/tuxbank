@@ -63,3 +63,18 @@ export const isBackupFile = (value: unknown): value is BackupFile =>
   value.events.every(isCalendarEvent) &&
   isArray(value.categories) &&
   value.categories.every(isCategory);
+
+export type TombstoneType = "event" | "category";
+
+/** A record of a deleted row, kept so the deletion can be synced. */
+export interface Tombstone {
+  id: string;
+  type: TombstoneType;
+  updatedAt: string;
+}
+
+export const isTombstone = (value: unknown): value is Tombstone =>
+  isPlainObject(value) &&
+  isString(value.id) &&
+  (value.type === "event" || value.type === "category") &&
+  isString(value.updatedAt);
