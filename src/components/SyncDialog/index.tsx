@@ -33,6 +33,12 @@ const ERROR_TEXT: Record<string, string> = {
 
 const errorText = (code: string): string => ERROR_TEXT[code] ?? code;
 
+/** Renders a sync timestamp in the viewer's local time zone. */
+const SYNC_TIME_FORMAT = new Intl.DateTimeFormat(undefined, {
+  dateStyle: "medium",
+  timeStyle: "short",
+});
+
 export const SyncDialog = ({ open, onOpenChange }: SyncDialogProps) => {
   const sync = useSync();
   const [mode, setMode] = useState<Mode>("choose");
@@ -106,7 +112,7 @@ export const SyncDialog = ({ open, onOpenChange }: SyncDialogProps) => {
                     : sync.status === "error"
                       ? "Sync failed. Retry below."
                       : sync.lastSyncedAt
-                        ? `Last sync ${new Date(sync.lastSyncedAt).toLocaleString()}`
+                        ? `Last sync ${SYNC_TIME_FORMAT.format(new Date(sync.lastSyncedAt))}`
                         : "Synced"}
                 </p>
                 <Button

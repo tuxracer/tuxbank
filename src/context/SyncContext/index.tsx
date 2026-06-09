@@ -72,7 +72,9 @@ export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       const result = await runSync(dekRef.current, remote);
       if (result.pulled > 0) await refreshFromStorage();
-      setLastSyncedAt(result.cursor);
+      // Record when the sync finished (wall clock), not the data cursor, and as
+      // a real UTC ISO string so the UI can render it in the local time zone.
+      setLastSyncedAt(new Date().toISOString());
       setStatus("synced");
       setError(null);
     } catch (caught) {
