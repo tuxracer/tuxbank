@@ -73,7 +73,7 @@ A single person managing their own schedule of **all-day, date-based events**: m
 
 ### 4.3 Categories
 - Categories are **user-managed and persisted** (no presets; the store starts empty for a fresh user). Each has a name and a neon color from the 5-color palette (`cyan`, `magenta`, `yellow`, `green`, `orange`).
-- **Created** inline via a creatable combobox in the event editor (pick an existing one or type a new name + pick a color); **renamed / recolored / deleted** in a dedicated **Manage Categories** dialog opened from the toolbar.
+- **Created** inline via a creatable combobox in the event editor (pick an existing one or type a new name + pick a color), or from the **Manage Categories** dialog (type a name that does not exist to surface a `Create "<name>"` row with a color picker); **renamed / recolored / deleted** in the Manage Categories dialog opened from the toolbar.
 - Each category has an opaque **GUID** `id` (`crypto.randomUUID()`), generated at creation and stable across renames. Categories live in their own object store (see §4.6); events reference a category by id, so renaming or recoloring propagates to every event that uses it.
 - **Names are unique, case-insensitively** (`categoryKey(name) = name.trim().toLowerCase()` is the match key): creating a name that already exists selects the existing category instead of duplicating it, and renaming to a name another category already uses is rejected inline in the Manage dialog.
 - **Deleting an in-use category** prompts a confirm noting how many events use it; on delete its events keep the now-missing id and render as **Uncategorized** (a neutral cyan fallback) until re-categorized.
@@ -227,7 +227,7 @@ This mirrors iCalendar semantics (`EXDATE` / `RECURRENCE-ID` for single override
 - **Full-viewport layout:** `HUD status line` → `toolbar` → `weekday header` → `month grid` (the grid flexes to consume all remaining height).
 - **Toolbar:** ‹ / month-year / › · **Today** · **category filter** · **+ New Event** (primary CTA).
 - **Day cell:** date number; **today** glow; dimmed out-of-month days; stacked neon **event chips** (with ↻ for recurring); **"+N more"** → **day popover**.
-- **Event editor (Dialog):** built with shadcn `Form` + **react-hook-form**/zod. Fields: Title, Date (native `<input type="date">`), Category (creatable combobox built on shadcn `Command` + `Popover`; pick existing or create a new name + color), Notes (Textarea), Repeat (native `<select>`: Does-not-repeat / Daily / Weekly / Monthly / Yearly) with interval + optional end date; footer with **Delete**, **Cancel**, **Save**. The shadcn `calendar`/`Select` primitives remain available for future use.
+- **Event editor (Dialog):** built with shadcn `Form` + **react-hook-form**/zod. Fields: Title, Date (native `<input type="date">`), Category (`CategoryCombobox`: creatable combobox built on shadcn `Command` + `Popover`; backed by `useCategorySearch` for filtering and exact-match detection; pick existing or create a new name + color via `CategoryCreateRow`), Notes (Textarea), Repeat (native `<select>`: Does-not-repeat / Daily / Weekly / Monthly / Yearly) with interval + optional end date; footer with **Delete**, **Cancel**, **Save**. The shadcn `calendar`/`Select` primitives remain available for future use.
 - **Recurring scope dialog:** This event / This and following / All events (used for edit, delete, and move).
 - **Move toast:** a `sonner` toast at the bottom center confirms every move and provides an Undo action. Styled to the cyberpunk panel look via `.cy-toast` / `.cy-toast-action` in `globals.css`.
 - **Responsive:** desktop-first full-page grid. On narrow screens, cells shrink and chips collapse to **colored dots with a count**; full details via the day popover.
@@ -294,12 +294,19 @@ src/
     CyberFrame/             # SVG vector-stroke neon border for chamfered panels (.cy-dialog, .cy-toolbar, .cy-cell)
     CyControlFrame/         # wraps a .cy-btn/.cy-nav control; overlays a CyberFrame border that follows the chamfer
     DayEventsPopover/       # overflow list (shadcn Popover)
+    CategoryCombobox/       # creatable combobox (shadcn Command + Popover); uses useCategorySearch + CategoryCreateRow
+    ManageCategoriesDialog/ # rename / recolor / delete categories; search field + CategoryCreateRow for in-dialog creation
+    CategoryCreateRow/      # "Create <name>" row with CategoryColorPicker; exports useCategorySearch hook
+    CategoryColorPicker/    # row of selectable color swatches (used by CategoryCreateRow and ManageCategoriesDialog)
+    CategoryDot/            # shared neon color swatch used by the picker and chips
     EventDialog/            # create/edit form (shadcn Form + react-hook-form/zod, Dialog/Select/Textarea + date picker)
     RecurrenceScopeDialog/  # This / This & following / All (shadcn Dialog + RadioGroup)
     DataDialog/             # JSON backup export/import (validate -> confirm -> swap) + guarded clear-all
     StorageUnavailableBanner/ # shown when storage fails; offers a reset when the DB is unopenable
+    SyncDialog/             # optional account sync: create / sign-in / TOTP / recovery-key / change-password
   context/
     CalendarContext/        # visible month, events, CRUD actions (including moveEvent), filter state
+    SyncContext/            # optional account-sync state machine; consume via useSync()
   lib/
     storage/                # IndexedDB (idb); StorageError + guards; JSON backup
     tabSync/                # cross-tab change signal (BroadcastChannel)
@@ -307,6 +314,10 @@ src/
     dateGrid/               # month -> 6x7 date matrix
     balance/                # running balance from deposits/withdrawals
   types/                    # CalendarEvent, Category, Recurrence + type guards
+  utils/
+    categoryColor/          # PALETTE, DEFAULT_CATEGORY_COLOR, catColorVar, catGlowVar
+    formatCurrency/         # Intl.NumberFormat wrapper
+    base64/                 # base64 encode/decode helpers (used by the sync layer)
   components/
     ui/                     # shadcn primitives (shadcn CLI default location)
 ```
