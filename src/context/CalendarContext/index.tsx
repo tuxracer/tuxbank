@@ -451,6 +451,7 @@ export const CalendarProvider = ({
         id: newId(),
         name: name.trim(),
         color,
+        updatedAt: nowISO(),
       };
       categoriesRef.current = [...categoriesRef.current, category];
       setCategoriesWithRef(() => categoriesRef.current);
@@ -475,6 +476,7 @@ export const CalendarProvider = ({
         ...current,
         ...patch,
         name: patch.name?.trim() ?? current.name,
+        updatedAt: nowISO(),
       };
       categoriesRef.current = categoriesRef.current.map((c) =>
         c.id === id ? next : c,

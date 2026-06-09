@@ -8,6 +8,7 @@ export type Category = {
   id: string;
   name: string;
   color: CategoryColor;
+  updatedAt: string;
 };
 
 export type RecurrenceFreq = "daily" | "weekly" | "monthly" | "yearly";

@@ -5,8 +5,18 @@ import type { Category, CategoryColor } from "@/types";
 import CategoryCombobox from "./index";
 
 const cats: Category[] = [
-  { id: "work", name: "Work", color: "cyan" },
-  { id: "rent", name: "Rent", color: "magenta" },
+  {
+    id: "work",
+    name: "Work",
+    color: "cyan",
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: "rent",
+    name: "Rent",
+    color: "magenta",
+    updatedAt: new Date().toISOString(),
+  },
 ];
 
 describe("CategoryCombobox", () => {
@@ -30,6 +40,7 @@ describe("CategoryCombobox", () => {
       id: name.toLowerCase(),
       name,
       color,
+      updatedAt: new Date().toISOString(),
     }));
     const onChange = vi.fn();
     render(

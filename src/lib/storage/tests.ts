@@ -109,14 +109,29 @@ describe("categories store", () => {
 
   it("starts empty and round-trips categories", async () => {
     expect(await getAllCategories()).toEqual([]);
-    await putCategory({ id: "groceries", name: "Groceries", color: "green" });
-    await putCategory({ id: "rent", name: "Rent", color: "magenta" });
+    await putCategory({
+      id: "groceries",
+      name: "Groceries",
+      color: "green",
+      updatedAt: new Date().toISOString(),
+    });
+    await putCategory({
+      id: "rent",
+      name: "Rent",
+      color: "magenta",
+      updatedAt: new Date().toISOString(),
+    });
     const all = await getAllCategories();
     expect(all.map((c) => c.id).sort()).toEqual(["groceries", "rent"]);
   });
 
   it("deletes a category", async () => {
-    await putCategory({ id: "groceries", name: "Groceries", color: "green" });
+    await putCategory({
+      id: "groceries",
+      name: "Groceries",
+      color: "green",
+      updatedAt: new Date().toISOString(),
+    });
     await deleteCategory("groceries");
     expect(await getAllCategories()).toEqual([]);
   });
@@ -127,7 +142,12 @@ describe("categories store", () => {
       name: "X",
       color: "teal",
     } as unknown as Category);
-    await putCategory({ id: "ok", name: "OK", color: "cyan" });
+    await putCategory({
+      id: "ok",
+      name: "OK",
+      color: "cyan",
+      updatedAt: new Date().toISOString(),
+    });
     const all = await getAllCategories();
     expect(all.map((c) => c.id)).toEqual(["ok"]);
   });
@@ -150,7 +170,12 @@ describe("export / import (JSON backup)", () => {
   });
 
   it("round-trips the whole database through export + commitImport", async () => {
-    await putCategory({ id: "rent", name: "Rent", color: "magenta" });
+    await putCategory({
+      id: "rent",
+      name: "Rent",
+      color: "magenta",
+      updatedAt: new Date().toISOString(),
+    });
     await putEvent(make("a"));
     const text = await exportDatabase();
 
@@ -167,7 +192,12 @@ describe("export / import (JSON backup)", () => {
     await putEvent(make("old"));
     const text = await exportDatabase(); // backup contains only "old"
     await putEvent(make("extra"));
-    await putCategory({ id: "c", name: "C", color: "cyan" });
+    await putCategory({
+      id: "c",
+      name: "C",
+      color: "cyan",
+      updatedAt: new Date().toISOString(),
+    });
 
     await commitImport(text);
     expect((await getAllEvents()).map((e) => e.id)).toEqual(["old"]);
@@ -304,7 +334,12 @@ describe("cross-tab change notifications", () => {
   });
 
   it("broadcasts after each successful category write and delete", async () => {
-    await putCategory({ id: "rent", name: "Rent", color: "magenta" });
+    await putCategory({
+      id: "rent",
+      name: "Rent",
+      color: "magenta",
+      updatedAt: new Date().toISOString(),
+    });
     await deleteCategory("rent");
     expect(await settledBroadcasts()).toHaveLength(2);
   });

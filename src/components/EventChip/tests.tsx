@@ -7,7 +7,12 @@ const occ = (over: Partial<Occurrence>): Occurrence => ({
   eventId: "e",
   date: "2026-05-14",
   title: "Rent",
-  category: { id: "work", name: "Work", color: "cyan" },
+  category: {
+    id: "work",
+    name: "Work",
+    color: "cyan",
+    updatedAt: new Date().toISOString(),
+  },
   amount: 1500,
   direction: "withdrawal",
   isRecurring: false,

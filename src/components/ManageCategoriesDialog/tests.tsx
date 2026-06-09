@@ -5,8 +5,18 @@ import type { Category } from "@/types";
 import ManageCategoriesDialog from "./index";
 
 const cats: Category[] = [
-  { id: "work", name: "Work", color: "cyan" },
-  { id: "rent", name: "Rent", color: "magenta" },
+  {
+    id: "work",
+    name: "Work",
+    color: "cyan",
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: "rent",
+    name: "Rent",
+    color: "magenta",
+    updatedAt: new Date().toISOString(),
+  },
 ];
 const base = {
   open: true,
