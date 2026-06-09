@@ -180,6 +180,31 @@ describe("expandEvent — additional coverage", () => {
     );
     expect(occ.find((o) => o.date === "2026-05-04")?.category.id).toBe("work");
   });
+
+  it("applies amount and direction from an override patch to that occurrence only", () => {
+    const ev = {
+      ...base,
+      amount: 100,
+      direction: "withdrawal" as const,
+      recurrence: { freq: "weekly" as const, interval: 1, endsOn: null },
+      overrides: [
+        {
+          occurrenceDate: "2026-05-11",
+          patch: { amount: 250, direction: "deposit" as const },
+        },
+      ],
+    };
+    const occ = expandEvent(ev, "2026-05-01", "2026-05-31", getCategory);
+
+    const patched = occ.find((o) => o.date === "2026-05-11");
+    expect(patched?.amount).toBe(250);
+    expect(patched?.direction).toBe("deposit");
+
+    // Other occurrences keep the series' base amount/direction.
+    const untouched = occ.find((o) => o.date === "2026-05-04");
+    expect(untouched?.amount).toBe(100);
+    expect(untouched?.direction).toBe("withdrawal");
+  });
 });
 
 describe("expandEvents", () => {

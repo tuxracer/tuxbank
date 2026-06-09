@@ -277,6 +277,8 @@ export const CalendarProvider = ({
           title: input.title,
           categoryId: input.categoryId,
           notes: input.notes,
+          amount: input.amount,
+          direction: input.direction,
         });
         setEvents((prev) => prev.map((e) => (e.id === id ? next : e)));
         await persist(() => putEvent(next));

@@ -139,6 +139,8 @@ type OccurrenceOverride = {
     title?: string;
     categoryId?: string;
     notes?: string;
+    amount?: number;
+    direction?: TransactionDirection;
   };
 };
 

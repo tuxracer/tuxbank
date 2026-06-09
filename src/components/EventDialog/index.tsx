@@ -30,8 +30,9 @@ const buildDefaults = (props: EventDialogProps): EventFormValues => {
       // anchor date, not the clicked occurrence — so whole-series ("all") edits don't shift the series
       date: sourceEvent.date,
       categoryId: initialOccurrence.category.id,
-      amount: sourceEvent.amount,
-      direction: sourceEvent.direction,
+      // resolved occurrence values (carry any per-occurrence patch), not the series base
+      amount: initialOccurrence.amount,
+      direction: initialOccurrence.direction,
       notes: initialOccurrence.notes ?? "",
       repeat: sourceEvent.recurrence?.freq ?? "none",
       interval: sourceEvent.recurrence?.interval ?? 1,

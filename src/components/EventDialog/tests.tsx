@@ -92,4 +92,50 @@ describe("EventDialog", () => {
     await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
     expect(onSubmit.mock.calls[0][0].date).toBe("2026-05-04");
   });
+
+  it("pre-fills amount and direction from the occurrence's resolved values, not the series base", async () => {
+    const onSubmit = vi.fn();
+    const sourceEvent = {
+      id: "s1",
+      title: "Rent",
+      date: "2026-05-04",
+      categoryId: "work",
+      amount: 50,
+      direction: "withdrawal" as const,
+      recurrence: { freq: "weekly" as const, interval: 1, endsOn: null },
+      overrides: [
+        {
+          occurrenceDate: "2026-05-11",
+          patch: { amount: 250, direction: "deposit" as const },
+        },
+      ],
+      createdAt: "",
+      updatedAt: "",
+    };
+    // The clicked occurrence carries a prior per-occurrence patch (250 / deposit).
+    const occurrence = {
+      eventId: "s1",
+      date: "2026-05-11",
+      title: "Rent",
+      category: { id: "work", name: "Work", color: "cyan" as const },
+      amount: 250,
+      direction: "deposit" as const,
+      isRecurring: true,
+    };
+    render(
+      <EventDialog
+        {...baseProps}
+        mode="edit"
+        initialOccurrence={occurrence}
+        sourceEvent={sourceEvent}
+        onSubmit={onSubmit}
+      />,
+    );
+    // Re-saving without touching the fields must preserve the occurrence's
+    // patched values, not silently revert them to the series base (50 / withdrawal).
+    await userEvent.click(screen.getByRole("button", { name: /save/i }));
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+    expect(onSubmit.mock.calls[0][0].amount).toBe(250);
+    expect(onSubmit.mock.calls[0][0].direction).toBe("deposit");
+  });
 });

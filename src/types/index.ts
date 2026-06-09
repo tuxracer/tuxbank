@@ -21,7 +21,13 @@ export type Recurrence = {
 export type OccurrenceOverride = {
   occurrenceDate: string; // YYYY-MM-DD
   cancelled?: boolean;
-  patch?: { title?: string; categoryId?: string; notes?: string };
+  patch?: {
+    title?: string;
+    categoryId?: string;
+    notes?: string;
+    amount?: number;
+    direction?: TransactionDirection;
+  };
 };
 
 export type CalendarEvent = {

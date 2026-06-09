@@ -89,8 +89,8 @@ export const expandEvent = (
       date: iso,
       title: override?.patch?.title ?? event.title,
       category: getCategory(categoryId),
-      amount: event.amount,
-      direction: event.direction,
+      amount: override?.patch?.amount ?? event.amount,
+      direction: override?.patch?.direction ?? event.direction,
       notes: override?.patch?.notes ?? event.notes,
       isRecurring: true,
     });

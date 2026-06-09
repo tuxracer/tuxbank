@@ -228,6 +228,55 @@ describe("CalendarContext", () => {
     });
   });
 
+  it("edits amount and direction of a single occurrence ('this' scope)", async () => {
+    const { result } = renderHook(() => useCalendar(), { wrapper });
+    await waitFor(() => expect(result.current.loaded).toBe(true));
+
+    let id = "";
+    await act(async () => {
+      result.current.goToDate(new Date(2026, 4, 1));
+      await result.current.createEvent({
+        title: "Rent",
+        date: "2026-05-04",
+        categoryId: "work",
+        amount: 100,
+        direction: "withdrawal",
+        notes: undefined,
+        recurrence: { freq: "weekly", interval: 1, endsOn: null },
+      });
+    });
+    await waitFor(() => expect(result.current.events).toHaveLength(1));
+    id = result.current.events[0].id;
+
+    await act(async () => {
+      await result.current.updateEvent(
+        id,
+        {
+          title: "Rent",
+          date: "2026-05-04",
+          categoryId: "work",
+          amount: 250,
+          direction: "deposit",
+          notes: undefined,
+          recurrence: { freq: "weekly", interval: 1, endsOn: null },
+        },
+        "this",
+        "2026-05-11",
+      );
+    });
+
+    await waitFor(() => {
+      const patched = result.current.occurrencesByDate["2026-05-11"]?.[0];
+      expect(patched?.amount).toBe(250);
+      expect(patched?.direction).toBe("deposit");
+    });
+
+    // Other occurrences keep the series' original amount/direction.
+    const untouched = result.current.occurrencesByDate["2026-05-04"]?.[0];
+    expect(untouched?.amount).toBe(100);
+    expect(untouched?.direction).toBe("withdrawal");
+  });
+
   it("createCategory assigns a GUID id (not the normalized name)", async () => {
     const { result } = renderHook(() => useCalendar(), { wrapper });
     await waitFor(() => expect(result.current.loaded).toBe(true));
