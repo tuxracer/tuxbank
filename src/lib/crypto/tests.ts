@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { deriveKeys } from "./index";
 import { encryptPayload, decryptPayload } from "./index";
+import { generateDek, wrapKey, unwrapKey } from "./index";
 
 describe("deriveKeys", () => {
   it("is deterministic for the same password and email", async () => {
@@ -71,5 +72,33 @@ describe("encryptPayload / decryptPayload", () => {
   it("throws when decrypting with the wrong key", async () => {
     const box = await encryptPayload({ secret: true }, dek());
     await expect(decryptPayload(box, dek())).rejects.toThrow();
+  });
+});
+
+describe("generateDek / wrapKey / unwrapKey", () => {
+  it("generates a 32-byte key", async () => {
+    const dek = await generateDek();
+    expect(dek).toBeInstanceOf(Uint8Array);
+    expect(dek.length).toBe(32);
+  });
+
+  it("generates a different key each call", async () => {
+    expect(await generateDek()).not.toEqual(await generateDek());
+  });
+
+  it("wraps and unwraps a DEK under a KEK", async () => {
+    const dek = await generateDek();
+    const kek = crypto.getRandomValues(new Uint8Array(32));
+    const wrapped = await wrapKey(dek, kek);
+    expect(await unwrapKey(wrapped, kek)).toEqual(dek);
+  });
+
+  it("throws when unwrapping with the wrong KEK", async () => {
+    const wrapped = await wrapKey(
+      await generateDek(),
+      crypto.getRandomValues(new Uint8Array(32)),
+    );
+    const wrongKek = crypto.getRandomValues(new Uint8Array(32));
+    await expect(unwrapKey(wrapped, wrongKek)).rejects.toThrow();
   });
 });

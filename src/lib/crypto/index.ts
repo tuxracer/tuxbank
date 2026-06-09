@@ -91,6 +91,27 @@ export const decryptPayload = async (
   return JSON.parse(s.to_string(open(s, box, dek)));
 };
 
+export const generateDek = async (): Promise<Uint8Array> => {
+  const s = await getSodium();
+  return s.randombytes_buf(KEY_BYTES);
+};
+
+export const wrapKey = async (
+  key: Uint8Array,
+  wrappingKey: Uint8Array,
+): Promise<SealedBox> => {
+  const s = await getSodium();
+  return seal(s, key, wrappingKey);
+};
+
+export const unwrapKey = async (
+  box: SealedBox,
+  wrappingKey: Uint8Array,
+): Promise<Uint8Array> => {
+  const s = await getSodium();
+  return open(s, box, wrappingKey);
+};
+
 export const deriveKeys = async (
   password: string,
   email: string,
