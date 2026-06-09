@@ -537,8 +537,12 @@ new tombstone, so an applied remote delete does not bounce back to the server.
 use an in-memory fake). A single ISO-timestamp **cursor** bounds each run. Pull
 applies remote rows whose `updated_at` is strictly greater than the local copy
 (decrypt and upsert, or delete); push uploads local rows and tombstones newer
-than the cursor that were not just pulled (which prevents an echo). Each row's
-payload is encrypted with the DEK before it leaves the device. Known limitation:
+than the cursor that were not just pulled (which prevents an echo). On the
+**first sync** (no stored cursor) push uploads every local row regardless of
+timestamp, so rows stamped at the epoch (e.g. `LEGACY_UPDATED_AT` backfills)
+still reach the cloud; a cursor is always persisted afterward so later syncs stay
+incremental. Each row's payload is encrypted with the DEK before it leaves the
+device. Known limitation:
 last-write-wins by client timestamp is vulnerable to clock skew across devices,
 which is acceptable for a single user.
 

@@ -56,7 +56,14 @@ export const runSync = async (
   dek: Uint8Array,
   remote: SyncRemote,
 ): Promise<SyncResult> => {
-  const startCursor = (await getSyncCursor()) ?? EPOCH_CURSOR;
+  // No stored cursor means this account has never synced, so every local row
+  // must be uploaded regardless of its timestamp. Relying on `updatedAt >
+  // startCursor` alone would skip rows stamped at EPOCH_CURSOR (the value the
+  // v2 migration backfills as LEGACY_UPDATED_AT), which is why such rows
+  // (typically never-edited categories) never reached the cloud.
+  const storedCursor = await getSyncCursor();
+  const firstSync = storedCursor === undefined;
+  const startCursor = storedCursor ?? EPOCH_CURSOR;
   let maxCursor = startCursor;
   let pulled = 0;
   let pushed = 0;
@@ -94,16 +101,23 @@ export const runSync = async (
       if (row.updated_at > maxCursor) maxCursor = row.updated_at;
     }
 
-    // Push: local rows and tombstones newer than the cursor we did not just pull.
+    // Push: on the first sync every local row; otherwise rows and tombstones
+    // newer than the cursor. Either way skip anything we just pulled.
     const pushRows: RemoteRow[] = [];
     for (const record of localRecords) {
-      if (record.updatedAt > startCursor && !pulledIds.has(record.id)) {
+      if (
+        (firstSync || record.updatedAt > startCursor) &&
+        !pulledIds.has(record.id)
+      ) {
         pushRows.push(await encryptRecord(record, dek));
         if (record.updatedAt > maxCursor) maxCursor = record.updatedAt;
       }
     }
     for (const tombstone of tombstones) {
-      if (tombstone.updatedAt > startCursor && !pulledIds.has(tombstone.id)) {
+      if (
+        (firstSync || tombstone.updatedAt > startCursor) &&
+        !pulledIds.has(tombstone.id)
+      ) {
         pushRows.push(
           await encryptTombstone(tombstone.id, tombstone.updatedAt, dek),
         );
@@ -116,7 +130,10 @@ export const runSync = async (
     }
   }
 
-  if (maxCursor !== startCursor) await setSyncCursor(maxCursor);
+  // Always persist a cursor after the first sync (even if nothing advanced
+  // maxCursor past the epoch) so later syncs are incremental rather than
+  // re-pushing every row each time.
+  if (firstSync || maxCursor !== startCursor) await setSyncCursor(maxCursor);
   return { pulled, pushed, cursor: maxCursor };
 };
 
