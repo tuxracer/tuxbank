@@ -15,6 +15,7 @@ import {
   getTombstones,
   getSyncCursor,
   setSyncCursor,
+  applyRemoteDelete,
   DB_NAME,
   STORE,
   CATEGORY_STORE,
@@ -488,5 +489,42 @@ describe("sync cursor", () => {
   it("round-trips a stored cursor value", async () => {
     await setSyncCursor("2026-06-09T12:00:00.000Z");
     expect(await getSyncCursor()).toBe("2026-06-09T12:00:00.000Z");
+  });
+});
+
+describe("applyRemoteDelete", () => {
+  beforeEach(async () => {
+    await resetDbForTests();
+  });
+
+  it("removes the row without leaving a tombstone", async () => {
+    await putEvent({
+      id: "e1",
+      title: "t",
+      date: "2026-06-09",
+      categoryId: "work",
+      amount: 1,
+      direction: "deposit",
+      recurrence: null,
+      overrides: [],
+      createdAt: "2026-06-09T00:00:00.000Z",
+      updatedAt: "2026-06-09T00:00:00.000Z",
+    });
+    await applyRemoteDelete("e1", "event");
+    expect(await getAllEvents()).toEqual([]);
+    expect(await getTombstones()).toEqual([]);
+  });
+
+  it("clears an existing local tombstone for the same id", async () => {
+    await putCategory({
+      id: "k1",
+      name: "K",
+      color: "cyan",
+      updatedAt: "2026-06-09T00:00:00.000Z",
+    });
+    await deleteCategory("k1"); // writes a local tombstone
+    expect(await getTombstones()).toHaveLength(1);
+    await applyRemoteDelete("k1", "category");
+    expect(await getTombstones()).toEqual([]);
   });
 });

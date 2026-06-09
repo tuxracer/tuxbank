@@ -22,6 +22,7 @@ import {
   type ImportPreview,
   type StorageErrorCode,
   type Tombstone,
+  type TombstoneType,
 } from "./types";
 import { notifyDataChanged } from "@/lib/tabSync";
 
@@ -217,6 +218,25 @@ export const setSyncCursor = async (value: string): Promise<void> => {
   } catch (error) {
     throw toWriteError(error);
   }
+};
+
+export const applyRemoteDelete = async (
+  id: string,
+  type: TombstoneType,
+): Promise<void> => {
+  try {
+    const db = await getDb();
+    const storeName = type === "event" ? STORE : CATEGORY_STORE;
+    const tx = db.transaction([storeName, TOMBSTONE_STORE], "readwrite");
+    await Promise.all([
+      tx.objectStore(storeName).delete(id),
+      tx.objectStore(TOMBSTONE_STORE).delete(id),
+    ]);
+    await tx.done;
+  } catch (error) {
+    throw toWriteError(error);
+  }
+  notifyDataChanged();
 };
 
 const parseBackup = (text: string): BackupFile => {
