@@ -1,5 +1,5 @@
 import { encryptPayload, decryptPayload } from "@/lib/crypto";
-import { sealedBoxToRow, rowToSealedBox } from "@/lib/supabase";
+import { sealedBoxToRow, rowToSealedBox, supabase } from "@/lib/supabase";
 import {
   getAllEvents,
   getAllCategories,
@@ -13,7 +13,7 @@ import {
 import { isCalendarEvent, isCategory } from "@/types";
 import type { CalendarEvent, Category } from "@/types";
 import { EPOCH_CURSOR, SYNC_TABLES } from "./consts";
-import { SyncError } from "./types";
+import { isRemoteRow, SyncError } from "./types";
 import type { RemoteRow, SyncRemote, SyncResult } from "./types";
 
 export * from "./consts";
@@ -118,4 +118,23 @@ export const runSync = async (
 
   if (maxCursor !== startCursor) await setSyncCursor(maxCursor);
   return { pulled, pushed, cursor: maxCursor };
+};
+
+export const createSupabaseRemote = (): SyncRemote | null => {
+  if (!supabase) return null;
+  const client = supabase;
+  return {
+    pull: async (table, since) => {
+      const { data, error } = await client
+        .from(table)
+        .select("*")
+        .gt("updated_at", since);
+      if (error) throw new SyncError("REMOTE_FAILED", error);
+      return (data ?? []).filter(isRemoteRow);
+    },
+    push: async (table, rows) => {
+      const { error } = await client.from(table).upsert(rows);
+      if (error) throw new SyncError("REMOTE_FAILED", error);
+    },
+  };
 };

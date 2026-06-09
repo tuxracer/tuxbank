@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { generateDek } from "@/lib/crypto";
 import type { CalendarEvent } from "@/types";
 import {
@@ -7,6 +7,7 @@ import {
   isRemoteNewer,
   runSync,
   encryptTombstone,
+  createSupabaseRemote,
 } from "./index";
 import {
   getAllEvents,
@@ -15,7 +16,15 @@ import {
   getSyncCursor,
 } from "@/lib/storage";
 import { resetDbForTests } from "@/lib/storage/testing";
-import type { RemoteRow, SyncRemote } from "./types";
+import { isRemoteRow, type RemoteRow, type SyncRemote } from "./types";
+
+// Stub out the Supabase client so createSupabaseRemote() returns null in tests,
+// matching production behaviour when env vars are absent. The crypto helpers
+// (sealedBoxToRow / rowToSealedBox) are preserved so encrypt/decrypt tests work.
+vi.mock("@/lib/supabase", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/supabase")>();
+  return { ...actual, supabase: null };
+});
 
 const event = (over: Partial<CalendarEvent> = {}): CalendarEvent => ({
   id: "e1",
@@ -186,5 +195,27 @@ describe("runSync", () => {
     await putEvent(event({ updatedAt: "2026-06-09T08:00:00.000Z" }));
     await runSync(dek, remote);
     expect(await getSyncCursor()).toBe("2026-06-09T08:00:00.000Z");
+  });
+});
+
+describe("createSupabaseRemote", () => {
+  it("returns null when Supabase is not configured (no env in tests)", () => {
+    expect(createSupabaseRemote()).toBeNull();
+  });
+});
+
+describe("isRemoteRow", () => {
+  it("accepts a well-formed row and rejects malformed input", () => {
+    expect(
+      isRemoteRow({
+        id: "a",
+        updated_at: "t",
+        deleted: false,
+        nonce: "n",
+        ciphertext: "c",
+      }),
+    ).toBe(true);
+    expect(isRemoteRow({ id: "a" })).toBe(false);
+    expect(isRemoteRow(null)).toBe(false);
   });
 });
