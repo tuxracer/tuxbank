@@ -4,7 +4,7 @@
 
 **Status:** Draft for review · **Date:** 2026-05-30 · **Owner:** Derek Petersen
 
-A single-user, full-page **month calendar** web app with a **cyberpunk-inspired** interface. Events are created, edited, and deleted entirely in the browser and persist locally in **IndexedDB** (via the `idb` library); no backend, no accounts. Events can repeat, and repeating events can be edited or deleted at three scopes (this occurrence / this and following / the whole series).
+A single-user, full-page **month calendar** web app with a **cyberpunk-inspired** interface. Events are created, edited, and deleted entirely in the browser and persist locally in **IndexedDB** (via the `idb` library) with no backend or account by default. An optional, end-to-end-encrypted account sync (managed Supabase backend, required TOTP 2FA) can be enabled for cross-device sync; see the Optional account sync section. Local-only use is unchanged when signed out. Events can repeat, and repeating events can be edited or deleted at three scopes (this occurrence / this and following / the whole series).
 
 ---
 
@@ -18,8 +18,8 @@ A single-user, full-page **month calendar** web app with a **cyberpunk-inspired*
 - Support **recurring events** with familiar Google-Calendar-style edit/delete scopes.
 
 ### Non-Goals (v1)
-- No authentication, multi-user, sharing, or sync across devices.
-- No backend, database server, or API routes for event data.
+- No multi-user or sharing. (Single-user cross-device sync was added after v1 as an optional, end-to-end-encrypted account feature; see Optional account sync.)
+- Local-first: no backend of our own for event data. (An optional managed Supabase backend can be enabled for encrypted sync; the client talks to it directly, with authorization in Row Level Security and no server code of ours.)
 - No timed events (no start/end times), no multi-day events.
 - No week / day / agenda views (month view only).
 - No reminders/notifications; no external calendar (Google/ICS) sync. (A whole-database JSON backup export/restore *is* supported; see the Backup / restore section.)
@@ -387,7 +387,7 @@ Vitest, **behavior-focused** (verify behavior, not implementation constants, per
 - Timed and multi-day events; drag-to-resize or drag-to-create (move by drag is supported for single-day events).
 - Tags; search.
 - Reminders/notifications; ICS or Google Calendar import/export/sync.
-- Multi-device sync / accounts / backend.
+- Multi-device sync / accounts / backend (added after v1 as an optional, end-to-end-encrypted account sync; see Optional account sync).
 - Manual theme toggle / alternate palettes (light & dark already follow the OS automatically).
 
 ---
@@ -395,7 +395,8 @@ Vitest, **behavior-focused** (verify behavior, not implementation constants, per
 ## 17. Assumptions
 
 - Single user. Multiple open tabs stay in sync via `src/lib/tabSync` with
-  last-write-wins semantics; there is no cross-device sync.
+  last-write-wins semantics; cross-device sync is available as an opt-in,
+  end-to-end-encrypted account feature (see Optional account sync).
 - Personal-scale data volume (hundreds to low thousands of events); in-memory expansion is acceptable.
 - Modern evergreen browser with IndexedDB support.
 - Sunday-first week (can be made configurable later).
@@ -404,12 +405,15 @@ Vitest, **behavior-focused** (verify behavior, not implementation constants, per
 
 All data persists locally in **IndexedDB** via the
 [`idb`](https://github.com/jakearchibald/idb) library (a thin promise wrapper).
-No backend; the database lives entirely in the browser profile.
+The local database lives entirely in the browser profile; optional cloud sync is
+a separate, encrypted layer (see Optional account sync).
 
-- **Database:** `tuxbank`, version `1`, two object stores, `events` and
-  `categories`, both keyed by `id` (`keyPath: "id"`). Records are stored as
-  the in-memory `CalendarEvent` / `Category` objects verbatim; there is no
-  mapping layer.
+- **Database:** `tuxbank`, version `2`. Object stores: `events` and
+  `categories` (keyed by `id`), plus `tombstones` (deleted-row markers, keyed by
+  `id`) and `syncMeta` (key-value; holds the sync cursor), both added for
+  optional sync. The v1 to v2 upgrade backfills a per-row `updatedAt` on
+  existing rows. Records are stored as the in-memory `CalendarEvent` /
+  `Category` objects verbatim; there is no mapping layer.
 - **Connection:** a lazily created, module-cached `openDB()` promise
   (`src/lib/storage/index.ts`). A missing `indexedDB` global or a failed open
   maps to `StorageError("UNAVAILABLE")`; the cache resets on failure so a later
@@ -451,3 +455,115 @@ No backend; the database lives entirely in the browser profile.
   records in a single `readwrite` transaction; the transaction is rolled back
   on failure (explicit abort), so a failed import never half-wipes data. Any
   invalid input throws `StorageError("IMPORT_INVALID")`.
+
+## Optional account sync (end-to-end encrypted)
+
+Sync is **optional and additive**. With no account the app is exactly as
+described above: local-only, offline, no password. Signing in turns on an
+encrypted cloud mirror, and IndexedDB stays the source of truth. The feature
+spans `src/lib/{crypto,account,sync,supabase}`, `src/context/SyncContext`
+(`useSync()`), and `src/components/SyncDialog`. The full design rationale is in
+[the design spec](superpowers/specs/2026-06-08-optional-supabase-e2ee-sync-design.md).
+
+### Backend (Supabase)
+
+A managed Supabase project (Postgres + Auth). The browser talks to it directly
+with the public publishable key; authorization is entirely Row Level Security,
+so there is no server code of ours. Config lives in `VITE_SUPABASE_URL` and
+`VITE_SUPABASE_PUBLISHABLE_KEY` (public values, safe in the bundle; kept in
+gitignored `.env.local`, template in `.env.example`). The applied schema is
+recorded in `supabase/migrations/0001_e2ee_sync.sql`.
+
+Three tables, all keyed by `user_id` (= `auth.users.id`):
+
+- `events` and `categories`:
+  `( id uuid pk, user_id uuid, updated_at timestamptz, deleted bool, nonce text, ciphertext text )`.
+  Only routing metadata is plaintext; the record's sensitive fields live inside
+  `ciphertext` (base64). `deleted = true` is a tombstone.
+- `key_material`: per-user wrapped keys
+  `( user_id pk, wrapped_dek, wrapped_dek_nonce, recovery_wrapped_dek, recovery_nonce, kdf_version, created_at )`.
+
+**RLS** on every table combines a permissive owner policy
+(`user_id = auth.uid()`) with a restrictive `aal2` policy
+(`auth.jwt() ->> 'aal' = 'aal2'`). The `aal2` clause is what makes TOTP
+mandatory at the database, not just in the UI.
+
+### Encryption and keys (`src/lib/crypto`, `src/lib/account`)
+
+Zero-knowledge: the server never holds a key it can decrypt with. Every
+primitive comes from libsodium (`libsodium-wrappers-sumo`); no protocol is
+hand-rolled.
+
+- `KEK = Argon2id(password, salt = normalized email)` wraps a random 256-bit
+  `DEK`. The DEK encrypts each record with XChaCha20-Poly1305 (a fresh nonce per
+  write). Plaintext columns (`id`, `updated_at`, `deleted`) carry only routing
+  metadata.
+- `authSecret = Argon2id(password, email, distinct context)` is the value sent
+  to Supabase auth, so the real password never leaves the device. The two
+  derivations use different domain-separation contexts, so knowing one does not
+  reveal the other.
+- A one-time **recovery key** independently wraps the same DEK (the `recovery_*`
+  columns), so a forgotten password is recoverable.
+- A password change re-wraps only the small DEK blob (`rewrapForNewPassword`);
+  data is never re-encrypted, and the recovery columns are untouched.
+
+The pure key functions (`provisionAccountKeys`, `unlockWithPassword`,
+`unlockWithRecoveryKey`, `rewrapForNewPassword`) live in `src/lib/account`
+alongside the thin Supabase auth/MFA/key-material wrappers; base64 helpers are
+shared in `src/utils/base64`.
+
+### Local storage changes (`src/lib/storage`, DB v2)
+
+`Category` gained an `updatedAt` (events already had one). Deleting a row writes
+a tombstone; writing a row clears any tombstone for its id; importing a backup
+clears all tombstones. `applyRemoteDelete` removes a row **without** writing a
+new tombstone, so an applied remote delete does not bounce back to the server.
+`getSyncCursor` / `setSyncCursor` persist the sync cursor in `syncMeta`.
+
+### Sync engine (`src/lib/sync`)
+
+`runSync(dek, remote)` runs one last-write-wins push/pull cycle against a
+`SyncRemote` interface (the real implementation wraps the Supabase client; tests
+use an in-memory fake). A single ISO-timestamp **cursor** bounds each run. Pull
+applies remote rows whose `updated_at` is strictly greater than the local copy
+(decrypt and upsert, or delete); push uploads local rows and tombstones newer
+than the cursor that were not just pulled (which prevents an echo). Each row's
+payload is encrypted with the DEK before it leaves the device. Known limitation:
+last-write-wins by client timestamp is vulnerable to clock skew across devices,
+which is acceptable for a single user.
+
+`SyncContext` drives the triggers: an initial sync on unlock/sign-in, on window
+focus, debounced after edits, and a manual "Sync now". The data key lives only
+in a ref and is dropped on reload; the app then shows a **locked** state until
+the user re-enters their password.
+
+### Auth, onboarding, and recovery flows (`SyncContext`, `SyncDialog`)
+
+- **Create account:** sign up, then (email confirmation is required) a "confirm
+  your email" screen. The first sign-in completes setup: enroll TOTP, reach
+  `aal2`, generate keys, upload `key_material`, show the recovery key, and push
+  local data.
+- **Sign in (returning device):** password, TOTP challenge, fetch
+  `key_material`, unlock the DEK, pull.
+- **Unlock:** a persisted `aal2` session with no in-memory DEK; re-enter the
+  password. "No key material yet" is treated as first-time setup, not an error.
+- **Change password / forgot password:** set a new password from the synced
+  state, or recover from the locked state with the recovery key (which unlocks
+  the DEK and sets a new password). Both support Supabase "Secure password
+  change" by prompting for an emailed reauthentication code when required.
+
+### Security properties and accepted limitations
+
+- Local IndexedDB is **plaintext at rest** (the same as local-only mode); E2EE
+  protects data on the server and in transit. The app works with no password
+  when signed out or locked.
+- Security is bounded by **password strength**; a minimum length is enforced.
+- A **lost authenticator** (no 2FA recovery factor exists) locks the user out of
+  the cloud copy. Local data is unaffected; the path forward is a fresh account.
+- A **forgotten password plus a lost recovery key** makes the cloud data
+  unrecoverable by design (zero-knowledge). Local data is unaffected.
+- The server sees record counts and modification timestamps; the sensitive
+  fields are encrypted.
+- Not built yet: a password-strength meter, fully-signed-out (no-session)
+  password reset by email, and Realtime live push. Code-splitting/lazy-loading
+  is deliberately avoided to keep the app offline-capable.

@@ -1,6 +1,6 @@
 # tuxbank
 
-A single-user, full-page **month calendar** web app with a **cyberpunk-inspired** UI. All-day, date-based events — each with an amount and a deposit/withdrawal direction — are created, edited, and deleted entirely in the browser and persist in **IndexedDB** (via the `idb` library; no backend, no accounts). Events can recur, and recurring events edit/delete at three scopes (this occurrence / this and following / the whole series).
+A single-user, full-page **month calendar** web app with a **cyberpunk-inspired** UI. All-day, date-based events, each with an amount and a deposit/withdrawal direction, are created, edited, and deleted entirely in the browser and persist in **IndexedDB** (via the `idb` library). Local-only with no account is the default; an **optional, end-to-end-encrypted account sync** (managed Supabase backend, required TOTP 2FA) can be turned on to sync across devices, and the app stays fully usable offline and signed out. Events can recur, and recurring events edit/delete at three scopes (this occurrence / this and following / the whole series).
 
 See [docs/TRD.md](docs/TRD.md) for the full technical reference.
 
@@ -8,13 +8,14 @@ See [docs/TRD.md](docs/TRD.md) for the full technical reference.
 
 ## Architecture
 
-Client-only **Vite 8 React SPA** — **no backend, no API routes, no server runtime at all** (the build is a static `dist/`). Data flows `src/App.tsx` → `CalendarProvider` → `src/lib/*` → IndexedDB (via `idb`).
+Client-only **Vite 8 React SPA** with **no backend or server runtime of its own** (the build is a static `dist/`). Data flows `src/App.tsx` → `CalendarProvider` → `src/lib/*` → IndexedDB (via `idb`). Optional account sync is an additive second path: a `SyncProvider` drives `src/lib/{crypto,account,sync,supabase}` against a managed Supabase backend the browser talks to directly (RLS does authorization; there is no server code of ours). IndexedDB stays the source of truth and local-only use is unchanged when signed out. See [the optional account sync section in docs/TRD.md](docs/TRD.md) for the full design.
 
 - **`index.html` + `src/main.tsx`** — Vite entry: mounts `<App />` under `StrictMode`, imports the `@fontsource` fonts and `src/globals.css` (Tailwind + cyberpunk theme).
 - **`src/App.tsx`** — top-level calendar screen composition.
 - **`src/context/CalendarContext/`** — app-wide state via React context; consume with the `useCalendar()` hook (events, categories, CRUD, recurrence-scope handling).
-- **`src/components/`** — UI: `MonthGrid`, `DayCell`, `EventChip`, `EventDialog`, `CategoryCombobox`, `ManageCategoriesDialog`, `RecurrenceScopeDialog`, `CalendarToolbar` (month/year nav), `DataDialog` (JSON backup export/import), `DayEventsPopover`, `CyberFrame`, … · shadcn primitives in `src/components/ui/`.
-- **`src/lib/`** — React-free domain logic: `storage` (IndexedDB via `idb`; CRUD + JSON backup export/import; broadcasts a cross-tab signal after successful writes), `tabSync` (cross-tab change notifications over `BroadcastChannel`: `notifyDataChanged` + `subscribeToDataChanges`), `recurrence` (expand/edit/delete series + occurrence overrides), `dateGrid` (month-grid construction), `balance` (running balance from deposits/withdrawals).
+- **`src/context/SyncContext/`** — optional account-sync state via React context; consume with the `useSync()` hook (status machine, create-account / sign-in / unlock / sign-out, change password, recovery). The in-memory data key lives only in a ref; the provider is inert unless Supabase is configured.
+- **`src/components/`** — UI: `MonthGrid`, `DayCell`, `EventChip`, `EventDialog`, `CategoryCombobox`, `ManageCategoriesDialog`, `RecurrenceScopeDialog`, `CalendarToolbar` (month/year nav), `DataDialog` (JSON backup export/import), `SyncDialog` (optional account sync: create / sign-in / TOTP / recovery-key / change-password), `DayEventsPopover`, `CyberFrame`, … · shadcn primitives in `src/components/ui/`.
+- **`src/lib/`** — React-free domain logic: `storage` (IndexedDB via `idb`; CRUD + JSON backup export/import; per-row `updatedAt` + tombstones + a sync cursor for sync; broadcasts a cross-tab signal after successful writes), `tabSync` (cross-tab change notifications over `BroadcastChannel`: `notifyDataChanged` + `subscribeToDataChanges`), `recurrence` (expand/edit/delete series + occurrence overrides), `dateGrid` (month-grid construction), `balance` (running balance from deposits/withdrawals). Optional-sync modules: `crypto` (libsodium: Argon2id key derivation, XChaCha20-Poly1305 encryption, recovery keys), `account` (Supabase auth + TOTP + key-material orchestration, plus pure key-wrapping helpers), `sync` (last-write-wins push/pull merge engine over a mockable `SyncRemote`), `supabase` (client init + base64 row serialization).
 - **`src/types/`** — shared types + guards (`CalendarEvent`, `Category`, `Recurrence`, `isCalendarEvent`, …).
 - **`src/utils/`** — small shared helpers (e.g. `formatCurrency`).
 
@@ -49,6 +50,7 @@ pnpm format      # Auto-fix formatting (prettier --write)
 - **Vite 8** (Rolldown) + **React 19** + **TypeScript** (ESM)
 - **Tailwind CSS v4** + **shadcn/ui** (Radix); shadcn primitives live in `src/components/ui/`
 - **react-hook-form** + **zod** (event editor) · **date-fns** · **react-day-picker** (calendar) · **remeda** (array/object utils) · client-side **IndexedDB** via **idb**
+- **Optional account sync**: **Supabase** (Postgres + Auth + Row Level Security) via `@supabase/supabase-js`; client-side crypto via **libsodium** (`libsodium-wrappers-sumo`: Argon2id + XChaCha20-Poly1305). Public config in `VITE_SUPABASE_URL` / `VITE_SUPABASE_PUBLISHABLE_KEY`
 - Tests: **vitest** + **@testing-library/react**; storage tests run against **fake-indexeddb** (fresh in-memory DB per test)
 
 ## Gotchas
