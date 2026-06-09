@@ -35,3 +35,38 @@ export interface RewrappedKeys {
   wrapped_dek: string;
   wrapped_dek_nonce: string;
 }
+
+export type AccountErrorCode =
+  | "NOT_CONFIGURED"
+  | "SIGNUP_FAILED"
+  | "SIGNIN_FAILED"
+  | "MFA_ENROLL_FAILED"
+  | "MFA_VERIFY_FAILED"
+  | "NO_KEY_MATERIAL"
+  | "KEY_MATERIAL_FAILED";
+
+export class AccountError extends Error {
+  readonly code: AccountErrorCode;
+  constructor(code: AccountErrorCode, cause?: unknown) {
+    super(code);
+    this.name = "AccountError";
+    this.code = code;
+    this.cause = cause;
+  }
+}
+
+export const isAccountError = (error: unknown): error is AccountError =>
+  error instanceof AccountError;
+
+/** The TOTP enrollment material shown to the user during signup. */
+export interface TotpEnrollment {
+  factorId: string;
+  qrCode: string;
+  secret: string;
+}
+
+/** A summary of the current Supabase session. */
+export interface ActiveSession {
+  email: string;
+  aal2: boolean;
+}
