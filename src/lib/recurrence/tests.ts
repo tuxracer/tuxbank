@@ -8,6 +8,8 @@ import {
   truncateBefore,
   buildFollowingSeries,
   dayBeforeISO,
+  shiftISO,
+  daysBetweenISO,
 } from "./index";
 
 const getCategory = makeCategoryResolver(PRESET_CATEGORIES);
@@ -272,5 +274,23 @@ describe("recurrence mutations", () => {
     expect(created.overrides).toEqual([
       { occurrenceDate: "2026-05-25", patch: { notes: "keep" } },
     ]);
+  });
+});
+
+describe("date-shift helpers", () => {
+  it("shifts an ISO date forward and backward in local time", () => {
+    expect(shiftISO("2026-05-04", 8)).toBe("2026-05-12");
+    expect(shiftISO("2026-05-12", -8)).toBe("2026-05-04");
+  });
+
+  it("crosses month and non-leap-year boundaries correctly", () => {
+    expect(shiftISO("2026-02-27", 2)).toBe("2026-03-01");
+    expect(shiftISO("2026-03-01", -1)).toBe("2026-02-28");
+  });
+
+  it("counts whole days between two ISO dates, signed", () => {
+    expect(daysBetweenISO("2026-05-04", "2026-05-12")).toBe(8);
+    expect(daysBetweenISO("2026-05-12", "2026-05-04")).toBe(-8);
+    expect(daysBetweenISO("2026-05-04", "2026-05-04")).toBe(0);
   });
 });

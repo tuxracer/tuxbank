@@ -1,4 +1,10 @@
-import { format, parseISO, subDays } from "date-fns";
+import {
+  addDays,
+  differenceInCalendarDays,
+  format,
+  parseISO,
+  subDays,
+} from "date-fns";
 import type {
   CalendarEvent,
   Category,
@@ -104,6 +110,12 @@ export const expandEvents = (
 
 export const dayBeforeISO = (iso: string): string =>
   format(subDays(parseISO(iso), 1), "yyyy-MM-dd");
+
+export const shiftISO = (iso: string, days: number): string =>
+  format(addDays(parseISO(iso), days), "yyyy-MM-dd");
+
+export const daysBetweenISO = (from: string, to: string): number =>
+  differenceInCalendarDays(parseISO(to), parseISO(from));
 
 const upsertOverride = (
   overrides: OccurrenceOverride[],
