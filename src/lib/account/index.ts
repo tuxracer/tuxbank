@@ -9,7 +9,7 @@ import {
 } from "@/lib/crypto";
 import type { SealedBox } from "@/lib/crypto";
 import { toBase64, fromBase64 } from "@/utils/base64";
-import type { KeyMaterial, ProvisionedKeys } from "./types";
+import type { KeyMaterial, ProvisionedKeys, RewrappedKeys } from "./types";
 
 export * from "./types";
 
@@ -62,4 +62,18 @@ export const unlockWithRecoveryKey = async (
 ): Promise<Uint8Array> => {
   const recoveryKek = await deriveRecoveryKek(recoveryKey);
   return unwrapKey(recoveryBox(material), recoveryKek);
+};
+
+export const rewrapForNewPassword = async (
+  newPassword: string,
+  email: string,
+  dek: Uint8Array,
+): Promise<RewrappedKeys> => {
+  const { kek, authSecret } = await deriveKeys(newPassword, email);
+  const wrap = await wrapKey(dek, kek);
+  return {
+    authSecret,
+    wrapped_dek: toBase64(wrap.ciphertext),
+    wrapped_dek_nonce: toBase64(wrap.nonce),
+  };
 };

@@ -3,6 +3,7 @@ import {
   provisionAccountKeys,
   unlockWithPassword,
   unlockWithRecoveryKey,
+  rewrapForNewPassword,
 } from "./index";
 import { isKeyMaterial } from "./types";
 
@@ -54,5 +55,38 @@ describe("unlockWithRecoveryKey", () => {
     await expect(
       unlockWithRecoveryKey(other.recoveryKey, provisioned.keyMaterial),
     ).rejects.toThrow();
+  });
+});
+
+describe("rewrapForNewPassword", () => {
+  it("lets the new password unlock the DEK and the old one stop working", async () => {
+    const provisioned = await provisionAccountKeys(
+      "old pw",
+      "user@example.com",
+    );
+    const rewrapped = await rewrapForNewPassword(
+      "new pw",
+      "user@example.com",
+      provisioned.dek,
+    );
+
+    // The material after a password change keeps the recovery columns, swaps the password columns.
+    const updated = {
+      ...provisioned.keyMaterial,
+      wrapped_dek: rewrapped.wrapped_dek,
+      wrapped_dek_nonce: rewrapped.wrapped_dek_nonce,
+    };
+
+    const dekNew = await unlockWithPassword(
+      "new pw",
+      "user@example.com",
+      updated,
+    );
+    expect(dekNew).toEqual(provisioned.dek);
+    await expect(
+      unlockWithPassword("old pw", "user@example.com", updated),
+    ).rejects.toThrow();
+    expect(typeof rewrapped.authSecret).toBe("string");
+    expect(rewrapped.authSecret).not.toBe(provisioned.authSecret);
   });
 });
