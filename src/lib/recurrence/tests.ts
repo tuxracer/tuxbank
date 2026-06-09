@@ -375,7 +375,11 @@ describe("buildMovedFollowing (following-scope move)", () => {
   it("shifts a non-null endsOn by the offset and leaves null as null", () => {
     const bounded = {
       ...series,
-      recurrence: { freq: "weekly" as const, interval: 1, endsOn: "2026-06-15" },
+      recurrence: {
+        freq: "weekly" as const,
+        interval: 1,
+        endsOn: "2026-06-15",
+      },
     };
     const tail = buildMovedFollowing(
       bounded,
