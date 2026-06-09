@@ -38,6 +38,10 @@ pnpm format      # Auto-fix formatting (prettier --write)
 
 **Documentation**: When making major changes (architecture, new modules, API changes, file structure), update [docs/TRD.md](docs/TRD.md) to keep the technical reference accurate.
 
+## Git Workflow
+
+- **Always rebase when integrating to `main`, never create merge commits**: Bring a branch up to date with `git rebase main`, and land it with a fast-forward (`git merge --ff-only` or `git rebase`). Never run `git merge` in a way that produces a merge commit on `main` — keep history linear.
+
 ## Tech Stack
 
 - **Vite 8** (Rolldown) + **React 19** + **TypeScript** (ESM)
