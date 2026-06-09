@@ -19,10 +19,13 @@ import { categoryKey } from "@/types";
 import { buildMonthGrid } from "@/lib/dateGrid";
 import {
   buildFollowingSeries,
+  buildMovedFollowing,
   cancelOccurrence,
+  daysBetweenISO,
   expandEvents,
   makeCategoryResolver,
   patchOccurrence,
+  shiftSeries,
   truncateBefore,
   type EventInput,
 } from "@/lib/recurrence";
@@ -321,6 +324,94 @@ export const CalendarProvider = ({
     [events, persist],
   );
 
+  const moveEvent = useCallback(
+    async (
+      occurrence: Occurrence,
+      toDate: string,
+      scope: EditScope,
+    ): Promise<() => Promise<void>> => {
+      const current = events.find((e) => e.id === occurrence.eventId);
+      // Source vanished (e.g. deleted in another tab): nothing to move or undo.
+      if (!current) return async () => {};
+
+      // Snapshot affected events so undo can restore them. prev === null marks an
+      // event that did not exist before (the detached one-off or the new tail).
+      const snapshot: { id: string; prev: CalendarEvent | null }[] = [];
+      const writes: CalendarEvent[] = [];
+
+      if (!current.recurrence || scope === "all") {
+        const moved = current.recurrence
+          ? shiftSeries(current, daysBetweenISO(occurrence.date, toDate))
+          : { ...current, date: toDate };
+        snapshot.push({ id: current.id, prev: current });
+        writes.push({ ...moved, updatedAt: nowISO() });
+      } else if (scope === "this") {
+        const cancelled = {
+          ...cancelOccurrence(current, occurrence.date),
+          updatedAt: nowISO(),
+        };
+        const standalone: CalendarEvent = {
+          id: newId(),
+          title: occurrence.title,
+          date: toDate,
+          categoryId: occurrence.category.id,
+          amount: occurrence.amount,
+          direction: occurrence.direction,
+          notes: occurrence.notes,
+          recurrence: null,
+          overrides: [],
+          createdAt: nowISO(),
+          updatedAt: nowISO(),
+        };
+        snapshot.push({ id: current.id, prev: current });
+        snapshot.push({ id: standalone.id, prev: null });
+        writes.push(cancelled, standalone);
+      } else {
+        const truncated = {
+          ...truncateBefore(current, occurrence.date),
+          updatedAt: nowISO(),
+        };
+        const tail = buildMovedFollowing(
+          current,
+          occurrence.date,
+          toDate,
+          newId(),
+          nowISO(),
+        );
+        snapshot.push({ id: current.id, prev: current });
+        snapshot.push({ id: tail.id, prev: null });
+        writes.push(truncated, tail);
+      }
+
+      setEvents((prev) => {
+        const byId = new Map(prev.map((e) => [e.id, e]));
+        for (const w of writes) byId.set(w.id, w);
+        return [...byId.values()];
+      });
+      await persist(async () => {
+        for (const w of writes) await putEvent(w);
+      });
+
+      return async () => {
+        setEvents((prev) => {
+          const byId = new Map(prev.map((e) => [e.id, e]));
+          for (const s of snapshot) {
+            if (s.prev) byId.set(s.id, s.prev);
+            else byId.delete(s.id);
+          }
+          return [...byId.values()];
+        });
+        await persist(async () => {
+          for (const s of snapshot) {
+            if (s.prev) await putEvent(s.prev);
+            else await dbDelete(s.id);
+          }
+        });
+      };
+    },
+    [events, persist],
+  );
+
   const usedCategories = useMemo(() => {
     const seen = new Map<string, Category>();
     for (const e of events) {
@@ -424,6 +515,7 @@ export const CalendarProvider = ({
     createEvent,
     updateEvent,
     deleteEvent,
+    moveEvent,
     createCategory,
     updateCategory,
     deleteCategory,

@@ -42,6 +42,11 @@ export type CalendarContextValue = {
     scope: EditScope,
     occurrenceDate: string,
   ) => Promise<void>;
+  moveEvent: (
+    occurrence: Occurrence,
+    toDate: string,
+    scope: EditScope,
+  ) => Promise<() => Promise<void>>;
   createCategory: (name: string, color: CategoryColor) => Promise<Category>;
   updateCategory: (
     id: string,
