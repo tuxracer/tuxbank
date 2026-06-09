@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import type { SealedBox, SealedRow } from "./types";
+import { toBase64, fromBase64 } from "@/utils/base64";
 
 export * from "./types";
 
@@ -12,12 +13,6 @@ const publishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
  */
 export const supabase =
   url && publishableKey ? createClient(url, publishableKey) : null;
-
-const toBase64 = (bytes: Uint8Array): string =>
-  btoa(String.fromCharCode(...bytes));
-
-const fromBase64 = (text: string): Uint8Array =>
-  Uint8Array.from(atob(text), (c) => c.charCodeAt(0));
 
 export const sealedBoxToRow = (box: SealedBox): SealedRow => ({
   nonce: toBase64(box.nonce),
