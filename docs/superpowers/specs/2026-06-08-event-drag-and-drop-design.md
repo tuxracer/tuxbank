@@ -28,6 +28,8 @@ Edge cases:
 - A plain click (no drag) still opens the event editor, unchanged.
 - If the source event was deleted in another tab between drag start and drop, the
   move is a no-op.
+- Only the chips shown directly in a day cell (the first few) are draggable.
+  Events in the "+N more" overflow popover are not draggable in this version.
 
 For recurring events the existing recurrence scope dialog (this / this and
 following / all) opens after the drop to pick the scope, matching how edit and

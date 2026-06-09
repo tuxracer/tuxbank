@@ -20,7 +20,7 @@ A single-user, full-page **month calendar** web app with a **cyberpunk-inspired*
 ### Non-Goals (v1)
 - No authentication, multi-user, sharing, or sync across devices.
 - No backend, database server, or API routes for event data.
-- No timed events (no start/end times), no multi-day events, no drag-and-drop.
+- No timed events (no start/end times), no multi-day events.
 - No week / day / agenda views (month view only).
 - No reminders/notifications; no external calendar (Google/ICS) sync. (A whole-database JSON backup export/restore *is* supported; see the Backup / restore section.)
 
@@ -46,6 +46,8 @@ A single person managing their own schedule of **all-day, date-based events**: m
 | Date picker | **Native `<input type="date">`** | Used for the event form's Date field; main month grid is custom-built. The shadcn `calendar` primitive remains available for future use. |
 | Persistence | **IndexedDB** via **idb** | Two object stores (events, categories); see §"Persistence: IndexedDB". |
 | Fonts | **Rajdhani**, **Chakra Petch**, **Share Tech Mono** | Self-hosted via `@fontsource` packages (latin subsets), imported in `src/main.tsx`. Display / UI / data, respectively. |
+| Drag-and-drop | **@dnd-kit/core** | `DndContext` + `PointerSensor` in `src/App.tsx`; chips use `useDraggable`, cells use `useDroppable`. |
+| Toasts | **sonner** | Move confirmations with Undo; themed wrapper in `src/components/ui/sonner.tsx`. |
 | Testing | **vitest** + **@testing-library/react** | Behavior-focused tests per `CLAUDE.md`; storage tests run against fake-indexeddb. |
 
 > **As-built stack versions:** Vite 8 (Rolldown), React 19, Tailwind v4, zod v4, react-day-picker v10.
@@ -77,19 +79,28 @@ A single person managing their own schedule of **all-day, date-based events**: m
 - **Deleting an in-use category** prompts a confirm noting how many events use it; on delete its events keep the now-missing id and render as **Uncategorized** (a neutral cyan fallback) until re-categorized.
 - The toolbar **category filter** is **per category**: a toggle per category currently in use (plus an **Uncategorized** toggle when orphaned events exist); each can be turned on/off independently, all shown by default. The filter affects which event chips display, not the running balance (§4.7).
 
-### 4.4 Create / edit / delete (CRUD)
+### 4.4 Create / edit / delete / move (CRUD)
 - **Create:** clicking **+ New Event** or an empty day opens the **Event editor** (shadcn Dialog). Clicking a day prefills its date.
 - **Edit/View:** clicking an event chip opens the editor populated with that event.
 - **Delete:** available within the editor.
-- **No drag-and-drop** in v1.
+- **Move:** drag a chip onto a different day cell to move the event. A `sonner` toast with an Undo action appears after every successful move. Recurring events prompt for scope (this / this and following / all) before applying; see §7 and §4.4.1.
 - The editor validates input on submit (see §8): invalid input is blocked and surfaces inline, accessible field errors.
+
+#### 4.4.1 Drag-and-drop mechanics
+
+Drag-and-drop is powered by `@dnd-kit/core`. `DndContext` lives in `src/App.tsx`, wrapping `MonthGrid`. Chips rendered directly in a day cell are wrapped by `src/components/DraggableEventChip`, which calls `useDraggable` and passes the `occurrence` as drag data. Each `DayCell` calls `useDroppable({ id: cell.iso })` and adds a `.drop` class while a chip hovers over it, producing a cyan highlight. A `DragOverlay` in `App` renders a themed floating copy of the chip while dragging; the source chip dims via `.cy-chip-dragging`.
+
+A `PointerSensor` with `activationConstraint: { distance: 5 }` requires five pixels of pointer travel before a press becomes a drag, so a plain click still opens the editor. Collision detection uses `pointerWithin`.
+
+`onDragStart` records the active occurrence for the overlay. `onDragEnd` reads the dragged occurrence from `active.data` and the target ISO date from `over.id`. Dropping on the same day, or outside any cell, is a no-op. For a non-recurring event the move applies immediately. For a recurring event the scope dialog opens, and the move runs when the user confirms.
+
+Chips in the "+N more" overflow popover are not draggable; move them by opening the editor and changing the date.
 
 ### 4.5 Recurrence
 - Supported frequencies: **Daily, Weekly, Monthly, Yearly**, each with a positive **interval** (e.g., every 2 weeks). **Weekly** repeats on the **anchor date's weekday** (selecting multiple weekdays per week is out of scope for v1).
 - End condition: **forever** or an optional **end date** (inclusive).
 - Monthly recurrence uses the anchor day-of-month; months without that day (e.g., the 31st) are **skipped** (iCalendar `BYMONTHDAY` default). Yearly on Feb 29 occurs only in leap years.
-- Editing or deleting a recurring event prompts for a **scope** before applying (§7).
-- Changing an event's **date** is supported for **one-off events** and **whole-series** edits only; per-occurrence date moves are out of scope for v1.
+- Editing, deleting, or dragging a recurring event prompts for a **scope** before applying (§7).
 
 ### 4.6 Persistence
 - Events and categories persist in **IndexedDB** (object stores `events` and `categories`, both keyed by `id`) and reload on app start. Records are stored as the in-memory `CalendarEvent`/`Category` objects verbatim; reads filter through the `isCalendarEvent`/`isCategory` type guards.
@@ -170,17 +181,28 @@ Pure functions in `src/lib/recurrence` turn stored events into rendered occurren
 
 Occurrences are then grouped by date for the grid, and filtered by the active category filter.
 
+### Date-shift helpers (`src/lib/recurrence`)
+
+Four pure helpers support moving events to a different day. Each is exported and covered by tests in `src/lib/recurrence/tests.ts`.
+
+- **`shiftISO(iso, days)`** shifts a `YYYY-MM-DD` string by `days` calendar days using date-fns `addDays` + `parseISO`, staying in local time. Negative values shift backward.
+- **`daysBetweenISO(from, to)`** returns the signed whole-day count between two `YYYY-MM-DD` strings (`to - from`) using date-fns `differenceInCalendarDays`.
+- **`shiftSeries(event, offsetDays)`** returns a copy of the event with `date`, every `override.occurrenceDate`, and `recurrence.endsOn` (when non-null) each shifted by `offsetDays`. Drives the "All events" move case; the occurrence count is unchanged.
+- **`buildMovedFollowing(event, fromDate, toDate, id, nowISO)`** builds the new tail series for the "This and following" move case. The tail is anchored at `toDate`, carrying forward only overrides where `occurrenceDate >= fromDate`, each shifted by `daysBetweenISO(fromDate, toDate)`. `endsOn` is also shifted by the same offset; a `null` `endsOn` stays `null`. Paired with the existing `truncateBefore(event, fromDate)`, which ends the original series the day before.
+
 ---
 
-## 7. Recurring Edit / Delete Semantics
+## 7. Recurring Edit / Delete / Move Semantics
 
-When the user saves or deletes an event whose `recurrence !== null`, a **scope prompt** (shadcn Dialog + RadioGroup) asks which occurrences to affect. Non-recurring events skip the prompt.
+When the user saves, deletes, or drags a recurring event (`recurrence !== null`), a **scope prompt** (shadcn Dialog + RadioGroup, `src/components/RecurrenceScopeDialog`) asks which occurrences to affect. Non-recurring events skip the prompt.
 
-| Scope | Edit behavior | Delete behavior |
-| --- | --- | --- |
-| **This event** (single occurrence at date `D`) | Add/update an `OccurrenceOverride { occurrenceDate: D, patch }`. | Add `OccurrenceOverride { occurrenceDate: D, cancelled: true }`. |
-| **This and following** (from date `D`) | Truncate the original series: set `recurrence.endsOn` to the day before `D`. Create a **new** `CalendarEvent` anchored at `D` with the edited fields, same recurrence rule, carrying forward overrides where `occurrenceDate >= D`. | Truncate the original series: set `recurrence.endsOn` to the day before `D`. No new event. |
-| **All events** (whole series) | Update the master event's fields/recurrence in place. | Delete the master event (and all its occurrences). |
+The scope dialog supports three actions: `"edit"`, `"delete"`, and `"move"`. The title adjusts to match (`"Edit recurring event"`, `"Delete recurring event"`, `"Move recurring event"`). The scope options (This event / This and following / All events) are the same for all three actions.
+
+| Scope | Edit behavior | Delete behavior | Move behavior |
+| --- | --- | --- | --- |
+| **This event** (single occurrence at date `D`) | Add/update an `OccurrenceOverride { occurrenceDate: D, patch }`. | Add `OccurrenceOverride { occurrenceDate: D, cancelled: true }`. | Cancel occurrence `D` on the series. Create a standalone (non-recurring) event at the drop date from the occurrence's resolved fields. The detached event loses its ↻ series link. |
+| **This and following** (from date `D`) | Truncate the original series: set `recurrence.endsOn` to the day before `D`. Create a **new** `CalendarEvent` anchored at `D` with the edited fields, same recurrence rule, carrying forward overrides where `occurrenceDate >= D`. | Truncate the original series: set `recurrence.endsOn` to the day before `D`. No new event. | Truncate the original series (ends day before `D`). Create a new tail series anchored at the drop date via `buildMovedFollowing`. |
+| **All events** (whole series) | Update the master event's fields/recurrence in place. | Delete the master event (and all its occurrences). | Slide the whole series by the drag offset via `shiftSeries`: anchor date, all override keys, and `endsOn` shift together. |
 
 This mirrors iCalendar semantics (`EXDATE` / `RECURRENCE-ID` for single overrides; series-splitting for "this and following").
 
@@ -204,7 +226,8 @@ This mirrors iCalendar semantics (`EXDATE` / `RECURRENCE-ID` for single override
 - **Toolbar:** ‹ / month-year / › · **Today** · **category filter** · **+ New Event** (primary CTA).
 - **Day cell:** date number; **today** glow; dimmed out-of-month days; stacked neon **event chips** (with ↻ for recurring); **"+N more"** → **day popover**.
 - **Event editor (Dialog):** built with shadcn `Form` + **react-hook-form**/zod. Fields: Title, Date (native `<input type="date">`), Category (creatable combobox built on shadcn `Command` + `Popover`; pick existing or create a new name + color), Notes (Textarea), Repeat (native `<select>`: Does-not-repeat / Daily / Weekly / Monthly / Yearly) with interval + optional end date; footer with **Delete**, **Cancel**, **Save**. The shadcn `calendar`/`Select` primitives remain available for future use.
-- **Recurring scope dialog:** This event / This and following / All events.
+- **Recurring scope dialog:** This event / This and following / All events (used for edit, delete, and move).
+- **Move toast:** a `sonner` toast at the bottom center confirms every move and provides an Undo action. Styled to the cyberpunk panel look via `.cy-toast` / `.cy-toast-action` in `globals.css`.
 - **Responsive:** desktop-first full-page grid. On narrow screens, cells shrink and chips collapse to **colored dots with a count**; full details via the day popover.
 - **Empty state:** a styled prompt to create the first event when the calendar has none.
 
@@ -263,8 +286,9 @@ src/
   components/
     CalendarToolbar/        # month nav, Today, category filter, New Event, HUD line
     MonthGrid/              # 6x7 grid; consumes dateGrid + grouped occurrences
-    DayCell/                # date number, today glow, chips, "+N more"
-    EventChip/              # neon chip
+    DayCell/                # date number, today glow, chips, "+N more"; droppable target
+    EventChip/              # neon chip; accepts optional drag props for draggable use
+    DraggableEventChip/     # wraps EventChip with useDraggable for cells (not the overflow popover)
     CyberFrame/             # SVG vector-stroke neon border for chamfered panels (.cy-dialog, .cy-toolbar, .cy-cell)
     CyControlFrame/         # wraps a .cy-btn/.cy-nav control; overlays a CyberFrame border that follows the chamfer
     DayEventsPopover/       # overflow list (shadcn Popover)
@@ -272,11 +296,11 @@ src/
     RecurrenceScopeDialog/  # This / This & following / All (shadcn Dialog + RadioGroup)
     DataDialog/             # JSON backup export/import (validate -> confirm -> swap)
   context/
-    CalendarContext/        # visible month, events, CRUD actions, filter state
+    CalendarContext/        # visible month, events, CRUD actions (including moveEvent), filter state
   lib/
     storage/                # IndexedDB (idb); StorageError + guards; JSON backup
     tabSync/                # cross-tab change signal (BroadcastChannel)
-    recurrence/             # expand(window) + recurrence override/split helpers (pure)
+    recurrence/             # expand(window) + recurrence override/split/move helpers (pure)
     dateGrid/               # month -> 6x7 date matrix
     balance/                # running balance from deposits/withdrawals
   types/                    # CalendarEvent, Category, Recurrence + type guards
@@ -285,6 +309,26 @@ src/
 ```
 
 State is shared via **React Context** rather than prop drilling (`CLAUDE.md`). Labels/formatting use **`Intl.DateTimeFormat`**; array/object work prefers **remeda** utilities where it improves clarity. Constants are named (no magic numbers); numeric literals ≥ 1000 use underscore separators.
+
+### `CalendarContext` / `useCalendar()` API additions
+
+`moveEvent` is the context method for moving an event to a different day:
+
+```ts
+moveEvent(
+  occurrence: Occurrence,
+  toDate: string,
+  scope: EditScope,
+): Promise<() => Promise<void>>
+```
+
+It branches on four cases driven by `scope` and whether the event recurs:
+
+- **Non-recurring, or `scope === "all"` on a recurring event:** for a non-recurring event, sets `date` to `toDate`; for a recurring event, calls `shiftSeries` with `daysBetweenISO(occurrence.date, toDate)` so the whole timeline slides rigidly.
+- **`scope === "this"` on a recurring event:** cancels the occurrence on its original day via `cancelOccurrence`, then creates a new standalone (non-recurring) `CalendarEvent` at `toDate` from the occurrence's resolved fields (`title`, `amount`, `categoryId`, `direction`, `notes`). The detached event has `recurrence: null`.
+- **`scope === "following"` on a recurring event:** truncates the original series to end the day before `occurrence.date` via `truncateBefore`, then creates a new tail series anchored at `toDate` via `buildMovedFollowing`.
+
+`moveEvent` persists all writes through the same `persist()` / `putEvent` path as the other mutations, so cross-tab sync (the storage layer broadcasts after writes) and the storage-unavailable banner apply without additional wiring. After writing, it returns an **undo thunk**: a closure that snapshots the affected events before the move (with `null` marking events that did not exist before, such as the detached one-off or the new tail) and restores them by putting back each previous state or deleting events that are new. Calling the thunk re-persists the restored state through the same storage path.
 
 ---
 
@@ -303,7 +347,7 @@ State is shared via **React Context** rather than prop drilling (`CLAUDE.md`). L
 Vitest, **behavior-focused** (verify behavior, not implementation constants, per `CLAUDE.md`):
 
 - **`dateGrid`:** correct 6×7 matrix, Sunday-first, accurate leading/trailing days across month/year boundaries.
-- **`recurrence`:** daily/weekly/monthly/yearly expansion within a window; interval honored; `endsOn` boundary inclusive; month-skip (31st) and Feb-29 leap rules; overrides (cancel + patch); **split-series** ("this and following"); single-occurrence exception.
+- **`recurrence`:** daily/weekly/monthly/yearly expansion within a window; interval honored; `endsOn` boundary inclusive; month-skip (31st) and Feb-29 leap rules; overrides (cancel + patch); **split-series** ("this and following"); single-occurrence exception; date-shift helpers (`shiftISO`, `daysBetweenISO`, `shiftSeries`, `buildMovedFollowing`).
 - **`storage`:** CRUD round-trips against fake-indexeddb (`resetDbForTests()` per test); errors map to the correct `StorageError` codes; backup export → validate → commit round-trips.
 - **`tabSync`:** notifications cross channel instances and never echo to the
   sender; unsubscribe stops callbacks; both functions are no-ops without
@@ -327,7 +371,7 @@ Vitest, **behavior-focused** (verify behavior, not implementation constants, per
 1. Opening the app shows the current month full-screen in the cyberpunk theme.
 2. A user can create, edit, and delete a one-off event; it persists across reload.
 3. A user can create a recurring event (e.g., weekly), and it renders on the correct days within the visible month.
-4. Editing/deleting a recurring event prompts for scope, and **This / This-and-following / All** each behave per §7 and persist correctly.
+4. Editing/deleting/moving a recurring event prompts for scope, and **This / This-and-following / All** each behave per §7 and persist correctly.
 5. "+N more" reveals all events for a day via the popover; the category filter hides/shows chips.
 6. With storage unavailable (no IndexedDB), the app shows a non-blocking banner and remains usable in-memory.
 7. `prefers-reduced-motion` disables animated effects while preserving the neon look.
@@ -338,7 +382,7 @@ Vitest, **behavior-focused** (verify behavior, not implementation constants, per
 ## 16. Future Enhancements (Out of Scope for v1)
 
 - Week / Day / Agenda views.
-- Timed and multi-day events; drag-and-drop create/move/resize.
+- Timed and multi-day events; drag-to-resize or drag-to-create (move by drag is supported for single-day events).
 - Tags; search.
 - Reminders/notifications; ICS or Google Calendar import/export/sync.
 - Multi-device sync / accounts / backend.
