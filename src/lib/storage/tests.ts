@@ -371,6 +371,54 @@ describe("cross-tab change notifications", () => {
   });
 });
 
+describe("tombstones", () => {
+  beforeEach(async () => {
+    await resetDbForTests();
+  });
+
+  const evt = (id: string): CalendarEvent => ({
+    id,
+    title: "t",
+    date: "2026-06-09",
+    categoryId: "work",
+    amount: 1,
+    direction: "deposit",
+    recurrence: null,
+    overrides: [],
+    createdAt: "2026-06-09T00:00:00.000Z",
+    updatedAt: "2026-06-09T00:00:00.000Z",
+  });
+
+  it("records a tombstone when an event is deleted", async () => {
+    await putEvent(evt("e1"));
+    await deleteEvent("e1");
+    const tombstones = await getTombstones();
+    expect(tombstones).toHaveLength(1);
+    expect(tombstones[0]).toMatchObject({ id: "e1", type: "event" });
+    expect(typeof tombstones[0].updatedAt).toBe("string");
+  });
+
+  it("clears a tombstone when the same id is written again", async () => {
+    await putEvent(evt("e1"));
+    await deleteEvent("e1");
+    await putEvent(evt("e1"));
+    expect(await getTombstones()).toEqual([]);
+  });
+
+  it("records a tombstone when a category is deleted", async () => {
+    await putCategory({
+      id: "k1",
+      name: "K",
+      color: "cyan",
+      updatedAt: "2026-06-09T00:00:00.000Z",
+    });
+    await deleteCategory("k1");
+    const tombstones = await getTombstones();
+    expect(tombstones).toHaveLength(1);
+    expect(tombstones[0]).toMatchObject({ id: "k1", type: "category" });
+  });
+});
+
 describe("v2 migration", () => {
   beforeEach(async () => {
     await resetDbForTests();

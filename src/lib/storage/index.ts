@@ -28,6 +28,8 @@ import { notifyDataChanged } from "@/lib/tabSync";
 export * from "./consts";
 export * from "./types";
 
+const nowISO = (): string => new Date().toISOString();
+
 let dbPromise: Promise<IDBPDatabase> | null = null;
 
 const getDb = (): Promise<IDBPDatabase> => {
@@ -100,7 +102,12 @@ export const getAllEvents = async (): Promise<CalendarEvent[]> => {
 export const putEvent = async (event: CalendarEvent): Promise<void> => {
   try {
     const db = await getDb();
-    await db.put(STORE, event);
+    const tx = db.transaction([STORE, TOMBSTONE_STORE], "readwrite");
+    await Promise.all([
+      tx.objectStore(STORE).put(event),
+      tx.objectStore(TOMBSTONE_STORE).delete(event.id),
+    ]);
+    await tx.done;
   } catch (error) {
     throw toWriteError(error);
   }
@@ -110,7 +117,13 @@ export const putEvent = async (event: CalendarEvent): Promise<void> => {
 export const deleteEvent = async (id: string): Promise<void> => {
   try {
     const db = await getDb();
-    await db.delete(STORE, id);
+    const tx = db.transaction([STORE, TOMBSTONE_STORE], "readwrite");
+    const tombstone: Tombstone = { id, type: "event", updatedAt: nowISO() };
+    await Promise.all([
+      tx.objectStore(STORE).delete(id),
+      tx.objectStore(TOMBSTONE_STORE).put(tombstone),
+    ]);
+    await tx.done;
   } catch (error) {
     throw toWriteError(error);
   }
@@ -130,7 +143,12 @@ export const getAllCategories = async (): Promise<Category[]> => {
 export const putCategory = async (category: Category): Promise<void> => {
   try {
     const db = await getDb();
-    await db.put(CATEGORY_STORE, category);
+    const tx = db.transaction([CATEGORY_STORE, TOMBSTONE_STORE], "readwrite");
+    await Promise.all([
+      tx.objectStore(CATEGORY_STORE).put(category),
+      tx.objectStore(TOMBSTONE_STORE).delete(category.id),
+    ]);
+    await tx.done;
   } catch (error) {
     throw toWriteError(error);
   }
@@ -140,7 +158,13 @@ export const putCategory = async (category: Category): Promise<void> => {
 export const deleteCategory = async (id: string): Promise<void> => {
   try {
     const db = await getDb();
-    await db.delete(CATEGORY_STORE, id);
+    const tx = db.transaction([CATEGORY_STORE, TOMBSTONE_STORE], "readwrite");
+    const tombstone: Tombstone = { id, type: "category", updatedAt: nowISO() };
+    await Promise.all([
+      tx.objectStore(CATEGORY_STORE).delete(id),
+      tx.objectStore(TOMBSTONE_STORE).put(tombstone),
+    ]);
+    await tx.done;
   } catch (error) {
     throw toWriteError(error);
   }
