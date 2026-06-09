@@ -14,7 +14,7 @@ Client-only **Vite 8 React SPA** with **no backend or server runtime of its own*
 - **`src/App.tsx`** — top-level calendar screen composition.
 - **`src/context/CalendarContext/`** — app-wide state via React context; consume with the `useCalendar()` hook (events, categories, CRUD, recurrence-scope handling).
 - **`src/context/SyncContext/`** — optional account-sync state via React context; consume with the `useSync()` hook (status machine, create-account / sign-in / unlock / sign-out, change password, recovery). The in-memory data key lives only in a ref; the provider is inert unless Supabase is configured.
-- **`src/components/`** — UI: `MonthGrid`, `DayCell`, `EventChip`, `EventDialog`, `CategoryCombobox`, `ManageCategoriesDialog`, `RecurrenceScopeDialog`, `CalendarToolbar` (month/year nav), `DataDialog` (JSON backup export/import), `SyncDialog` (optional account sync: create / sign-in / TOTP / recovery-key / change-password), `DayEventsPopover`, `CyberFrame`, … · shadcn primitives in `src/components/ui/`.
+- **`src/components/`** — UI: `MonthGrid`, `DayCell`, `EventChip`, `EventDialog`, `CategoryCombobox`, `ManageCategoriesDialog`, `RecurrenceScopeDialog`, `CalendarToolbar` (month/year nav), `DataDialog` (JSON backup export/import), `SyncDialog` (optional account sync: create / sign-in / TOTP / recovery-key / change-password), `DayEventsPopover`, `DraggableEventChip` (drag events between days), `CyberFrame`, `CyControlFrame`, … · shadcn primitives in `src/components/ui/`.
 - **`src/lib/`** — React-free domain logic: `storage` (IndexedDB via `idb`; CRUD + JSON backup export/import; per-row `updatedAt` + tombstones + a sync cursor for sync; broadcasts a cross-tab signal after successful writes), `tabSync` (cross-tab change notifications over `BroadcastChannel`: `notifyDataChanged` + `subscribeToDataChanges`), `recurrence` (expand/edit/delete series + occurrence overrides), `dateGrid` (month-grid construction), `balance` (running balance from deposits/withdrawals). Optional-sync modules: `crypto` (libsodium: Argon2id key derivation, XChaCha20-Poly1305 encryption, recovery keys), `account` (Supabase auth + TOTP + key-material orchestration, plus pure key-wrapping helpers), `sync` (last-write-wins push/pull merge engine over a mockable `SyncRemote`), `supabase` (client init + base64 row serialization).
 - **`src/types/`** — shared types + guards (`CalendarEvent`, `Category`, `Recurrence`, `isCalendarEvent`, …).
 - **`src/utils/`** — small shared helpers (e.g. `formatCurrency`).
@@ -49,7 +49,7 @@ pnpm format      # Auto-fix formatting (prettier --write)
 
 - **Vite 8** (Rolldown) + **React 19** + **TypeScript** (ESM)
 - **Tailwind CSS v4** + **shadcn/ui** (Radix); shadcn primitives live in `src/components/ui/`
-- **react-hook-form** + **zod** (event editor) · **date-fns** · **react-day-picker** (calendar) · **remeda** (array/object utils) · client-side **IndexedDB** via **idb**
+- **react-hook-form** + **zod** (event editor) · **date-fns** · **react-day-picker** (calendar) · **@dnd-kit/core** (drag events between days) · **remeda** (array/object utils) · **sonner** (toasts) · client-side **IndexedDB** via **idb**
 - **Optional account sync**: **Supabase** (Postgres + Auth + Row Level Security) via `@supabase/supabase-js`; client-side crypto via **libsodium** (`libsodium-wrappers-sumo`: Argon2id + XChaCha20-Poly1305). Public config in `VITE_SUPABASE_URL` / `VITE_SUPABASE_PUBLISHABLE_KEY`
 - Tests: **vitest** + **@testing-library/react**; storage tests run against **fake-indexeddb** (fresh in-memory DB per test)
 
@@ -69,6 +69,7 @@ pnpm format      # Auto-fix formatting (prettier --write)
 - **Arrow functions**: Use `const foo = () => { ... }` (enforced by ESLint, auto-fixable)
 - **Reserve `use` prefix for React hooks**: The `useFoo` naming convention is reserved for React hooks. For boolean options or flags, use names like `systemFont`, `enableCache`, or `withValidation` instead of `useSystemFont`, `useCache`, or `useValidation`
 - **Named imports**: Use `import { pipe, filter } from 'remeda'` not `import * as R` (tree-shaking)
+- **Import paths — use the `@/` alias**: Import across modules with the `@/` alias (`@/lib/recurrence`, `@/utils/formatCurrency`), which maps to `src/` (see `tsconfig.json`). Reserve relative paths for files within the same module (`./types`, `./consts`); don't reach across modules with `../`.
 - **React context over prop drilling**: For app-wide state that's needed across many components (e.g., events, categories, settings), use React context instead of passing props through multiple levels. See `src/context/CalendarContext` for an example, consumed via the `useCalendar()` hook. This keeps component interfaces clean and avoids threading props through intermediate components that don't use them.
 - **Remeda utilities**: Prefer for array/object manipulation over manual loops where it improves readability without hurting performance (e.g., `flatMap` to flatten nested loops, `find` for searching, `sortBy` for sorting)
 - **Named constants**: Use `const HEADER_SIZE = 16` not magic numbers
@@ -107,11 +108,11 @@ pnpm format      # Auto-fix formatting (prettier --write)
 
   ```typescript
   // GOOD - import from the module
-  import { expandEvent, RECURRENCE_LABELS } from "../lib/recurrence";
+  import { expandEvent, RECURRENCE_LABELS } from "@/lib/recurrence";
 
   // BAD - importing directly from internal module files
-  import { expandEvent } from "../lib/recurrence/index";
-  import { RECURRENCE_LABELS } from "../lib/recurrence/consts";
+  import { expandEvent } from "@/lib/recurrence/index";
+  import { RECURRENCE_LABELS } from "@/lib/recurrence/consts";
   ```
 
   In `recurrence/index.ts`:
@@ -121,7 +122,7 @@ pnpm format      # Auto-fix formatting (prettier --write)
   export * from "./types";
   ```
 
-- **Avoid barrel-only files**: Don't create `index.ts` files that only re-export from child modules. Import directly from the specific module instead (e.g., `import { formatCurrency } from '../utils/formatCurrency'` not `from '../utils'`).
+- **Avoid barrel-only files**: Don't create `index.ts` files that only re-export from child modules. Import directly from the specific module instead (e.g., `import { formatCurrency } from '@/utils/formatCurrency'` not `from '@/utils'`).
 - **JSDoc**: Skip `@param`/`@returns` tags (TypeScript provides types); use inline comments if needed
 - **Loading indicators**: Delay by ~1 second to avoid flash for fast operations
 - **Intl API**: Prefer `Intl.DateTimeFormat`, `Intl.NumberFormat`, etc. over manual formatting for dates, numbers, and currencies
