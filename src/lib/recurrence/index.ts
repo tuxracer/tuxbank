@@ -117,6 +117,37 @@ export const shiftISO = (iso: string, days: number): string =>
 export const daysBetweenISO = (from: string, to: string): number =>
   differenceInCalendarDays(parseISO(to), parseISO(from));
 
+export const buildMovedFollowing = (
+  event: CalendarEvent,
+  fromDate: string,
+  toDate: string,
+  id: string,
+  nowISO: string,
+): CalendarEvent => {
+  const offset = daysBetweenISO(fromDate, toDate);
+  return {
+    ...event,
+    id,
+    date: toDate,
+    recurrence: event.recurrence
+      ? {
+          ...event.recurrence,
+          endsOn: event.recurrence.endsOn
+            ? shiftISO(event.recurrence.endsOn, offset)
+            : null,
+        }
+      : null,
+    overrides: event.overrides
+      .filter((o) => o.occurrenceDate >= fromDate)
+      .map((o) => ({
+        ...o,
+        occurrenceDate: shiftISO(o.occurrenceDate, offset),
+      })),
+    createdAt: nowISO,
+    updatedAt: nowISO,
+  };
+};
+
 export const shiftSeries = (
   event: CalendarEvent,
   offsetDays: number,
