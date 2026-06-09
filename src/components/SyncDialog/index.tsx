@@ -36,6 +36,7 @@ export const SyncDialog = ({ open, onOpenChange }: SyncDialogProps) => {
   const [mode, setMode] = useState<Mode>("choose");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -43,6 +44,7 @@ export const SyncDialog = ({ open, onOpenChange }: SyncDialogProps) => {
     setMode("choose");
     setEmail("");
     setPassword("");
+    setConfirmPassword("");
     setCode("");
     setBusy(false);
   };
@@ -276,13 +278,31 @@ export const SyncDialog = ({ open, onOpenChange }: SyncDialogProps) => {
                       protects your encryption key; choose a strong one.
                     </p>
                   )}
+                  {mode === "create" && (
+                    <>
+                      <Label htmlFor="sync-pw2">Confirm password</Label>
+                      <Input
+                        id="sync-pw2"
+                        type="password"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                      />
+                      {confirmPassword.length > 0 &&
+                        password !== confirmPassword && (
+                          <p className="cy-mono text-[10px] text-[color:var(--cy-magenta)]">
+                            Passwords do not match.
+                          </p>
+                        )}
+                    </>
+                  )}
                   <Button
                     className="cy-btn justify-start"
                     disabled={
                       busy ||
                       !email ||
                       !password ||
-                      (mode === "create" && passwordTooShort)
+                      (mode === "create" &&
+                        (passwordTooShort || password !== confirmPassword))
                     }
                     onClick={() =>
                       void run(() =>
