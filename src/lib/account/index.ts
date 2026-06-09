@@ -181,9 +181,30 @@ export const fetchKeyMaterial = async (): Promise<KeyMaterial> => {
   return data;
 };
 
-/** Set the Supabase auth password (to a new derived auth secret). */
-export const updateAuthPassword = async (authSecret: string): Promise<void> => {
-  const { error } = await client().auth.updateUser({ password: authSecret });
+/**
+ * Set the Supabase auth password (to a new derived auth secret). When "Secure
+ * password change" is enabled, Supabase requires a reauthentication `nonce`
+ * (a code emailed via requestReauthentication); without one it throws
+ * REAUTH_REQUIRED so the caller can prompt for the code and retry.
+ */
+export const updateAuthPassword = async (
+  authSecret: string,
+  nonce?: string,
+): Promise<void> => {
+  const { error } = await client().auth.updateUser(
+    nonce ? { password: authSecret, nonce } : { password: authSecret },
+  );
+  if (!error) return;
+  const reauthNeeded =
+    error.code === "reauthentication_needed" ||
+    /reauthentication|nonce/i.test(error.message);
+  if (!nonce && reauthNeeded) throw new AccountError("REAUTH_REQUIRED", error);
+  throw new AccountError("PASSWORD_CHANGE_FAILED", error);
+};
+
+/** Email the user a reauthentication code (for Secure password change). */
+export const requestReauthentication = async (): Promise<void> => {
+  const { error } = await client().auth.reauthenticate();
   if (error) throw new AccountError("PASSWORD_CHANGE_FAILED", error);
 };
 

@@ -45,7 +45,8 @@ export type AccountErrorCode =
   | "MFA_VERIFY_FAILED"
   | "NO_KEY_MATERIAL"
   | "KEY_MATERIAL_FAILED"
-  | "PASSWORD_CHANGE_FAILED";
+  | "PASSWORD_CHANGE_FAILED"
+  | "REAUTH_REQUIRED";
 
 export class AccountError extends Error {
   readonly code: AccountErrorCode;

@@ -1,5 +1,8 @@
 export type SyncStatus = "off" | "locked" | "syncing" | "synced" | "error";
 
+/** Result of a password change/recovery: done, needs an emailed code, or failed. */
+export type PwResult = "done" | "reauth" | "error";
+
 /** Which onboarding step the dialog should show, if any. */
 export type OnboardStep =
   | "idle"
@@ -24,13 +27,17 @@ export interface SyncContextValue {
   finishCreate: () => void;
   signIn: (email: string, password: string) => Promise<void>;
   unlock: (password: string) => Promise<void>;
-  /** Re-wrap the data key under a new password. Returns true on success. */
-  changePassword: (newPassword: string) => Promise<boolean>;
+  /**
+   * Re-wrap the data key under a new password. Returns "reauth" when Supabase
+   * needs an emailed code (Secure password change); call again with the nonce.
+   */
+  changePassword: (newPassword: string, nonce?: string) => Promise<PwResult>;
   /** Recover a locked account with the recovery key and set a new password. */
   recoverWithKey: (
     recoveryKey: string,
     newPassword: string,
-  ) => Promise<boolean>;
+    nonce?: string,
+  ) => Promise<PwResult>;
   signOut: () => Promise<void>;
   syncNow: () => Promise<void>;
 }

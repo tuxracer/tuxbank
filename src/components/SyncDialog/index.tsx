@@ -53,6 +53,8 @@ export const SyncDialog = ({ open, onOpenChange }: SyncDialogProps) => {
   const [changingPw, setChangingPw] = useState(false);
   const [recovering, setRecovering] = useState(false);
   const [recoveryKeyInput, setRecoveryKeyInput] = useState("");
+  const [awaitingReauth, setAwaitingReauth] = useState(false);
+  const [reauthCode, setReauthCode] = useState("");
 
   const reset = () => {
     setMode("choose");
@@ -64,6 +66,8 @@ export const SyncDialog = ({ open, onOpenChange }: SyncDialogProps) => {
     setChangingPw(false);
     setRecovering(false);
     setRecoveryKeyInput("");
+    setAwaitingReauth(false);
+    setReauthCode("");
   };
 
   const run = async (fn: () => Promise<void>) => {
@@ -104,6 +108,58 @@ export const SyncDialog = ({ open, onOpenChange }: SyncDialogProps) => {
             <p className="cy-mono text-xs text-[color:var(--cy-magenta)]">
               {errorText(sync.error)}
             </p>
+          )}
+
+          {/* REAUTH: emailed code to finish a Secure password change */}
+          {awaitingReauth && (
+            <section className="flex flex-col gap-3">
+              <p className="cy-mono text-xs">
+                We emailed you a confirmation code to finish changing your
+                password. Enter it below.
+              </p>
+              <Label htmlFor="reauth-code">Email code</Label>
+              <Input
+                id="reauth-code"
+                inputMode="numeric"
+                placeholder="123456"
+                value={reauthCode}
+                onChange={(e) => setReauthCode(e.target.value)}
+              />
+              <Button
+                className="cy-btn justify-start"
+                disabled={busy || reauthCode.length < 6}
+                onClick={async () => {
+                  setBusy(true);
+                  const result = changingPw
+                    ? await sync.changePassword(password, reauthCode.trim())
+                    : await sync.recoverWithKey(
+                        recoveryKeyInput.trim(),
+                        password,
+                        reauthCode.trim(),
+                      );
+                  setBusy(false);
+                  if (result === "done") {
+                    toast.success(
+                      changingPw
+                        ? "Password changed"
+                        : "Recovered. Password updated.",
+                    );
+                    reset();
+                  }
+                }}
+              >
+                Confirm
+              </Button>
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setAwaitingReauth(false);
+                  setReauthCode("");
+                }}
+              >
+                Cancel
+              </Button>
+            </section>
           )}
 
           {/* SYNCED / SYNCING / ERROR (all post-onboarding, account active) */}
@@ -153,7 +209,8 @@ export const SyncDialog = ({ open, onOpenChange }: SyncDialogProps) => {
             sync.status === "syncing" ||
             sync.status === "error") &&
             sync.step === "idle" &&
-            changingPw && (
+            changingPw &&
+            !awaitingReauth && (
               <section className="flex flex-col gap-3">
                 <p className="cy-mono text-xs">Set a new password.</p>
                 <Label htmlFor="cp-new">New password</Label>
@@ -187,13 +244,15 @@ export const SyncDialog = ({ open, onOpenChange }: SyncDialogProps) => {
                   }
                   onClick={async () => {
                     setBusy(true);
-                    const ok = await sync.changePassword(password);
+                    const result = await sync.changePassword(password);
                     setBusy(false);
-                    if (ok) {
+                    if (result === "done") {
                       toast.success("Password changed");
                       setChangingPw(false);
                       setPassword("");
                       setConfirmPassword("");
+                    } else if (result === "reauth") {
+                      setAwaitingReauth(true);
                     }
                   }}
                 >
@@ -250,7 +309,7 @@ export const SyncDialog = ({ open, onOpenChange }: SyncDialogProps) => {
           )}
 
           {/* RECOVER with the recovery key, then set a new password */}
-          {sync.status === "locked" && recovering && (
+          {sync.status === "locked" && recovering && !awaitingReauth && (
             <section className="flex flex-col gap-3">
               <p className="cy-mono text-xs">
                 Enter your recovery key and choose a new password.
@@ -290,17 +349,19 @@ export const SyncDialog = ({ open, onOpenChange }: SyncDialogProps) => {
                 }
                 onClick={async () => {
                   setBusy(true);
-                  const ok = await sync.recoverWithKey(
+                  const result = await sync.recoverWithKey(
                     recoveryKeyInput.trim(),
                     password,
                   );
                   setBusy(false);
-                  if (ok) {
+                  if (result === "done") {
                     toast.success("Recovered. Password updated.");
                     setRecovering(false);
                     setRecoveryKeyInput("");
                     setPassword("");
                     setConfirmPassword("");
+                  } else if (result === "reauth") {
+                    setAwaitingReauth(true);
                   }
                 }}
               >

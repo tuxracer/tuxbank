@@ -16,6 +16,7 @@ import {
   getTotpFactorId,
   isAccountError,
   provisionAccountKeys,
+  requestReauthentication,
   rewrapForNewPassword,
   signIn as authSignIn,
   signOut as authSignOut,
@@ -29,7 +30,12 @@ import {
   type KeyMaterial,
 } from "@/lib/account";
 import { createSupabaseRemote, runSync } from "@/lib/sync";
-import type { OnboardStep, SyncContextValue, SyncStatus } from "./types";
+import type {
+  OnboardStep,
+  PwResult,
+  SyncContextValue,
+  SyncStatus,
+} from "./types";
 
 export * from "./types";
 
@@ -43,6 +49,24 @@ const describeError = (error: unknown): string =>
     : error instanceof Error
       ? error.message
       : "Unknown error";
+
+// Apply the new auth secret, handling Secure-password-change reauthentication:
+// without a nonce a REAUTH_REQUIRED error emails a code and returns "reauth".
+const applyAuthSecret = async (
+  authSecret: string,
+  nonce: string | undefined,
+): Promise<"done" | "reauth"> => {
+  try {
+    await updateAuthPassword(authSecret, nonce);
+    return "done";
+  } catch (caught) {
+    if (isAccountError(caught) && caught.code === "REAUTH_REQUIRED") {
+      await requestReauthentication();
+      return "reauth";
+    }
+    throw caught;
+  }
+};
 
 export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
   // Destructure the stable callback + the changing values so effects do not
@@ -301,10 +325,10 @@ export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
   );
 
   const changePassword = useCallback(
-    async (newPassword: string): Promise<boolean> => {
+    async (newPassword: string, nonce?: string): Promise<PwResult> => {
       if (!remote || !email || !dekRef.current) {
         setError("Sync is not configured");
-        return false;
+        return "error";
       }
       try {
         const rewrapped = await rewrapForNewPassword(
@@ -312,39 +336,49 @@ export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
           email,
           dekRef.current,
         );
-        await updateAuthPassword(rewrapped.authSecret);
+        if ((await applyAuthSecret(rewrapped.authSecret, nonce)) === "reauth") {
+          setError(null);
+          return "reauth";
+        }
         await updatePasswordColumns(rewrapped);
         setError(null);
-        return true;
+        return "done";
       } catch (caught) {
         setError(describeError(caught));
-        return false;
+        return "error";
       }
     },
     [remote, email],
   );
 
   const recoverWithKey = useCallback(
-    async (recoveryKey: string, newPassword: string): Promise<boolean> => {
+    async (
+      recoveryKey: string,
+      newPassword: string,
+      nonce?: string,
+    ): Promise<PwResult> => {
       if (!remote || !email) {
         setError("Sync is not configured");
-        return false;
+        return "error";
       }
       try {
         const material = await fetchKeyMaterial();
         const dek = await unlockWithRecoveryKey(recoveryKey, material);
-        dekRef.current = dek;
         // The password was forgotten, so set a new one while we have the DEK.
         const rewrapped = await rewrapForNewPassword(newPassword, email, dek);
-        await updateAuthPassword(rewrapped.authSecret);
+        if ((await applyAuthSecret(rewrapped.authSecret, nonce)) === "reauth") {
+          setError(null);
+          return "reauth";
+        }
         await updatePasswordColumns(rewrapped);
+        dekRef.current = dek;
         setStatus("synced");
         setError(null);
         void doSync();
-        return true;
+        return "done";
       } catch (caught) {
         setError(isAccountError(caught) ? caught.code : "RECOVERY_FAILED");
-        return false;
+        return "error";
       }
     },
     [remote, email, doSync],
