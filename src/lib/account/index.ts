@@ -9,7 +9,16 @@ import {
 } from "@/lib/crypto";
 import type { SealedBox } from "@/lib/crypto";
 import { toBase64, fromBase64 } from "@/utils/base64";
-import type { KeyMaterial, ProvisionedKeys, RewrappedKeys } from "./types";
+import { supabase } from "@/lib/supabase";
+import {
+  AccountError,
+  isKeyMaterial,
+  type ActiveSession,
+  type KeyMaterial,
+  type ProvisionedKeys,
+  type RewrappedKeys,
+  type TotpEnrollment,
+} from "./types";
 
 export * from "./types";
 
@@ -76,4 +85,88 @@ export const rewrapForNewPassword = async (
     wrapped_dek: toBase64(wrap.ciphertext),
     wrapped_dek_nonce: toBase64(wrap.nonce),
   };
+};
+
+const client = () => {
+  if (!supabase) throw new AccountError("NOT_CONFIGURED");
+  return supabase;
+};
+
+export const signUp = async (
+  email: string,
+  authSecret: string,
+): Promise<void> => {
+  const { error } = await client().auth.signUp({ email, password: authSecret });
+  if (error) throw new AccountError("SIGNUP_FAILED", error);
+};
+
+export const signIn = async (
+  email: string,
+  authSecret: string,
+): Promise<void> => {
+  const { error } = await client().auth.signInWithPassword({
+    email,
+    password: authSecret,
+  });
+  if (error) throw new AccountError("SIGNIN_FAILED", error);
+};
+
+export const enrollTotp = async (): Promise<TotpEnrollment> => {
+  const { data, error } = await client().auth.mfa.enroll({
+    factorType: "totp",
+  });
+  if (error || !data) throw new AccountError("MFA_ENROLL_FAILED", error);
+  return {
+    factorId: data.id,
+    qrCode: data.totp.qr_code,
+    secret: data.totp.secret,
+  };
+};
+
+export const verifyTotp = async (
+  factorId: string,
+  code: string,
+): Promise<void> => {
+  const { error } = await client().auth.mfa.challengeAndVerify({
+    factorId,
+    code,
+  });
+  if (error) throw new AccountError("MFA_VERIFY_FAILED", error);
+};
+
+export const getTotpFactorId = async (): Promise<string | null> => {
+  const { data, error } = await client().auth.mfa.listFactors();
+  if (error) throw new AccountError("MFA_VERIFY_FAILED", error);
+  return data.totp[0]?.id ?? null;
+};
+
+export const signOut = async (): Promise<void> => {
+  await client().auth.signOut();
+};
+
+export const getActiveSession = async (): Promise<ActiveSession | null> => {
+  const {
+    data: { session },
+  } = await client().auth.getSession();
+  const email = session?.user.email;
+  if (!email) return null;
+  const { data } = await client().auth.mfa.getAuthenticatorAssuranceLevel();
+  return { email, aal2: data?.currentLevel === "aal2" };
+};
+
+export const uploadKeyMaterial = async (
+  material: KeyMaterial,
+): Promise<void> => {
+  const { error } = await client().from("key_material").insert(material);
+  if (error) throw new AccountError("KEY_MATERIAL_FAILED", error);
+};
+
+export const fetchKeyMaterial = async (): Promise<KeyMaterial> => {
+  const { data, error } = await client()
+    .from("key_material")
+    .select("*")
+    .maybeSingle();
+  if (error) throw new AccountError("KEY_MATERIAL_FAILED", error);
+  if (!isKeyMaterial(data)) throw new AccountError("NO_KEY_MATERIAL");
+  return data;
 };

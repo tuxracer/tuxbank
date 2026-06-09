@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import {
   provisionAccountKeys,
   unlockWithPassword,
@@ -6,6 +6,75 @@ import {
   rewrapForNewPassword,
 } from "./index";
 import { isKeyMaterial } from "./types";
+
+// Controls what the account wrappers see as the Supabase client.
+let mockClient: unknown = null;
+vi.mock("@/lib/supabase", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/supabase")>();
+  return {
+    ...actual,
+    get supabase() {
+      return mockClient;
+    },
+  };
+});
+
+import { signUp, uploadKeyMaterial, fetchKeyMaterial } from "./index";
+
+describe("account wrappers without configuration", () => {
+  it("throws NOT_CONFIGURED when there is no Supabase client", async () => {
+    mockClient = null;
+    await expect(signUp("a@b.com", "secret")).rejects.toMatchObject({
+      code: "NOT_CONFIGURED",
+    });
+  });
+});
+
+describe("key material wrappers", () => {
+  it("uploads key material via insert", async () => {
+    const insert = vi.fn(async () => ({ error: null }));
+    mockClient = { from: () => ({ insert }) };
+    await uploadKeyMaterial({
+      wrapped_dek: "a",
+      wrapped_dek_nonce: "b",
+      recovery_wrapped_dek: "c",
+      recovery_nonce: "d",
+      kdf_version: 1,
+    });
+    expect(insert).toHaveBeenCalledOnce();
+  });
+
+  it("throws NO_KEY_MATERIAL when the fetched row is missing or malformed", async () => {
+    mockClient = {
+      from: () => ({
+        select: () => ({
+          maybeSingle: async () => ({ data: null, error: null }),
+        }),
+      }),
+    };
+    await expect(fetchKeyMaterial()).rejects.toMatchObject({
+      code: "NO_KEY_MATERIAL",
+    });
+  });
+
+  it("returns valid fetched key material", async () => {
+    const row = {
+      wrapped_dek: "a",
+      wrapped_dek_nonce: "b",
+      recovery_wrapped_dek: "c",
+      recovery_nonce: "d",
+      kdf_version: 1,
+    };
+    mockClient = {
+      from: () => ({
+        select: () => ({
+          maybeSingle: async () => ({ data: row, error: null }),
+        }),
+      }),
+    };
+    expect(await fetchKeyMaterial()).toEqual(row);
+  });
+});
 
 describe("provisionAccountKeys / unlockWithPassword", () => {
   it("provisions material and unlocks the same DEK from the password", async () => {
