@@ -1,7 +1,21 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
 import { generateDek } from "@/lib/crypto";
 import type { CalendarEvent } from "@/types";
-import { encryptRecord, decryptRow, isRemoteNewer } from "./index";
+import {
+  encryptRecord,
+  decryptRow,
+  isRemoteNewer,
+  runSync,
+  encryptTombstone,
+} from "./index";
+import {
+  getAllEvents,
+  putEvent,
+  deleteEvent,
+  getSyncCursor,
+} from "@/lib/storage";
+import { resetDbForTests } from "@/lib/storage/testing";
+import type { RemoteRow, SyncRemote } from "./types";
 
 const event = (over: Partial<CalendarEvent> = {}): CalendarEvent => ({
   id: "e1",
@@ -51,5 +65,126 @@ describe("encryptRecord / decryptRow", () => {
   it("fails to decrypt a row with the wrong key", async () => {
     const row = await encryptRecord(event(), await generateDek());
     await expect(decryptRow(row, await generateDek())).rejects.toThrow();
+  });
+});
+
+const makeFakeRemote = () => {
+  const tables: Record<string, Map<string, RemoteRow>> = {
+    events: new Map(),
+    categories: new Map(),
+  };
+  const remote: SyncRemote = {
+    pull: async (table, since) =>
+      [...tables[table].values()].filter((r) => r.updated_at > since),
+    push: async (table, rows) => {
+      for (const row of rows) tables[table].set(row.id, row);
+    },
+  };
+  return { tables, remote };
+};
+
+describe("runSync", () => {
+  beforeEach(async () => {
+    await resetDbForTests();
+  });
+
+  it("pushes local events to an empty remote", async () => {
+    const dek = await generateDek();
+    const { tables, remote } = makeFakeRemote();
+    await putEvent(event());
+    const result = await runSync(dek, remote);
+    expect(result.pushed).toBe(1);
+    expect(tables.events.size).toBe(1);
+    expect(await decryptRow([...tables.events.values()][0], dek)).toEqual(
+      event(),
+    );
+  });
+
+  it("pulls remote events into empty local storage", async () => {
+    const dek = await generateDek();
+    const { tables, remote } = makeFakeRemote();
+    tables.events.set("e1", await encryptRecord(event(), dek));
+    const result = await runSync(dek, remote);
+    expect(result.pulled).toBe(1);
+    expect(await getAllEvents()).toEqual([event()]);
+  });
+
+  it("lets the newer side win on a conflict (remote newer)", async () => {
+    const dek = await generateDek();
+    const { tables, remote } = makeFakeRemote();
+    await putEvent(
+      event({ title: "Old", updatedAt: "2026-06-09T00:00:01.000Z" }),
+    );
+    tables.events.set(
+      "e1",
+      await encryptRecord(
+        event({ title: "New", updatedAt: "2026-06-09T00:00:02.000Z" }),
+        dek,
+      ),
+    );
+    await runSync(dek, remote);
+    const local = await getAllEvents();
+    expect(local[0].title).toBe("New");
+  });
+
+  it("lets the newer side win on a conflict (local newer)", async () => {
+    const dek = await generateDek();
+    const { tables, remote } = makeFakeRemote();
+    tables.events.set(
+      "e1",
+      await encryptRecord(
+        event({ title: "Old", updatedAt: "2026-06-09T00:00:01.000Z" }),
+        dek,
+      ),
+    );
+    await putEvent(
+      event({ title: "New", updatedAt: "2026-06-09T00:00:02.000Z" }),
+    );
+    await runSync(dek, remote);
+    expect(await decryptRow([...tables.events.values()][0], dek)).toMatchObject(
+      { title: "New" },
+    );
+  });
+
+  it("propagates a local deletion to the remote", async () => {
+    const dek = await generateDek();
+    const { tables, remote } = makeFakeRemote();
+    await putEvent(event());
+    await runSync(dek, remote); // upload
+    await deleteEvent("e1"); // local tombstone
+    await runSync(dek, remote);
+    expect(tables.events.get("e1")?.deleted).toBe(true);
+  });
+
+  it("applies a remote deletion locally", async () => {
+    const dek = await generateDek();
+    const { tables, remote } = makeFakeRemote();
+    await putEvent(event());
+    await runSync(dek, remote); // upload so both sides agree
+    // Another device deletes it: a tombstone row with a newer timestamp.
+    tables.events.set(
+      "e1",
+      await encryptTombstone("e1", "2026-06-10T00:00:00.000Z", dek),
+    );
+    await runSync(dek, remote);
+    expect(await getAllEvents()).toEqual([]);
+  });
+
+  it("is idempotent: a second sync with no changes does nothing", async () => {
+    const dek = await generateDek();
+    const { remote } = makeFakeRemote();
+    await putEvent(event());
+    await runSync(dek, remote);
+    const second = await runSync(dek, remote);
+    expect(second.pulled).toBe(0);
+    expect(second.pushed).toBe(0);
+  });
+
+  it("advances the cursor to the newest timestamp seen", async () => {
+    const dek = await generateDek();
+    const { remote } = makeFakeRemote();
+    await putEvent(event({ updatedAt: "2026-06-09T08:00:00.000Z" }));
+    await runSync(dek, remote);
+    expect(await getSyncCursor()).toBe("2026-06-09T08:00:00.000Z");
   });
 });

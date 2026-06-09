@@ -1,7 +1,20 @@
 import { encryptPayload, decryptPayload } from "@/lib/crypto";
 import { sealedBoxToRow, rowToSealedBox } from "@/lib/supabase";
+import {
+  getAllEvents,
+  getAllCategories,
+  getTombstones,
+  getSyncCursor,
+  setSyncCursor,
+  putEvent,
+  putCategory,
+  applyRemoteDelete,
+} from "@/lib/storage";
+import { isCalendarEvent, isCategory } from "@/types";
 import type { CalendarEvent, Category } from "@/types";
-import type { RemoteRow } from "./types";
+import { EPOCH_CURSOR, SYNC_TABLES } from "./consts";
+import { SyncError } from "./types";
+import type { RemoteRow, SyncRemote, SyncResult } from "./types";
 
 export * from "./consts";
 export * from "./types";
@@ -38,3 +51,71 @@ export const decryptRow = async (
   row: RemoteRow,
   dek: Uint8Array,
 ): Promise<unknown> => decryptPayload(rowToSealedBox(row), dek);
+
+export const runSync = async (
+  dek: Uint8Array,
+  remote: SyncRemote,
+): Promise<SyncResult> => {
+  const startCursor = (await getSyncCursor()) ?? EPOCH_CURSOR;
+  let maxCursor = startCursor;
+  let pulled = 0;
+  let pushed = 0;
+
+  for (const { table, type } of SYNC_TABLES) {
+    const localRecords: (CalendarEvent | Category)[] =
+      type === "event" ? await getAllEvents() : await getAllCategories();
+    const localById = new Map(
+      localRecords.map((record) => [record.id, record]),
+    );
+    const tombstones = (await getTombstones()).filter((t) => t.type === type);
+    const tombById = new Map(tombstones.map((t) => [t.id, t]));
+
+    // Pull: apply remote rows that are newer than our local copy.
+    const remoteRows = await remote.pull(table, startCursor);
+    const pulledIds = new Set<string>();
+    for (const row of remoteRows) {
+      const localUpdatedAt =
+        localById.get(row.id)?.updatedAt ?? tombById.get(row.id)?.updatedAt;
+      if (!isRemoteNewer(row.updated_at, localUpdatedAt)) continue;
+      if (row.deleted) {
+        await applyRemoteDelete(row.id, type);
+      } else {
+        const record = await decryptRow(row, dek);
+        if (type === "event") {
+          if (!isCalendarEvent(record)) throw new SyncError("DECRYPT_INVALID");
+          await putEvent(record);
+        } else {
+          if (!isCategory(record)) throw new SyncError("DECRYPT_INVALID");
+          await putCategory(record);
+        }
+      }
+      pulledIds.add(row.id);
+      pulled += 1;
+      if (row.updated_at > maxCursor) maxCursor = row.updated_at;
+    }
+
+    // Push: local rows and tombstones newer than the cursor we did not just pull.
+    const pushRows: RemoteRow[] = [];
+    for (const record of localRecords) {
+      if (record.updatedAt > startCursor && !pulledIds.has(record.id)) {
+        pushRows.push(await encryptRecord(record, dek));
+        if (record.updatedAt > maxCursor) maxCursor = record.updatedAt;
+      }
+    }
+    for (const tombstone of tombstones) {
+      if (tombstone.updatedAt > startCursor && !pulledIds.has(tombstone.id)) {
+        pushRows.push(
+          await encryptTombstone(tombstone.id, tombstone.updatedAt, dek),
+        );
+        if (tombstone.updatedAt > maxCursor) maxCursor = tombstone.updatedAt;
+      }
+    }
+    if (pushRows.length > 0) {
+      await remote.push(table, pushRows);
+      pushed += pushRows.length;
+    }
+  }
+
+  if (maxCursor !== startCursor) await setSyncCursor(maxCursor);
+  return { pulled, pushed, cursor: maxCursor };
+};
