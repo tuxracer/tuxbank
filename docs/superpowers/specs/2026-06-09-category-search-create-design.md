@@ -49,7 +49,9 @@ Settled during brainstorming and fixed for this version:
    component.** The two surfaces render their rows differently (the selector's
    rows are click-to-select `cmdk` items; the dialog's rows are edit-in-place:
    rename input + recolor swatches + Delete), so a single list component does not
-   fit. The shared pieces are the search/eligibility logic and the create-row UI.
+   fit. The shared pieces are the search/eligibility logic (`useCategorySearch`)
+   and small presentational components (`CategoryCreateRow`, `CategoryColorPicker`,
+   `CategoryDot`).
 3. **The combobox keeps `cmdk`** for its selectable list and its arrow-key
    navigation over categories.
 4. **The create affordance moves from inside the `cmdk` list to a row just below
@@ -89,9 +91,9 @@ const {
 
 ### `CategoryCreateRow` component (`src/components/CategoryCreateRow/`)
 
-The `Create "<query>"` clickable line plus the color-picker strip (a `Color`
-label and the five palette swatches, the selected one outlined). Callers render
-it only when `showCreate` is true.
+The `Create "<query>"` clickable line plus a `CategoryColorPicker` (labelled
+`Color`) for the new category's color. Callers render it only when `showCreate`
+is true.
 
 ```ts
 type CategoryCreateRowProps = {
@@ -109,10 +111,30 @@ the field. Both read the current `query` and `newColor` from the hook.
 ### `CategoryDot` component (`src/components/CategoryDot/`)
 
 The neon category swatch (`background` accent + glow), currently a local `Dot` in
-the combobox and an inline `<span>` elsewhere. Used by the combobox's list items
-and by `CategoryCreateRow` (its create line and color picker). The Manage dialog's
-existing per-row recolor swatches keep their current markup (their `title=<color>`
-buttons are referenced by tests), so they are left as-is in this version.
+the combobox and an inline `<span>` in the Manage dialog. Used by the combobox's
+list items, `CategoryCreateRow`'s create line, and `CategoryColorPicker`.
+
+### `CategoryColorPicker` component (`src/components/CategoryColorPicker/`)
+
+A row of selectable color swatches: each palette color rendered as a
+`title=<color>` button wrapping a `CategoryDot`, with the selected color outlined.
+
+```ts
+type CategoryColorPickerProps = {
+  value: CategoryColor;
+  onChange: (color: CategoryColor) => void;
+  label?: string; // e.g. "Color"; omitted renders the swatches only
+};
+```
+
+Used in three places (meeting the extract-at-3 rule): the Manage dialog's per-row
+recolor control (`value={c.color}`, `onChange` recolors that category, no label),
+and `CategoryCreateRow`'s new-category picker (`value={newColor}`,
+`label="Color"`). The combobox gets it transitively through `CategoryCreateRow`.
+Consolidating here means the Manage dialog's per-row swatches adopt the shared dot
+size, a small visual change from the slightly larger dots today. Each swatch
+button keeps its `title=<color>`, so existing tests that locate swatches by title
+still work.
 
 ### `PALETTE` consolidation
 
@@ -146,6 +168,8 @@ the `export * from "./consts"` lines that re-export them.
   (placeholder "Search or create...").
 - Map `filtered` instead of `categories` for the editable rename/recolor/delete
   rows.
+- Replace each row's inline recolor swatches with `<CategoryColorPicker
+  value={c.color} onChange={(color) => onRecolor(c.id, color)} />`.
 - Render `<CategoryCreateRow>` below the rows when `showCreate`; its `onCreate`
   calls the new `onCreate` prop then `reset()`.
 - Add `onCreate: (name: string, color: CategoryColor) => void` to the props.
@@ -178,9 +202,10 @@ No `CalendarContext` changes.
   - A novel query shows the `Create "<query>"` row; clicking it calls `onCreate`
     with the trimmed name and the selected color.
   - Typing an existing name (case-insensitive) does not show the create row.
-  - Existing rename/recolor/delete tests stay green: at rest `query === ""`, so no
-    create strip renders and the swatch / `getByDisplayValue` lookups are
-    unchanged.
+  - Existing rename/recolor/delete tests stay green: the per-row recolor swatches
+    move to the shared `CategoryColorPicker` but keep their `title=<color>`
+    buttons, and at rest `query === ""` so no create strip renders, leaving the
+    `getAllByTitle` / `getByDisplayValue` lookups unchanged.
 - **`CategoryCombobox/tests.tsx`**
   - The existing select and create-on-the-fly tests still pass against the
     refactor; adjust selectors only if needed.
@@ -192,8 +217,8 @@ placement are verified in a real browser as part of the usual manual check.
 
 Update `docs/TRD.md` where it describes `CategoryCombobox` and
 `ManageCategoriesDialog` to mention the shared `useCategorySearch` hook,
-`CategoryCreateRow`, and `CategoryDot`, and that categories can now be created
-from the Manage Categories dialog.
+`CategoryCreateRow`, `CategoryColorPicker`, and `CategoryDot`, and that categories
+can now be created from the Manage Categories dialog.
 
 ## Files affected
 
@@ -203,6 +228,8 @@ Create:
 - `src/components/CategoryCreateRow/index.tsx` (component + `useCategorySearch`)
 - `src/components/CategoryCreateRow/types.ts`
 - `src/components/CategoryCreateRow/tests.tsx`
+- `src/components/CategoryColorPicker/index.tsx`
+- `src/components/CategoryColorPicker/types.ts`
 - `src/components/CategoryDot/index.tsx`
 
 Modify:
