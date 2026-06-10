@@ -226,7 +226,6 @@ const CalendarScreen = () => {
           cal.goToDate(new Date(selectedYear, monthIndex, 1))
         }
         onSelectYear={(year) => cal.goToDate(new Date(year, selectedMonth, 1))}
-        recordCount={cal.events.length}
         usedCategories={cal.usedCategories}
         activeCategoryIds={cal.activeCategoryIds}
         onPrev={cal.goToPrevMonth}
@@ -237,9 +236,6 @@ const CalendarScreen = () => {
         onManageData={() => setDataOpen(true)}
         onSync={() => setSyncOpen(true)}
         onNewEvent={() => openCreate(cal.todayISO)}
-        endBalance={
-          cal.balancesByDate[cal.cells[cal.cells.length - 1].iso] ?? 0
-        }
       />
 
       <DndContext

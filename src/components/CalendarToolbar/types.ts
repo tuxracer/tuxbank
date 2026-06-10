@@ -1,8 +1,6 @@
 import type { Category } from "@/types";
 
 export type CalendarToolbarProps = {
-  recordCount: number;
-  endBalance: number;
   selectedYear: number;
   selectedMonth: number;
   minYear: number;

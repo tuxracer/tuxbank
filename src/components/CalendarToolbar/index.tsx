@@ -1,7 +1,6 @@
 import { catColorVar, catGlowVar } from "@/utils/categoryColor";
 import { CyberFrame } from "@/components/CyberFrame";
 import { CyControlFrame } from "@/components/CyControlFrame";
-import { formatCurrency } from "@/utils/formatCurrency";
 import { MONTH_NAMES } from "./consts";
 
 import type { CalendarToolbarProps } from "./types";
@@ -10,8 +9,6 @@ export * from "./types";
 export * from "./consts";
 
 const CalendarToolbar = ({
-  recordCount,
-  endBalance,
   selectedYear,
   selectedMonth,
   minYear,
@@ -37,19 +34,6 @@ const CalendarToolbar = ({
 
   return (
     <header className="flex flex-col gap-3">
-      <div className="cy-hud flex items-center justify-between">
-        <span>
-          {"SYS"}
-          <span className="dim">{"//"}</span>
-          {"CAL.EXE  "}
-          <span className="on">{"◢ ONLINE"}</span>
-        </span>
-        <span className="dim">
-          LOCAL_DB::INDEXEDDB&nbsp; ◢ {recordCount} RECORDS&nbsp; BAL ◢{" "}
-          {formatCurrency(endBalance)}
-        </span>
-      </div>
-
       <div className="cy-toolbar flex flex-wrap items-center justify-between gap-3 px-4 py-3">
         <CyberFrame chamfer={18} color="var(--cy-line)" />
         <div className="flex items-center gap-3">

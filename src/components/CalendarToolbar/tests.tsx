@@ -7,8 +7,6 @@ import type { CalendarToolbarProps } from "./types";
 const baseProps = (
   over: Partial<CalendarToolbarProps> = {},
 ): CalendarToolbarProps => ({
-  recordCount: 0,
-  endBalance: 0,
   selectedYear: 2026,
   selectedMonth: 0,
   minYear: 2024,
