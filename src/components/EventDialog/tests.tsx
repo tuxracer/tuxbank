@@ -98,6 +98,62 @@ describe("EventDialog", () => {
     expect(onSubmit.mock.calls[0][0].date).toBe("2026-05-04");
   });
 
+  it("shows read-only sync debug metadata (id, timestamps, recurrence) when editing", () => {
+    const sourceEvent = {
+      id: "evt-123",
+      title: "Rent",
+      date: "2026-05-04",
+      categoryId: "work",
+      amount: 50,
+      direction: "withdrawal" as const,
+      recurrence: {
+        freq: "weekly" as const,
+        interval: 2,
+        endsOn: "2026-05-31",
+      },
+      overrides: [{ occurrenceDate: "2026-05-11", cancelled: true }],
+      createdAt: "2026-05-01T08:30:00.000Z",
+      updatedAt: "2026-05-09T14:02:11.000Z",
+    };
+    const occurrence = {
+      eventId: "evt-123",
+      date: "2026-05-18",
+      title: "Rent",
+      category: {
+        id: "work",
+        name: "Work",
+        color: "cyan" as const,
+        updatedAt: "",
+      },
+      amount: 50,
+      direction: "withdrawal" as const,
+      isRecurring: true,
+    };
+    render(
+      <EventDialog
+        {...baseProps}
+        mode="edit"
+        initialOccurrence={occurrence}
+        sourceEvent={sourceEvent}
+      />,
+    );
+    // The underlying row id and both timestamps are the decisive fields for
+    // telling a duplicated row apart from one event drawn twice.
+    expect(screen.getByText("evt-123")).toBeInTheDocument();
+    expect(screen.getByText("2026-05-09T14:02:11.000Z")).toBeInTheDocument();
+    expect(screen.getByText("2026-05-01T08:30:00.000Z")).toBeInTheDocument();
+    expect(
+      screen.getByText("weekly, interval 2, ends 2026-05-31"),
+    ).toBeInTheDocument();
+    // The clicked occurrence date, distinct from the locked series anchor.
+    expect(screen.getByText("2026-05-18")).toBeInTheDocument();
+  });
+
+  it("hides the debug metadata when creating a new event", () => {
+    render(<EventDialog {...baseProps} mode="create" />);
+    expect(screen.queryByText(/debug/i)).not.toBeInTheDocument();
+  });
+
   it("pre-fills amount and direction from the occurrence's resolved values, not the series base", async () => {
     const onSubmit = vi.fn();
     const sourceEvent = {

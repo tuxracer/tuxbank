@@ -16,6 +16,7 @@ import { eventFormSchema, toEventInput, type EventFormValues } from "./schema";
 import CategoryCombobox from "@/components/CategoryCombobox";
 import { CyberFrame } from "@/components/CyberFrame";
 import { CyControlFrame } from "@/components/CyControlFrame";
+import type { Recurrence } from "@/types";
 
 import type { EventDialogProps } from "./types";
 
@@ -52,12 +53,30 @@ const buildDefaults = (props: EventDialogProps): EventFormValues => {
   };
 };
 
+// One-line summary of a series' recurrence rule for the debug readout.
+const formatRecurrence = (recurrence: Recurrence | null): string =>
+  recurrence
+    ? `${recurrence.freq}, interval ${recurrence.interval}, ends ${
+        recurrence.endsOn ?? "never"
+      }`
+    : "none";
+
+// A label/value pair in the debug readout. `select-all` makes the value (e.g.
+// the row id) one-click selectable for copying when comparing duplicates.
+const DebugRow = ({ label, value }: { label: string; value: string }) => (
+  <div className="flex justify-between gap-3">
+    <span className="shrink-0">{label}</span>
+    <span className="select-all break-all text-right">{value}</span>
+  </div>
+);
+
 const EventDialog = (props: EventDialogProps) => {
   const {
     open,
     mode,
     categories,
     sourceEvent,
+    initialOccurrence,
     onOpenChange,
     onSubmit,
     onDelete,
@@ -224,6 +243,32 @@ const EventDialog = (props: EventDialogProps) => {
             <p className="text-xs text-[color:var(--cy-magenta)]">
               {errors.endsOn.message}
             </p>
+          )}
+
+          {mode === "edit" && sourceEvent && (
+            <div className="mt-2 flex flex-col gap-0.5 border-t border-white/10 pt-2 font-mono text-[10px] leading-relaxed opacity-60">
+              <p className="uppercase tracking-wide">Debug</p>
+              <DebugRow label="id" value={sourceEvent.id} />
+              <DebugRow
+                label="updated"
+                value={sourceEvent.updatedAt || "(unset)"}
+              />
+              <DebugRow
+                label="created"
+                value={sourceEvent.createdAt || "(unset)"}
+              />
+              <DebugRow
+                label="recurrence"
+                value={formatRecurrence(sourceEvent.recurrence)}
+              />
+              <DebugRow
+                label="overrides"
+                value={String(sourceEvent.overrides.length)}
+              />
+              {initialOccurrence && (
+                <DebugRow label="occurrence" value={initialOccurrence.date} />
+              )}
+            </div>
           )}
 
           <DialogFooter className="mt-2 flex items-center justify-between sm:justify-between">
