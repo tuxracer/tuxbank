@@ -505,6 +505,121 @@ describe("CalendarContext", () => {
   });
 });
 
+describe("recurring edits bump updatedAt so they sync to other devices", () => {
+  // A row whose updatedAt is not bumped is never pushed (sync selects rows with
+  // updatedAt > cursor), so an in-place edit of the series silently fails to
+  // reach other devices and the stale original lives on there as a duplicate.
+  const OLD = "2020-01-01T00:00:00.000Z";
+
+  const seedMonthly = async (id: string): Promise<void> => {
+    await putEvent({
+      id,
+      title: "Rent",
+      date: "2026-06-01",
+      categoryId: "work",
+      amount: 1000,
+      direction: "withdrawal",
+      notes: undefined,
+      recurrence: { freq: "monthly", interval: 1, endsOn: null },
+      overrides: [],
+      createdAt: OLD,
+      updatedAt: OLD,
+    });
+  };
+
+  const storedById = async (id: string): Promise<CalendarEvent> => {
+    const found = (await getAllEvents()).find((e) => e.id === id);
+    if (!found) throw new Error(`event ${id} not found`);
+    return found;
+  };
+
+  const expectBumped = (event: CalendarEvent): void => {
+    expect(new Date(event.updatedAt).getTime()).toBeGreaterThan(
+      new Date(OLD).getTime(),
+    );
+  };
+
+  beforeEach(async () => {
+    await resetDbForTests();
+  });
+
+  it("stamps the truncated remnant when editing 'this and following'", async () => {
+    await seedMonthly("rent-1");
+    const { result } = renderHook(() => useCalendar(), { wrapper });
+    await waitFor(() => expect(result.current.events).toHaveLength(1));
+
+    await act(async () => {
+      await result.current.updateEvent(
+        "rent-1",
+        {
+          title: "Test",
+          date: "2026-06-01",
+          categoryId: "work",
+          amount: 1000,
+          direction: "withdrawal",
+          notes: undefined,
+          recurrence: { freq: "monthly", interval: 1, endsOn: null },
+        },
+        "following",
+        "2026-06-01",
+      );
+    });
+
+    // The original series row stays behind (truncated); its updatedAt must
+    // advance so the truncation reaches other devices.
+    expectBumped(await storedById("rent-1"));
+  });
+
+  it("stamps the patched series when editing a single occurrence ('this')", async () => {
+    await seedMonthly("rent-1");
+    const { result } = renderHook(() => useCalendar(), { wrapper });
+    await waitFor(() => expect(result.current.events).toHaveLength(1));
+
+    await act(async () => {
+      await result.current.updateEvent(
+        "rent-1",
+        {
+          title: "Rent",
+          date: "2026-06-01",
+          categoryId: "work",
+          amount: 2000,
+          direction: "withdrawal",
+          notes: undefined,
+          recurrence: { freq: "monthly", interval: 1, endsOn: null },
+        },
+        "this",
+        "2026-07-01",
+      );
+    });
+
+    expectBumped(await storedById("rent-1"));
+  });
+
+  it("stamps the truncated remnant when deleting 'this and following'", async () => {
+    await seedMonthly("rent-1");
+    const { result } = renderHook(() => useCalendar(), { wrapper });
+    await waitFor(() => expect(result.current.events).toHaveLength(1));
+
+    await act(async () => {
+      await result.current.deleteEvent("rent-1", "following", "2026-07-01");
+    });
+
+    expectBumped(await storedById("rent-1"));
+  });
+
+  it("stamps the cancelled series when deleting a single occurrence ('this')", async () => {
+    await seedMonthly("rent-1");
+    const { result } = renderHook(() => useCalendar(), { wrapper });
+    await waitFor(() => expect(result.current.events).toHaveLength(1));
+
+    await act(async () => {
+      await result.current.deleteEvent("rent-1", "this", "2026-07-01");
+    });
+
+    expectBumped(await storedById("rent-1"));
+  });
+});
+
 describe("storage recovery (unopenable database)", () => {
   beforeEach(async () => {
     await resetDbForTests();

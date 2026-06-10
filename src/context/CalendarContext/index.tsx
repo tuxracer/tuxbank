@@ -295,19 +295,25 @@ export const CalendarProvider = ({
       }
 
       if (scope === "this") {
-        const next = patchOccurrence(current, occurrenceDate, {
-          title: input.title,
-          categoryId: input.categoryId,
-          notes: input.notes,
-          amount: input.amount,
-          direction: input.direction,
-        });
+        const next = {
+          ...patchOccurrence(current, occurrenceDate, {
+            title: input.title,
+            categoryId: input.categoryId,
+            notes: input.notes,
+            amount: input.amount,
+            direction: input.direction,
+          }),
+          updatedAt: nowISO(),
+        };
         setEvents((prev) => prev.map((e) => (e.id === id ? next : e)));
         await persist(() => putEvent(next));
         return;
       }
 
-      const truncated = truncateBefore(current, occurrenceDate);
+      const truncated = {
+        ...truncateBefore(current, occurrenceDate),
+        updatedAt: nowISO(),
+      };
       const created = buildFollowingSeries(
         current,
         occurrenceDate,
@@ -338,10 +344,12 @@ export const CalendarProvider = ({
         return;
       }
 
-      const next =
-        scope === "this"
+      const next = {
+        ...(scope === "this"
           ? cancelOccurrence(current, occurrenceDate)
-          : truncateBefore(current, occurrenceDate);
+          : truncateBefore(current, occurrenceDate)),
+        updatedAt: nowISO(),
+      };
       setEvents((prev) => prev.map((e) => (e.id === id ? next : e)));
       await persist(() => putEvent(next));
     },
