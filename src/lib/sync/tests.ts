@@ -10,6 +10,7 @@ import {
   createSupabaseRemote,
 } from "./index";
 import {
+  commitImport,
   getAllEvents,
   putEvent,
   putCategory,
@@ -219,6 +220,39 @@ describe("runSync", () => {
     const result = await runSync(dek, remote);
     expect(tables.categories.size).toBe(1);
     expect(result.pushed).toBe(1);
+  });
+
+  it("pushes restored backup rows after an earlier sync (import-after-sync regression)", async () => {
+    // A backup restore used to keep each row's original timestamp. With a
+    // cursor already stored, the `updatedAt > cursor` push gate skipped the
+    // restored rows forever: the device reported synced while the cloud never
+    // received them, so a device signing in later pulled an incomplete
+    // account (events missing, categories showing as Uncategorized).
+    const dek = await generateDek();
+    const { tables, remote } = makeFakeRemote();
+    await putEvent(
+      event({ id: "live", updatedAt: "2026-06-10T00:00:00.000Z" }),
+    );
+    await runSync(dek, remote); // stores a cursor
+    await commitImport(
+      JSON.stringify({
+        app: "tuxbank",
+        schemaVersion: 1,
+        exportedAt: "2026-06-11T00:00:00.000Z",
+        events: [event({ updatedAt: "2026-01-09T00:00:00.000Z" })],
+        categories: [
+          {
+            id: "k1",
+            name: "Work",
+            color: "cyan",
+            updatedAt: "2026-01-09T00:00:00.000Z",
+          },
+        ],
+      }),
+    );
+    await runSync(dek, remote);
+    expect(tables.events.has("e1")).toBe(true);
+    expect(tables.categories.has("k1")).toBe(true);
   });
 
   it("advances the cursor to the newest timestamp seen", async () => {

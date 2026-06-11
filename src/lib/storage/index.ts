@@ -207,6 +207,21 @@ export const setSyncCursor = async (value: string): Promise<void> => {
 };
 
 /**
+ * Drop the sync cursor so the next sync runs as a first sync (full push +
+ * pull). Called on sign-out: a cursor left behind by a previous session would
+ * make the next account's "initial" sync incremental, silently skipping every
+ * local row older than it, so the cloud never receives the data.
+ */
+export const clearSyncCursor = async (): Promise<void> => {
+  try {
+    const db = await getDb();
+    await db.delete(SYNC_META_STORE, SYNC_CURSOR_KEY);
+  } catch (error) {
+    throw toWriteError(error);
+  }
+};
+
+/**
  * Read the cached data-encryption key (DEK), if one was stored on this device.
  * Returns undefined when nothing was cached (or the cached value is not raw
  * bytes). Used to resume a signed-in account unlocked after a reload instead of
@@ -307,11 +322,17 @@ export const commitImport = async (text: string): Promise<void> => {
       // enqueued before any put, and IndexedDB runs same-store requests in
       // creation order. The whole transaction rolls back on failure.
       requests.push(events.clear(), categories.clear(), tombstones.clear());
+      // Restamp every imported row to the import time. A restore is a new
+      // write: backup rows keep their original (older) updatedAt, which the
+      // cursor-gated sync push would skip forever, so the restored data would
+      // never reach the cloud (and stale cloud rows or tombstones would win
+      // last-write-wins and overwrite the restore on the next pull).
+      const stamp = nowISO();
       for (const event of backup.events) {
-        requests.push(events.put(event));
+        requests.push(events.put({ ...event, updatedAt: stamp }));
       }
       for (const category of backup.categories) {
-        requests.push(categories.put(category));
+        requests.push(categories.put({ ...category, updatedAt: stamp }));
       }
       await Promise.all(requests);
       await tx.done;

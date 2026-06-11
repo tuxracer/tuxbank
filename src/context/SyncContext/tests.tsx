@@ -1,7 +1,12 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { renderHook, waitFor } from "@testing-library/react";
 import { resetDbForTests } from "@/lib/storage/testing";
-import { setStoredDek, getStoredDek } from "@/lib/storage";
+import {
+  setStoredDek,
+  getStoredDek,
+  setSyncCursor,
+  getSyncCursor,
+} from "@/lib/storage";
 import { CalendarProvider } from "@/context/CalendarContext";
 import { SyncProvider, useSync } from "./index";
 
@@ -72,8 +77,13 @@ describe("SyncContext session resume", () => {
     expect(result.current.email).toBe("user@example.com");
   });
 
-  it("clears the cached DEK on sign-out so the next load re-locks", async () => {
+  it("clears the cached DEK and the sync cursor on sign-out", async () => {
+    // The DEK so the next load re-locks; the cursor so the next sign-in runs
+    // a true first sync. A leftover cursor made the next account's "initial"
+    // sync incremental, silently skipping every local row older than it, so
+    // the cloud (and any other device) never received the data.
     await setStoredDek(new Uint8Array([1, 2, 3, 4, 5]));
+    await setSyncCursor("2026-06-01T00:00:00.000Z");
 
     const { result } = renderHook(() => useSync(), { wrapper });
     await waitFor(() => expect(result.current.status).toBe("synced"));
@@ -82,5 +92,6 @@ describe("SyncContext session resume", () => {
 
     await waitFor(() => expect(result.current.status).toBe("off"));
     expect(await getStoredDek()).toBeUndefined();
+    expect(await getSyncCursor()).toBeUndefined();
   });
 });

@@ -32,6 +32,7 @@ import {
 import {
   clearLocalData,
   clearStoredDek,
+  clearSyncCursor,
   getStoredDek,
   setStoredDek,
 } from "@/lib/storage";
@@ -429,11 +430,15 @@ export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
       setStatus("off");
       setLastSyncedAt(null);
       setError(null);
-      // Drop the cached key so the next load re-locks. clearLocalData (below)
-      // also wipes it, but a non-clearing sign-out must drop it too; awaited so
-      // the key is gone before sign-out resolves.
+      // Drop the cached key so the next load re-locks, and the sync cursor so
+      // the next sign-in (possibly a different account) runs a true first sync
+      // instead of an incremental one that would skip every local row older
+      // than the leftover cursor. clearLocalData (below) also wipes both, but
+      // a non-clearing sign-out must drop them too; awaited so they are gone
+      // before sign-out resolves.
       try {
         await clearStoredDek();
+        await clearSyncCursor();
       } catch {
         // Best-effort: the next load can't resume without an active session.
       }

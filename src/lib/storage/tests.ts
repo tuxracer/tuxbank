@@ -222,6 +222,26 @@ describe("export / import (JSON backup)", () => {
     expect(await getAllCategories()).toEqual([]);
   });
 
+  it("commitImport restamps imported rows to the import time", async () => {
+    // A restore is a new write. Backup rows keep their original (older)
+    // updatedAt; left as-is they lose last-write-wins to stale cloud rows and
+    // the cursor-gated sync push never uploads them.
+    const before = new Date().toISOString();
+    await commitImport(
+      JSON.stringify({
+        app: "tuxbank",
+        schemaVersion: 1,
+        exportedAt: "2026-06-11T00:00:00.000Z",
+        events: [make("a")],
+        categories: [{ id: "c", name: "C", color: "cyan", updatedAt: "t" }],
+      }),
+    );
+    const [importedEvent] = await getAllEvents();
+    const [importedCategory] = await getAllCategories();
+    expect(importedEvent.updatedAt >= before).toBe(true);
+    expect(importedCategory.updatedAt >= before).toBe(true);
+  });
+
   it("validateImport reports the backup's record counts", async () => {
     await putEvent(make("a"));
     await putEvent(make("b"));

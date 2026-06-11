@@ -540,9 +540,13 @@ The database opens at v1 and creates all four stores up front (`events`,
 `categories`, `tombstones`, `syncMeta`); there is no migration history. Both
 `CalendarEvent` and `Category` carry an `updatedAt`. Deleting a row writes a
 tombstone; writing a row clears any tombstone for its id; importing a backup
-clears all tombstones. `applyRemoteDelete` removes a row **without** writing a
-new tombstone, so an applied remote delete does not bounce back to the server.
-`getSyncCursor` / `setSyncCursor` persist the sync cursor in `syncMeta`.
+clears all tombstones and restamps every imported row's `updatedAt` to the
+import time, so a restore wins last-write-wins against stale cloud rows and is
+uploaded on the next sync (backup rows keep older timestamps that the
+cursor-gated push would otherwise skip forever). `applyRemoteDelete` removes a
+row **without** writing a new tombstone, so an applied remote delete does not
+bounce back to the server. `getSyncCursor` / `setSyncCursor` /
+`clearSyncCursor` manage the sync cursor in `syncMeta`.
 
 Opening the database distinguishes two failure modes. `UNAVAILABLE` means there
 is no IndexedDB at all (e.g. a hostile private-mode context); nothing can be
@@ -575,9 +579,13 @@ focus, debounced after edits, and a manual "Sync now". The data key is held in a
 ref and also cached on the device (the `dek` key in the `syncMeta` store, via
 `setStoredDek`/`getStoredDek`), so a reload or restart resumes unlocked and
 re-syncs instead of re-prompting. The cache is cleared only on sign-out
-(`clearStoredDek`, and by the `clearLocalData` wipe). When a signed-in (`aal2`)
-session finds no cached key (a new device, or after sign-out), the app falls back
-to a **locked** state until the user re-enters their password.
+(`clearStoredDek`, and by the `clearLocalData` wipe). Sign-out also clears the
+sync cursor (`clearSyncCursor`), so the next sign-in runs a true first sync: a
+cursor left behind by a previous session or account would make the "initial"
+sync incremental and silently skip every local row older than it, leaving the
+cloud (and any device that signs in later) without that data. When a signed-in
+(`aal2`) session finds no cached key (a new device, or after sign-out), the app
+falls back to a **locked** state until the user re-enters their password.
 
 ### Auth, onboarding, and recovery flows (`SyncContext`, `SyncDialog`)
 
