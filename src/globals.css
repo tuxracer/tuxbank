@@ -1,0 +1,561 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (@media (prefers-color-scheme: dark));
+
+:root {
+  --font-display: "Rajdhani";
+  --font-ui: "Chakra Petch";
+  --font-mono: "Share Tech Mono";
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-ui);
+  --font-mono: var(--font-mono);
+  --font-display: var(--font-display);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+:root {
+  color-scheme: light dark;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  --radius: 0.625rem;
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: oklch(0.145 0 0);
+    --foreground: oklch(0.985 0 0);
+    --card: oklch(0.205 0 0);
+    --card-foreground: oklch(0.985 0 0);
+    --popover: oklch(0.205 0 0);
+    --popover-foreground: oklch(0.985 0 0);
+    --primary: oklch(0.922 0 0);
+    --primary-foreground: oklch(0.205 0 0);
+    --secondary: oklch(0.269 0 0);
+    --secondary-foreground: oklch(0.985 0 0);
+    --muted: oklch(0.269 0 0);
+    --muted-foreground: oklch(0.708 0 0);
+    --accent: oklch(0.269 0 0);
+    --accent-foreground: oklch(0.985 0 0);
+    --destructive: oklch(0.704 0.191 22.216);
+    --border: oklch(1 0 0 / 10%);
+    --input: oklch(1 0 0 / 15%);
+    --ring: oklch(0.556 0 0);
+    --chart-1: oklch(0.87 0 0);
+    --chart-2: oklch(0.556 0 0);
+    --chart-3: oklch(0.439 0 0);
+    --chart-4: oklch(0.371 0 0);
+    --chart-5: oklch(0.269 0 0);
+    --sidebar: oklch(0.205 0 0);
+    --sidebar-foreground: oklch(0.985 0 0);
+    --sidebar-primary: oklch(0.488 0.243 264.376);
+    --sidebar-primary-foreground: oklch(0.985 0 0);
+    --sidebar-accent: oklch(0.269 0 0);
+    --sidebar-accent-foreground: oklch(0.985 0 0);
+    --sidebar-border: oklch(1 0 0 / 10%);
+    --sidebar-ring: oklch(0.556 0 0);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
+  }
+}
+
+/* ===================== CYBERPUNK DESIGN SYSTEM ===================== */
+:root {
+  /* Cyberpunk surfaces — light (Direction C: neutral/minimal) */
+  --cy-bg: #f5f6f8;
+  --cy-panel: #ffffff;
+  --cy-panel-2: #f1f2f4;
+  --cy-line: rgba(15, 23, 42, 0.12);
+  --cy-cyan: #0e7490;
+  --cy-magenta: #be185d;
+  --cy-yellow: #a16207;
+  --cy-green: #047857;
+  --cy-orange: #c2410c;
+  --cy-text: #1e293b;
+  --cy-muted: #64748b;
+
+  /* Derived surface tokens — light */
+  --cy-chip-bg: #f1f5f9;
+  --cy-chip-text: #1e293b;
+  --cy-cta-fg: #ffffff;
+  --cy-cell-top: #ffffff;
+  --cy-cell-bottom: #f8fafc;
+  --cy-dialog-top: #ffffff;
+  --cy-dialog-bottom: #f8fafc;
+
+  /* Glow/effect tokens — off in light */
+  --cy-radial-magenta: transparent;
+  --cy-radial-cyan: transparent;
+  --cy-scanline-opacity: 0;
+  --cy-glow-cyan: transparent;
+  --cy-glow-cyan-soft: transparent;
+  --cy-glow-yellow: transparent;
+  --cy-glow-green: transparent;
+  --cy-glow-magenta-soft: transparent;
+  --cy-glow-today: transparent;
+  --cy-glow-today-inset: transparent;
+
+  /* Category accents — light (darkened ~700 shade) */
+  --cat-cyan: #0e7490;
+  --cat-magenta: #be185d;
+  --cat-yellow: #a16207;
+  --cat-green: #047857;
+  --cat-orange: #c2410c;
+  --cat-cyan-glow: transparent;
+  --cat-magenta-glow: transparent;
+  --cat-yellow-glow: transparent;
+  --cat-green-glow: transparent;
+  --cat-orange-glow: transparent;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    /* Cyberpunk surfaces — dark (current values) */
+    --cy-bg: #07080d;
+    --cy-panel: #0b0e16;
+    --cy-panel-2: #0e1320;
+    --cy-line: rgba(0, 240, 255, 0.16);
+    --cy-cyan: #00f0ff;
+    --cy-magenta: #ff2a6d;
+    --cy-yellow: #fcee0a;
+    --cy-green: #00ff9f;
+    --cy-orange: #ff9f1c;
+    --cy-text: #cfe0ec;
+    --cy-muted: #5d7488;
+
+    /* Derived surface tokens — dark (current literals) */
+    --cy-chip-bg: rgba(0, 0, 0, 0.35);
+    --cy-chip-text: #eaf6ff;
+    --cy-cta-fg: #04141a;
+    --cy-cell-top: rgba(14, 19, 32, 0.92);
+    --cy-cell-bottom: rgba(8, 11, 18, 0.92);
+    --cy-dialog-top: #0b1019;
+    --cy-dialog-bottom: #080b12;
+
+    /* Glow/effect tokens — dark (current literals) */
+    --cy-radial-magenta: rgba(255, 42, 109, 0.08);
+    --cy-radial-cyan: rgba(0, 240, 255, 0.07);
+    --cy-scanline-opacity: 0.06;
+    --cy-glow-cyan: #00f0ff;
+    --cy-glow-cyan-soft: rgba(0, 240, 255, 0.45);
+    --cy-glow-yellow: #fcee0a;
+    --cy-glow-green: #00ff9f;
+    --cy-glow-magenta-soft: rgba(255, 42, 109, 0.5);
+    --cy-glow-today: rgba(252, 238, 10, 0.25);
+    --cy-glow-today-inset: rgba(252, 238, 10, 0.12);
+
+    /* Category accents — dark (current neon) */
+    --cat-cyan: #00f0ff;
+    --cat-magenta: #ff2a6d;
+    --cat-yellow: #fcee0a;
+    --cat-green: #00ff9f;
+    --cat-orange: #ff9f1c;
+    --cat-cyan-glow: #00f0ff;
+    --cat-magenta-glow: #ff2a6d;
+    --cat-yellow-glow: #fcee0a;
+    --cat-green-glow: #00ff9f;
+    --cat-orange-glow: #ff9f1c;
+  }
+}
+
+html,
+body {
+  height: 100%;
+}
+body {
+  background:
+    radial-gradient(
+      1300px 800px at 75% -15%,
+      var(--cy-radial-magenta),
+      transparent 62%
+    ),
+    radial-gradient(
+      1000px 700px at 8% 115%,
+      var(--cy-radial-cyan),
+      transparent 62%
+    ),
+    var(--cy-bg);
+  color: var(--cy-text);
+  font-family: var(--font-ui), system-ui, sans-serif;
+  overflow: hidden;
+}
+
+/* Faint CRT scanline whisper — the heavy scanlines + line-grid were removed for a cleaner look. */
+.cy-scanlines::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 50;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent 0 3px,
+    rgba(0, 0, 0, 0.16) 3px 4px
+  );
+  mix-blend-mode: multiply;
+  opacity: var(--cy-scanline-opacity);
+}
+
+.cy-mono {
+  font-family: var(--font-mono), monospace;
+}
+.cy-display {
+  font-family: var(--font-display), sans-serif;
+}
+
+.cy-hud {
+  font-family: var(--font-mono), monospace;
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  color: var(--cy-cyan);
+  text-transform: uppercase;
+}
+.cy-hud .on {
+  color: var(--cy-green);
+  text-shadow: 0 0 8px var(--cy-glow-green);
+}
+.cy-hud .dim {
+  color: var(--cy-muted);
+}
+
+.cy-toolbar {
+  position: relative;
+  isolation: isolate;
+}
+/* Panel fill on a pseudo so a single clip-path chamfers it; the border is drawn
+   by <CyberFrame> as an SVG stroke (uniform on the 45° chamfers, unlike a
+   clip-path fill). Host stays transparent/unclipped so the SVG isn't clipped.
+   The 18px chamfer here must match CyberFrame's `chamfer` prop in CalendarToolbar. */
+.cy-toolbar::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(180deg, var(--cy-panel-2), var(--cy-panel));
+  clip-path: polygon(
+    0 0,
+    calc(100% - 18px) 0,
+    100% 18px,
+    100% 100%,
+    18px 100%,
+    0 calc(100% - 18px)
+  );
+}
+
+/* Chamfered controls. The clip-path here only shapes the fill; the border is
+   NOT a CSS `border` (the clip would slice it off at the bottom-right chamfer,
+   leaving that corner borderless). Wrap each control in <CyControlFrame>,
+   which overlays a <CyberFrame> SVG stroke tracing the full outline. The
+   chamfer sizes (9px nav / 8px btn) must match CyControlFrame's VARIANTS. */
+.cy-nav {
+  color: var(--cy-cyan);
+  background: transparent;
+  text-shadow: 0 0 8px var(--cy-glow-cyan);
+  clip-path: polygon(
+    0 0,
+    100% 0,
+    100% calc(100% - 9px),
+    calc(100% - 9px) 100%,
+    0 100%
+  );
+}
+.cy-btn {
+  font-family: var(--font-mono), monospace;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--cy-text);
+  background: rgba(255, 255, 255, 0.02);
+  clip-path: polygon(
+    0 0,
+    100% 0,
+    100% calc(100% - 8px),
+    calc(100% - 8px) 100%,
+    0 100%
+  );
+}
+.cy-cta {
+  font-family: var(--font-display), sans-serif;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  background: var(--cy-cyan);
+  color: var(--cy-cta-fg);
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 0 18px var(--cy-glow-cyan-soft);
+  clip-path: polygon(
+    10px 0,
+    100% 0,
+    100% calc(100% - 10px),
+    calc(100% - 10px) 100%,
+    0 100%,
+    0 10px
+  );
+}
+
+.cy-weekhead {
+  font-family: var(--font-mono), monospace;
+  letter-spacing: 0.28em;
+  color: var(--cy-cyan);
+  text-transform: uppercase;
+  opacity: 0.8;
+}
+
+.cy-cell {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+/* Chamfered fill on a pseudo so the border can be a uniform SVG stroke drawn by
+   <CyberFrame> (a clip-path fill rasterizes the 45° chamfer brighter than the
+   straight edges). Host stays transparent/unclipped so the stroke isn't clipped;
+   the 12px top-right chamfer here must match CyberFrame's props in DayCell. */
+.cy-cell::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(
+    180deg,
+    var(--cy-cell-top),
+    var(--cy-cell-bottom)
+  );
+  clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 0 100%);
+}
+.cy-cell.out {
+  opacity: 0.4;
+}
+/* Today: CyberFrame draws the border in yellow (see DayCell). The inset glow
+   rides on the chamfered fill; the soft outer glow stays on the host. */
+.cy-cell.today {
+  box-shadow: 0 0 16px var(--cy-glow-today);
+}
+.cy-cell.today::before {
+  box-shadow: inset 0 0 22px var(--cy-glow-today-inset);
+}
+.cy-cell-num {
+  font-family: var(--font-mono), monospace;
+  color: var(--cy-muted);
+}
+.cy-cell.today .cy-cell-num {
+  color: var(--cy-yellow);
+  text-shadow: 0 0 10px var(--cy-glow-yellow);
+  font-weight: 700;
+}
+
+.cy-chip {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  padding: 2px 7px;
+  background: var(--cy-chip-bg);
+  color: var(--cy-chip-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  border-left: 3px solid var(--cy-cyan);
+  cursor: pointer;
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 6px 100%, 0 calc(100% - 6px));
+}
+
+/* Applied to shadcn DialogContent / PopoverContent. Do NOT set `position` here:
+   this block is unlayered, so it would override Tailwind's `fixed` centering
+   utility and push the portaled dialog off-screen (leaving only the blurred
+   overlay visible). Keep this to visual props only.
+
+   Shape and border are deliberately split so the border can be a uniform
+   stroke: `::before` is the dark panel fill clipped to the chamfered shape,
+   while the cyan border is drawn by <CyberFrame> as an SVG vector stroke. A CSS
+   clip-path fill rasterizes its 45° chamfer edges brighter than its straight
+   edges, so it can't render an even border — an SVG stroke can. `.cy-dialog`
+   itself stays transparent (overriding shadcn's bg/shadow) and is intentionally
+   NOT clipped, so the child SVG stroke isn't clipped away at the edges. The 20px
+   chamfer here must match CHAMFER in CyberFrame. */
+.cy-dialog {
+  background: transparent;
+  box-shadow: none;
+}
+.cy-dialog::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(
+    180deg,
+    var(--cy-dialog-top),
+    var(--cy-dialog-bottom)
+  );
+  clip-path: polygon(
+    0 0,
+    calc(100% - 20px) 0,
+    100% 20px,
+    100% 100%,
+    20px 100%,
+    0 calc(100% - 20px)
+  );
+}
+
+.cy-glitch {
+  animation: cy-glitch 450ms steps(2) 1;
+}
+@keyframes cy-glitch {
+  0% {
+    transform: translate(0, 0);
+    filter: none;
+  }
+  20% {
+    transform: translate(-2px, 1px);
+    filter: drop-shadow(2px 0 var(--cy-magenta))
+      drop-shadow(-2px 0 var(--cy-cyan));
+  }
+  40% {
+    transform: translate(2px, -1px);
+  }
+  100% {
+    transform: translate(0, 0);
+    filter: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cy-scanlines::before,
+  .cy-scanlines::after {
+    animation: none !important;
+  }
+  .cy-glitch {
+    animation: none !important;
+  }
+}
+
+.cy-balance {
+  font-family: var(--font-mono), monospace;
+  font-size: 10px;
+  color: var(--cy-cyan);
+  text-shadow: 0 0 8px var(--cy-glow-cyan-soft);
+}
+.cy-balance-neg {
+  color: var(--cy-magenta);
+  text-shadow: 0 0 8px var(--cy-glow-magenta-soft);
+}
+
+/* Drop target highlight while a chip is dragged over a day cell. Mirrors the
+   `today` cyan treatment: outer glow on the host, inset glow on the chamfered
+   fill so the highlight follows the cell's clipped shape. */
+.cy-cell.drop {
+  box-shadow: 0 0 16px var(--cy-glow-cyan-soft);
+}
+.cy-cell.drop::before {
+  box-shadow: inset 0 0 22px var(--cy-glow-cyan-soft);
+}
+/* Compact-mode selected day: persistent cyan treatment mirroring `.drop`,
+   paired with a cyan CyberFrame stroke set in DayCell. Scoped to non-today
+   cells so today's yellow glow wins when a cell is both today and selected,
+   matching DayCell's frame-color precedence (today > selected). */
+.cy-cell.selected:not(.today) {
+  box-shadow: 0 0 16px var(--cy-glow-cyan-soft);
+}
+.cy-cell.selected:not(.today)::before {
+  box-shadow: inset 0 0 22px var(--cy-glow-cyan-soft);
+}
+/* The source chip dims while its DragOverlay copy follows the pointer. */
+.cy-chip-dragging {
+  opacity: 0.35;
+}
+/* sonner toast themed to the cyberpunk panel look. */
+.cy-toast {
+  background: linear-gradient(
+    180deg,
+    var(--cy-dialog-top),
+    var(--cy-dialog-bottom)
+  );
+  color: var(--cy-text);
+  border: 1px solid var(--cy-line);
+  border-radius: 0;
+  font-family: var(--font-mono), monospace;
+  font-size: 12px;
+}
+.cy-toast-action {
+  background: var(--cy-cyan);
+  color: var(--cy-cta-fg);
+  border-radius: 0;
+}
