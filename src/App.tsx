@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { parseISO } from "date-fns";
 import {
   DndContext,
@@ -59,13 +59,20 @@ type ScopeState =
 const CalendarScreen = () => {
   const cal = useCalendar();
   const sync = useSync();
+  const [syncOpen, setSyncOpen] = useState(false);
+  // A scanned device link lands on the TOTP challenge; open the dialog so the
+  // code prompt is visible. (No-op for normal sign-ins: the dialog is already
+  // open when step changes.)
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (sync.step === "signin-totp") setSyncOpen(true);
+  }, [sync.step]);
   const selectedYear = cal.visibleMonth.getFullYear();
   const selectedMonth = cal.visibleMonth.getMonth();
   const [editor, setEditor] = useState<EditorState | null>(null);
   const [scope, setScope] = useState<ScopeState | null>(null);
   const [manageOpen, setManageOpen] = useState(false);
   const [dataOpen, setDataOpen] = useState(false);
-  const [syncOpen, setSyncOpen] = useState(false);
   const [activeOccurrence, setActiveOccurrence] = useState<Occurrence | null>(
     null,
   );

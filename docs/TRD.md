@@ -633,6 +633,26 @@ to a **locked** state until the user re-enters their password.
   the DEK and sets a new password). Both support Supabase "Secure password
   change" by prompting for an emailed reauthentication code when required.
 
+### Device linking (QR sign-in)
+
+A signed-in, unlocked device can mint a sign-in QR from the sync dialog
+("Link another device"). Generating it requires re-entering the password:
+the app re-derives `authSecret` and the KEK with `deriveKeys`, validates
+them by unwrapping the account's wrapped DEK, and encodes
+`{ v, email, authSecret, kek }` (module `src/lib/deviceLink`) into a URL
+fragment on the app origin: `#device-link=<base64url JSON>`. Fragments are
+never sent in HTTP requests, so the secrets stay out of host logs.
+
+Scanning the QR opens the app, which consumes and strips the fragment at
+boot (`SyncProvider`), signs in with the carried `authSecret`, and lands on
+the TOTP challenge; the carried KEK unwraps the fetched key material after
+`aal2`, so no password is typed on the new device. RLS still gates all data
+behind `aal2`, so the payload alone reads nothing. The payload is a
+reusable credential equivalent to the password and is treated the same way:
+shown only on demand behind a password check, never persisted or logged,
+and invalidated by a password change (both secrets derive from it). A
+device that is already signed in ignores scanned links.
+
 ### Security properties and accepted limitations
 
 - Local IndexedDB is **plaintext at rest** (the same as local-only mode); E2EE
