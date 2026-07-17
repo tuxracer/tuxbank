@@ -34,6 +34,7 @@ import {
 import {
   buildDeviceLinkUrl,
   DEVICE_LINK_VERSION,
+  parseDeviceLinkHash,
   type DeviceLinkPayload,
 } from "@/lib/deviceLink";
 import {
@@ -113,6 +114,27 @@ export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
   const pendingRef = useRef<PendingAuth | null>(null);
   const syncingRef = useRef(false);
 
+  // A scanned device link arrives via the URL hash. Read-once (StrictMode
+  // re-runs effects; the ref makes consumption idempotent) and the fragment
+  // is stripped immediately so the secrets it carries never sit in the
+  // address bar or browser history.
+  const linkPayloadRef = useRef<DeviceLinkPayload | null | undefined>(
+    undefined,
+  );
+  const consumeLinkPayload = useCallback((): DeviceLinkPayload | null => {
+    if (linkPayloadRef.current === undefined) {
+      linkPayloadRef.current = parseDeviceLinkHash(window.location.hash);
+      if (linkPayloadRef.current) {
+        history.replaceState(
+          null,
+          "",
+          window.location.pathname + window.location.search,
+        );
+      }
+    }
+    return linkPayloadRef.current;
+  }, []);
+
   // Set the in-memory data key and cache it on the device so a reload or
   // restart resumes unlocked instead of re-prompting for the password. The ref
   // is set synchronously (callers fire doSync right after); persistence runs in
@@ -160,40 +182,6 @@ export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
   const syncNow = useCallback(async () => {
     await doSync();
   }, [doSync]);
-
-  // Detect an existing session on mount and resume it without re-prompting.
-  useEffect(() => {
-    if (!remote) return;
-    let active = true;
-    void getActiveSession()
-      .then(async (session) => {
-        if (!active) return;
-        if (session?.aal2) {
-          // Fully set-up session. If the DEK was cached on this device, resume
-          // unlocked and sync; otherwise fall back to "locked" for a password.
-          setEmail(session.email);
-          const storedDek = await getStoredDek().catch(() => undefined);
-          if (!active) return;
-          if (storedDek) {
-            dekRef.current = storedDek;
-            setStatus("synced");
-            void doSync();
-          } else {
-            setStatus("locked");
-          }
-        } else {
-          // No usable session: drop any orphaned cached key. For a half-set-up
-          // aal1 session (email confirmed but setup never finished), also sign
-          // out so the user signs in cleanly, which runs TOTP + setup.
-          void clearStoredDek();
-          if (session) void authSignOut();
-        }
-      })
-      .catch(() => undefined);
-    return () => {
-      active = false;
-    };
-  }, [remote, doSync]);
 
   // Sync when the window regains focus or the network reconnects (an offline
   // edit otherwise stays unpushed until the next edit, navigation, or reload).
@@ -451,6 +439,44 @@ export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
     },
     [remote],
   );
+
+  // Detect an existing session on mount and resume it without re-prompting.
+  // A scanned device link arrives here too, via the URL hash.
+  useEffect(() => {
+    const linkPayload = consumeLinkPayload();
+    if (!remote) return;
+    let active = true;
+    void getActiveSession()
+      .then(async (session) => {
+        if (!active) return;
+        if (session?.aal2) {
+          if (linkPayload) toast("Already signed in on this device.");
+          // Fully set-up session. If the DEK was cached on this device, resume
+          // unlocked and sync; otherwise fall back to "locked" for a password.
+          setEmail(session.email);
+          const storedDek = await getStoredDek().catch(() => undefined);
+          if (!active) return;
+          if (storedDek) {
+            dekRef.current = storedDek;
+            setStatus("synced");
+            void doSync();
+          } else {
+            setStatus("locked");
+          }
+        } else {
+          // No usable session: drop any orphaned cached key. For a half-set-up
+          // aal1 session (email confirmed but setup never finished), also sign
+          // out so the user signs in cleanly, which runs TOTP + setup.
+          void clearStoredDek();
+          if (session) await authSignOut();
+          if (linkPayload && active) await signInWithLink(linkPayload);
+        }
+      })
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, [remote, doSync, consumeLinkPayload, signInWithLink]);
 
   const createDeviceLink = useCallback(
     async (password: string): Promise<string | null> => {

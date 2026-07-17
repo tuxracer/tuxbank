@@ -13,7 +13,7 @@ import {
 } from "@/lib/storage";
 import type { CalendarEvent } from "@/types";
 import { CalendarProvider, useCalendar } from "@/context/CalendarContext";
-import { parseDeviceLinkHash } from "@/lib/deviceLink";
+import { buildDeviceLinkUrl, parseDeviceLinkHash } from "@/lib/deviceLink";
 import { toBase64 } from "@/utils/base64";
 import { SyncProvider, useSync } from "./index";
 
@@ -613,5 +613,49 @@ describe("signInWithLink", () => {
     expect(mocks.toastError).toHaveBeenCalled();
     expect(result.current.error).toBeNull();
     expect(result.current.step).toBe("idle");
+  });
+});
+
+const setLinkHash = () => {
+  window.location.hash = new URL(
+    buildDeviceLinkUrl(linkPayload, "https://tuxbank.app"),
+  ).hash;
+};
+
+describe("device-link hash at boot", () => {
+  beforeEach(async () => {
+    await resetDbForTests();
+    vi.clearAllMocks();
+    mocks.runSync.mockResolvedValue({ pulled: 0, pushed: 0 });
+    window.location.hash = "";
+  });
+
+  it("consumes the hash and stages the TOTP challenge", async () => {
+    setLinkHash();
+    mocks.getActiveSession.mockResolvedValue(null);
+    mocks.signIn.mockResolvedValue(undefined);
+    mocks.getTotpFactorId.mockResolvedValue("factor-1");
+    const { result } = renderHook(() => useSync(), { wrapper });
+    await waitFor(() => expect(result.current.step).toBe("signin-totp"));
+    expect(mocks.signIn).toHaveBeenCalledWith("a@b.com", "auth-secret");
+    expect(window.location.hash).toBe("");
+  });
+
+  it("ignores the link when a session already exists", async () => {
+    setLinkHash();
+    mocks.getActiveSession.mockResolvedValue({ email: "a@b.com", aal2: true });
+    await setStoredDek(DEK);
+    const { result } = renderHook(() => useSync(), { wrapper });
+    await waitFor(() => expect(result.current.status).toBe("synced"));
+    expect(mocks.signIn).not.toHaveBeenCalled();
+    expect(window.location.hash).toBe("");
+  });
+
+  it("boots normally on a malformed link hash", async () => {
+    window.location.hash = "#device-link=garbage";
+    mocks.getActiveSession.mockResolvedValue(null);
+    const { result } = renderHook(() => useSync(), { wrapper });
+    await waitFor(() => expect(result.current.status).toBe("off"));
+    expect(mocks.signIn).not.toHaveBeenCalled();
   });
 });
