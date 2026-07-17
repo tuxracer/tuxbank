@@ -4,8 +4,10 @@ import {
   unlockWithPassword,
   unlockWithRecoveryKey,
   rewrapForNewPassword,
+  unlockWithKek,
 } from "./index";
 import { isKeyMaterial } from "./types";
+import { deriveKeys } from "@/lib/crypto";
 
 // Controls what the account wrappers see as the Supabase client.
 let mockClient: unknown = null;
@@ -164,4 +166,22 @@ describe("rewrapForNewPassword", () => {
       expect(rewrapped.authSecret).not.toBe(provisioned.authSecret);
     },
   );
+});
+
+describe("unlockWithKek", () => {
+  it("unwraps the DEK with a directly supplied KEK", async () => {
+    const { keyMaterial, dek } = await provisionAccountKeys(
+      "pw-123456",
+      "a@b.com",
+    );
+    const { kek } = await deriveKeys("pw-123456", "a@b.com");
+    expect(await unlockWithKek(kek, keyMaterial)).toEqual(dek);
+  });
+
+  it("rejects with a wrong KEK", async () => {
+    const { keyMaterial } = await provisionAccountKeys("pw-123456", "a@b.com");
+    await expect(
+      unlockWithKek(new Uint8Array(32).fill(9), keyMaterial),
+    ).rejects.toThrow();
+  });
 });

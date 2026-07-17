@@ -51,13 +51,19 @@ export const provisionAccountKeys = async (
   };
 };
 
+/** Unwrap the DEK with an already-derived KEK (device-link sign-in). */
+export const unlockWithKek = async (
+  kek: Uint8Array,
+  material: KeyMaterial,
+): Promise<Uint8Array> => unwrapKey(passwordBox(material), kek);
+
 export const unlockWithPassword = async (
   password: string,
   email: string,
   material: KeyMaterial,
 ): Promise<Uint8Array> => {
   const { kek } = await deriveKeys(password, email);
-  return unwrapKey(passwordBox(material), kek);
+  return unlockWithKek(kek, material);
 };
 
 const recoveryBox = (material: KeyMaterial): SealedBox => ({
