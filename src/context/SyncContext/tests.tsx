@@ -657,5 +657,8 @@ describe("device-link hash at boot", () => {
     const { result } = renderHook(() => useSync(), { wrapper });
     await waitFor(() => expect(result.current.status).toBe("off"));
     expect(mocks.signIn).not.toHaveBeenCalled();
+    // Unparseable payloads (e.g. a future-version link) still carry live
+    // secrets and must be stripped from the address bar regardless.
+    expect(window.location.hash).toBe("");
   });
 });

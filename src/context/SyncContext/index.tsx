@@ -33,6 +33,7 @@ import {
 } from "@/lib/account";
 import {
   buildDeviceLinkUrl,
+  DEVICE_LINK_HASH_PREFIX,
   DEVICE_LINK_VERSION,
   parseDeviceLinkHash,
   type DeviceLinkPayload,
@@ -59,6 +60,12 @@ export * from "./types";
 const SyncContext = createContext<SyncContextValue | null>(null);
 
 const SYNC_DEBOUNCE_MS = 2_000;
+
+// Shown when a scanned device-link sign-in fails, whether from an explicitly
+// rejected sign-in (signInWithLink's catch) or an unexpected throw while
+// resuming a half-completed link sign-in at boot.
+const LINK_SIGNIN_FAILED_MESSAGE =
+  "This link code did not work. It may be outdated. Generate a new one on your signed-in device.";
 
 const describeError = (error: unknown): string =>
   isAccountError(error)
@@ -123,8 +130,12 @@ export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
   );
   const consumeLinkPayload = useCallback((): DeviceLinkPayload | null => {
     if (linkPayloadRef.current === undefined) {
-      linkPayloadRef.current = parseDeviceLinkHash(window.location.hash);
-      if (linkPayloadRef.current) {
+      const hash = window.location.hash;
+      linkPayloadRef.current = parseDeviceLinkHash(hash);
+      // Strip the fragment whenever it looks like a device link, even if it
+      // failed to parse (e.g. a future-version payload) — it still carries
+      // live secrets and must never sit in the address bar or history.
+      if (hash.startsWith(DEVICE_LINK_HASH_PREFIX)) {
         history.replaceState(
           null,
           "",
@@ -432,9 +443,11 @@ export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
         };
         setStep("signin-totp");
       } catch {
-        toast.error(
-          "This link code did not work. It may be outdated. Generate a new one on your signed-in device.",
-        );
+        // An unexpected throw (e.g. getTotpFactorId failing after a
+        // successful sign-in) must not leave a live aal1 session behind
+        // while the UI still shows "off".
+        await authSignOut().catch(() => undefined);
+        toast.error(LINK_SIGNIN_FAILED_MESSAGE);
       }
     },
     [remote],
@@ -472,7 +485,12 @@ export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
           if (linkPayload && active) await signInWithLink(linkPayload);
         }
       })
-      .catch(() => undefined);
+      .catch(() => {
+        // authSignOut() above (for a half-set-up session) can itself throw.
+        // Without this, a scanned link would be silently dropped with no
+        // feedback; surface the same generic failure signInWithLink shows.
+        if (linkPayload) toast.error(LINK_SIGNIN_FAILED_MESSAGE);
+      });
     return () => {
       active = false;
     };

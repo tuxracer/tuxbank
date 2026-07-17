@@ -12,8 +12,19 @@ import { CyberFrame } from "@/components/CyberFrame";
 import { toast } from "sonner";
 import { renderSVG } from "uqr";
 import { useSync } from "@/context/SyncContext";
-import type { SyncContextValue } from "@/context/SyncContext";
+import type { SyncContextValue, SyncStatus } from "@/context/SyncContext";
 import { MIN_PASSWORD_LENGTH } from "./consts";
+
+/** Statuses where the account is active (signed in and unlocked). */
+const ACCOUNT_ACTIVE_STATUSES: readonly SyncStatus[] = [
+  "synced",
+  "syncing",
+  "error",
+  "offline",
+];
+
+const isAccountActive = (status: SyncStatus): boolean =>
+  ACCOUNT_ACTIVE_STATUSES.includes(status);
 
 interface SyncDialogProps {
   open: boolean;
@@ -234,10 +245,7 @@ export const SyncDialog = ({ open, onOpenChange }: SyncDialogProps) => {
             )}
 
             {/* SYNCED / SYNCING / ERROR / OFFLINE (all post-onboarding, account active) */}
-            {(sync.status === "synced" ||
-              sync.status === "syncing" ||
-              sync.status === "error" ||
-              sync.status === "offline") &&
+            {isAccountActive(sync.status) &&
               sync.step === "idle" &&
               !changingPw &&
               !confirmingSignOut &&
@@ -287,10 +295,7 @@ export const SyncDialog = ({ open, onOpenChange }: SyncDialogProps) => {
               )}
 
             {/* CHANGE PASSWORD (from the synced state) */}
-            {(sync.status === "synced" ||
-              sync.status === "syncing" ||
-              sync.status === "error" ||
-              sync.status === "offline") &&
+            {isAccountActive(sync.status) &&
               sync.step === "idle" &&
               changingPw &&
               !awaitingReauth && (
@@ -356,10 +361,7 @@ export const SyncDialog = ({ open, onOpenChange }: SyncDialogProps) => {
               )}
 
             {/* LINK ANOTHER DEVICE: password check, then a sign-in QR */}
-            {(sync.status === "synced" ||
-              sync.status === "syncing" ||
-              sync.status === "error" ||
-              sync.status === "offline") &&
+            {isAccountActive(sync.status) &&
               sync.step === "idle" &&
               linking && (
                 <section className="flex flex-col gap-3">
