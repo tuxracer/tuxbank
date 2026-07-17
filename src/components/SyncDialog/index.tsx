@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CyberFrame } from "@/components/CyberFrame";
 import { toast } from "sonner";
+import { renderSVG } from "uqr";
 import { useSync } from "@/context/SyncContext";
 import type { SyncContextValue } from "@/context/SyncContext";
 import { MIN_PASSWORD_LENGTH } from "./consts";
@@ -33,6 +34,7 @@ const ERROR_TEXT: Record<string, string> = {
   NOT_CONFIGURED: "Sync is not configured.",
   PASSWORD_CHANGE_FAILED: "Could not change your password. Please try again.",
   RECOVERY_FAILED: "Could not recover. Check your recovery key and try again.",
+  LINK_CREATE_FAILED: "Could not generate a link code. Check your password.",
 };
 
 const errorText = (code: string): string => ERROR_TEXT[code] ?? code;
@@ -72,6 +74,8 @@ export const SyncDialog = ({ open, onOpenChange }: SyncDialogProps) => {
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [changingPw, setChangingPw] = useState(false);
+  const [linking, setLinking] = useState(false);
+  const [linkUrl, setLinkUrl] = useState<string | null>(null);
   const [recovering, setRecovering] = useState(false);
   const [recoveryKeyInput, setRecoveryKeyInput] = useState("");
   const [awaitingReauth, setAwaitingReauth] = useState(false);
@@ -86,6 +90,8 @@ export const SyncDialog = ({ open, onOpenChange }: SyncDialogProps) => {
     setCode("");
     setBusy(false);
     setChangingPw(false);
+    setLinking(false);
+    setLinkUrl(null);
     setRecovering(false);
     setRecoveryKeyInput("");
     setAwaitingReauth(false);
@@ -234,7 +240,8 @@ export const SyncDialog = ({ open, onOpenChange }: SyncDialogProps) => {
               sync.status === "offline") &&
               sync.step === "idle" &&
               !changingPw &&
-              !confirmingSignOut && (
+              !confirmingSignOut &&
+              !linking && (
                 <section className="flex flex-col gap-3">
                   <p className="cy-mono text-xs">
                     Signed in as <span className="cy-hud on">{sync.email}</span>
@@ -250,6 +257,15 @@ export const SyncDialog = ({ open, onOpenChange }: SyncDialogProps) => {
                     onClick={() => void sync.syncNow()}
                   >
                     Sync now
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    onClick={() => {
+                      setPassword("");
+                      setLinking(true);
+                    }}
+                  >
+                    Link another device
                   </Button>
                   <Button
                     variant="ghost"
@@ -335,6 +351,73 @@ export const SyncDialog = ({ open, onOpenChange }: SyncDialogProps) => {
                     }}
                   >
                     Cancel
+                  </Button>
+                </section>
+              )}
+
+            {/* LINK ANOTHER DEVICE: password check, then a sign-in QR */}
+            {(sync.status === "synced" ||
+              sync.status === "syncing" ||
+              sync.status === "error" ||
+              sync.status === "offline") &&
+              sync.step === "idle" &&
+              linking && (
+                <section className="flex flex-col gap-3">
+                  {!linkUrl && (
+                    <>
+                      <p className="cy-mono text-xs">
+                        Confirm your password to generate a sign-in code for
+                        another device.
+                      </p>
+                      <Label htmlFor="link-pw">Password</Label>
+                      <Input
+                        id="link-pw"
+                        type="password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                      />
+                      <Button
+                        className="cy-btn justify-start"
+                        disabled={busy || !password}
+                        onClick={async () => {
+                          setBusy(true);
+                          const url = await sync.createDeviceLink(password);
+                          setBusy(false);
+                          setPassword("");
+                          if (url) setLinkUrl(url);
+                        }}
+                      >
+                        {busy ? "Working…" : "Generate code"}
+                      </Button>
+                    </>
+                  )}
+                  {linkUrl && (
+                    <>
+                      <p className="cy-mono text-xs">
+                        Scan this on the other device. It opens tuxbank and
+                        signs you in; you still enter your 2FA code there.
+                      </p>
+                      <div
+                        data-testid="device-link-qr"
+                        className="mx-auto h-44 w-44 bg-white p-2 [&_svg]:h-full [&_svg]:w-full"
+                        dangerouslySetInnerHTML={{ __html: renderSVG(linkUrl) }}
+                      />
+                      <p className="cy-mono text-[10px] text-[color:var(--cy-magenta)]">
+                        Treat this code like your password: anyone who scans it
+                        can sign in as you if they also have a 2FA code. It
+                        stays valid until you change your password.
+                      </p>
+                    </>
+                  )}
+                  <Button
+                    variant="ghost"
+                    onClick={() => {
+                      setLinking(false);
+                      setLinkUrl(null);
+                      setPassword("");
+                    }}
+                  >
+                    {linkUrl ? "Done" : "Cancel"}
                   </Button>
                 </section>
               )}
