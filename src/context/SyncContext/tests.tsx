@@ -13,6 +13,8 @@ import {
 } from "@/lib/storage";
 import type { CalendarEvent } from "@/types";
 import { CalendarProvider, useCalendar } from "@/context/CalendarContext";
+import { parseDeviceLinkHash } from "@/lib/deviceLink";
+import { toBase64 } from "@/utils/base64";
 import { SyncProvider, useSync } from "./index";
 
 // Replace the network-facing account + sync layers; the storage layer stays
@@ -21,6 +23,13 @@ const mocks = vi.hoisted(() => ({
   getActiveSession: vi.fn(),
   signOut: vi.fn(),
   runSync: vi.fn(),
+  signIn: vi.fn(),
+  getTotpFactorId: vi.fn(),
+  verifyTotp: vi.fn(),
+  fetchKeyMaterial: vi.fn(),
+  unlockWithKek: vi.fn(),
+  deriveKeys: vi.fn(),
+  toastError: vi.fn(),
 }));
 
 vi.mock("@/lib/account", () => ({
@@ -28,19 +37,20 @@ vi.mock("@/lib/account", () => ({
   signOut: mocks.signOut,
   isAccountError: () => false,
   enrollTotp: vi.fn(),
-  fetchKeyMaterial: vi.fn(),
-  getTotpFactorId: vi.fn(),
+  fetchKeyMaterial: mocks.fetchKeyMaterial,
+  getTotpFactorId: mocks.getTotpFactorId,
   provisionAccountKeys: vi.fn(),
   requestReauthentication: vi.fn(),
   rewrapForNewPassword: vi.fn(),
-  signIn: vi.fn(),
+  signIn: mocks.signIn,
   signUp: vi.fn(),
+  unlockWithKek: mocks.unlockWithKek,
   unlockWithPassword: vi.fn(),
   unlockWithRecoveryKey: vi.fn(),
   updateAuthPassword: vi.fn(),
   updatePasswordColumns: vi.fn(),
   uploadKeyMaterial: vi.fn(),
-  verifyTotp: vi.fn(),
+  verifyTotp: mocks.verifyTotp,
 }));
 
 vi.mock("@/lib/sync", async (importOriginal) => {
@@ -51,6 +61,16 @@ vi.mock("@/lib/sync", async (importOriginal) => {
     runSync: mocks.runSync,
   };
 });
+
+// deriveKeys is mocked so tests skip the (slow, real) Argon2id derivation.
+vi.mock("@/lib/crypto", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/crypto")>();
+  return { ...actual, deriveKeys: mocks.deriveKeys };
+});
+
+vi.mock("sonner", () => ({
+  toast: Object.assign(vi.fn(), { error: mocks.toastError }),
+}));
 
 const wrapper = ({ children }: { children: React.ReactNode }) => (
   <CalendarProvider>
@@ -466,4 +486,132 @@ describe("SyncContext offline awareness", () => {
       await waitFor(() => expect(result.current.pendingCount).toBe(0));
     },
   );
+});
+
+const KEK = new Uint8Array(32).fill(7);
+const DEK = new Uint8Array(32).fill(3);
+
+const keyMaterial = {
+  wrapped_dek: "d",
+  wrapped_dek_nonce: "n",
+  recovery_wrapped_dek: "r",
+  recovery_nonce: "rn",
+  kdf_version: 1,
+};
+
+const linkPayload = {
+  v: 1 as const,
+  email: "a@b.com",
+  authSecret: "auth-secret",
+  kek: toBase64(KEK),
+};
+
+// Boot the provider into the unlocked/synced state (aal2 session + cached DEK).
+const renderUnlocked = async () => {
+  mocks.getActiveSession.mockResolvedValue({ email: "a@b.com", aal2: true });
+  await setStoredDek(DEK);
+  const view = renderHook(() => useSync(), { wrapper });
+  await waitFor(() => expect(view.result.current.status).toBe("synced"));
+  return view;
+};
+
+describe("createDeviceLink", () => {
+  beforeEach(async () => {
+    await resetDbForTests();
+    // Clear call history left by other describes sharing these hoisted mocks
+    // (their configured resolved values are untouched by clearAllMocks).
+    vi.clearAllMocks();
+    mocks.runSync.mockResolvedValue({ pulled: 0, pushed: 0 });
+  });
+
+  it("returns null when not unlocked", async () => {
+    mocks.getActiveSession.mockResolvedValue(null);
+    const { result } = renderHook(() => useSync(), { wrapper });
+    expect(await result.current.createDeviceLink("pw")).toBeNull();
+  });
+
+  it("returns a parseable URL carrying the derived secrets", async () => {
+    mocks.deriveKeys.mockResolvedValue({ kek: KEK, authSecret: "auth-secret" });
+    mocks.fetchKeyMaterial.mockResolvedValue(keyMaterial);
+    mocks.unlockWithKek.mockResolvedValue(DEK);
+    const { result } = await renderUnlocked();
+    let url: string | null = null;
+    await act(async () => {
+      url = await result.current.createDeviceLink("pw-123456");
+    });
+    expect(url).not.toBeNull();
+    expect(parseDeviceLinkHash(new URL(url!).hash)).toEqual(linkPayload);
+    expect(mocks.unlockWithKek).toHaveBeenCalledWith(KEK, keyMaterial);
+  });
+
+  it("sets LINK_CREATE_FAILED and returns null on a wrong password", async () => {
+    mocks.deriveKeys.mockResolvedValue({ kek: KEK, authSecret: "auth-secret" });
+    mocks.fetchKeyMaterial.mockResolvedValue(keyMaterial);
+    mocks.unlockWithKek.mockRejectedValue(new Error("bad key"));
+    const { result } = await renderUnlocked();
+    let url: string | null = "sentinel";
+    await act(async () => {
+      url = await result.current.createDeviceLink("wrong");
+    });
+    expect(url).toBeNull();
+    await waitFor(() =>
+      expect(result.current.error).toBe("LINK_CREATE_FAILED"),
+    );
+  });
+});
+
+describe("signInWithLink", () => {
+  beforeEach(async () => {
+    await resetDbForTests();
+    // Clear call history left by other describes sharing these hoisted mocks
+    // (their configured resolved values are untouched by clearAllMocks).
+    vi.clearAllMocks();
+    mocks.runSync.mockResolvedValue({ pulled: 0, pushed: 0 });
+  });
+
+  it("stages the TOTP challenge without deriving keys", async () => {
+    mocks.getActiveSession.mockResolvedValue(null);
+    mocks.signIn.mockResolvedValue(undefined);
+    mocks.getTotpFactorId.mockResolvedValue("factor-1");
+    const { result } = renderHook(() => useSync(), { wrapper });
+    await act(async () => {
+      await result.current.signInWithLink(linkPayload);
+    });
+    expect(mocks.signIn).toHaveBeenCalledWith("a@b.com", "auth-secret");
+    expect(result.current.step).toBe("signin-totp");
+    expect(result.current.email).toBe("a@b.com");
+    expect(mocks.deriveKeys).not.toHaveBeenCalled();
+  });
+
+  it("completes the unlock through confirmTotp using the carried KEK", async () => {
+    mocks.getActiveSession.mockResolvedValue(null);
+    mocks.signIn.mockResolvedValue(undefined);
+    mocks.getTotpFactorId.mockResolvedValue("factor-1");
+    mocks.verifyTotp.mockResolvedValue(undefined);
+    mocks.fetchKeyMaterial.mockResolvedValue(keyMaterial);
+    mocks.unlockWithKek.mockResolvedValue(DEK);
+    const { result } = renderHook(() => useSync(), { wrapper });
+    await act(async () => {
+      await result.current.signInWithLink(linkPayload);
+    });
+    await act(async () => {
+      await result.current.confirmTotp("123456");
+    });
+    expect(mocks.verifyTotp).toHaveBeenCalledWith("factor-1", "123456");
+    expect(mocks.unlockWithKek).toHaveBeenCalledWith(KEK, keyMaterial);
+    expect(result.current.status).toBe("synced");
+    expect(result.current.step).toBe("idle");
+  });
+
+  it("toasts instead of setting error when the sign-in is rejected", async () => {
+    mocks.getActiveSession.mockResolvedValue(null);
+    mocks.signIn.mockRejectedValue(new Error("SIGNIN_FAILED"));
+    const { result } = renderHook(() => useSync(), { wrapper });
+    await act(async () => {
+      await result.current.signInWithLink(linkPayload);
+    });
+    expect(mocks.toastError).toHaveBeenCalled();
+    expect(result.current.error).toBeNull();
+    expect(result.current.step).toBe("idle");
+  });
 });

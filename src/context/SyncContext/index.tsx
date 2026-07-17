@@ -7,6 +7,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { toast } from "sonner";
 import { useCalendar } from "@/context/CalendarContext";
 import { deriveKeys } from "@/lib/crypto";
 import {
@@ -21,6 +22,7 @@ import {
   signIn as authSignIn,
   signOut as authSignOut,
   signUp,
+  unlockWithKek,
   unlockWithPassword,
   unlockWithRecoveryKey,
   updateAuthPassword,
@@ -30,6 +32,11 @@ import {
   type KeyMaterial,
 } from "@/lib/account";
 import {
+  buildDeviceLinkUrl,
+  DEVICE_LINK_VERSION,
+  type DeviceLinkPayload,
+} from "@/lib/deviceLink";
+import {
   clearLocalData,
   clearStoredDek,
   commitImportLocal,
@@ -38,6 +45,7 @@ import {
   setStoredDek,
 } from "@/lib/storage";
 import { countPendingChanges, createSupabaseRemote, runSync } from "@/lib/sync";
+import { fromBase64, toBase64 } from "@/utils/base64";
 import type {
   OnboardStep,
   PwResult,
@@ -76,6 +84,12 @@ const applyAuthSecret = async (
   }
 };
 
+// What confirmTotp needs to finish an unlock after aal2: the password flow
+// re-derives the KEK; the device-link flow carries it directly.
+type PendingAuth =
+  | { kind: "password"; email: string; password: string; factorId: string }
+  | { kind: "link"; email: string; kek: Uint8Array; factorId: string };
+
 export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
   // Destructure the stable callback + the changing values so effects do not
   // thrash on the calendar context value object (which is new every render).
@@ -96,11 +110,7 @@ export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
   const [error, setError] = useState<string | null>(null);
 
   const dekRef = useRef<Uint8Array | null>(null);
-  const pendingRef = useRef<{
-    email: string;
-    password: string;
-    factorId: string;
-  } | null>(null);
+  const pendingRef = useRef<PendingAuth | null>(null);
   const syncingRef = useRef(false);
 
   // Set the in-memory data key and cache it on the device so a reload or
@@ -229,6 +239,7 @@ export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
     async (emailInput: string, password: string) => {
       const enrolled = await enrollTotp();
       pendingRef.current = {
+        kind: "password",
         email: emailInput,
         password,
         factorId: enrolled.factorId,
@@ -278,7 +289,12 @@ export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
         const factorId = await getTotpFactorId();
         if (factorId) {
           // Returning device: challenge the existing 2FA factor.
-          pendingRef.current = { email: emailInput, password, factorId };
+          pendingRef.current = {
+            kind: "password",
+            email: emailInput,
+            password,
+            factorId,
+          };
           setStep("signin-totp");
         } else {
           // First sign-in after confirming email: enroll 2FA now.
@@ -310,9 +326,16 @@ export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
         }
 
         if (material) {
-          // Existing account: unlock the data key with the password.
+          // Existing account: unlock the data key (password re-derives the
+          // KEK; a device link carries it).
           storeDek(
-            await unlockWithPassword(pending.password, pending.email, material),
+            pending.kind === "password"
+              ? await unlockWithPassword(
+                  pending.password,
+                  pending.email,
+                  material,
+                )
+              : await unlockWithKek(pending.kek, material),
           );
           pendingRef.current = null;
           setEnrollment(null);
@@ -320,6 +343,10 @@ export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
           setStatus("synced");
           setError(null);
           void doSync(); // initial pull
+        } else if (pending.kind === "link") {
+          // A device link is only minted from a fully provisioned account, so
+          // missing key material means this link cannot proceed.
+          setError("NO_KEY_MATERIAL");
         } else {
           // First-time setup: provision keys, upload them, show the recovery key.
           const provisioned = await provisionAccountKeys(
@@ -387,6 +414,65 @@ export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
       }
     },
     [remote, email, doSync, storeDek],
+  );
+
+  // Sign in from a scanned device link: authSecret and KEK arrive in the
+  // payload, so no key derivation happens on this device. Failures toast
+  // because the dialog is not open when a scanned link fails.
+  const signInWithLink = useCallback(
+    async (payload: DeviceLinkPayload) => {
+      if (!remote) return;
+      try {
+        await authSignIn(payload.email, payload.authSecret);
+        const factorId = await getTotpFactorId();
+        if (!factorId) {
+          // Links are minted from fully set-up accounts; without a 2FA factor
+          // this flow cannot finish. Drop the half sign-in.
+          await authSignOut();
+          toast.error(
+            "This link code did not work. Generate a new one on your signed-in device.",
+          );
+          return;
+        }
+        setEmail(payload.email);
+        setError(null);
+        pendingRef.current = {
+          kind: "link",
+          email: payload.email,
+          kek: fromBase64(payload.kek),
+          factorId,
+        };
+        setStep("signin-totp");
+      } catch {
+        toast.error(
+          "This link code did not work. It may be outdated. Generate a new one on your signed-in device.",
+        );
+      }
+    },
+    [remote],
+  );
+
+  const createDeviceLink = useCallback(
+    async (password: string): Promise<string | null> => {
+      if (!remote || !email || !dekRef.current) {
+        setError("NOT_CONFIGURED");
+        return null;
+      }
+      try {
+        const { kek, authSecret } = await deriveKeys(password, email);
+        // Validate the password: the derived KEK must unwrap the account DEK.
+        await unlockWithKek(kek, await fetchKeyMaterial());
+        setError(null);
+        return buildDeviceLinkUrl(
+          { v: DEVICE_LINK_VERSION, email, authSecret, kek: toBase64(kek) },
+          window.location.origin,
+        );
+      } catch (caught) {
+        setError(isAccountError(caught) ? caught.code : "LINK_CREATE_FAILED");
+        return null;
+      }
+    },
+    [remote, email],
   );
 
   const changePassword = useCallback(
@@ -543,6 +629,8 @@ export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
     finishCreate,
     signIn,
     unlock,
+    signInWithLink,
+    createDeviceLink,
     changePassword,
     recoverWithKey,
     signOut,
