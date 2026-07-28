@@ -50,6 +50,7 @@ A single person managing their own schedule of **all-day, date-based events**: m
 | Drag-and-drop | **@dnd-kit/core** | `DndContext` + `PointerSensor` in `src/App.tsx`; chips use `useDraggable`, cells use `useDroppable`. |
 | Toasts | **sonner** | Move confirmations with Undo; themed wrapper in `src/components/ui/sonner.tsx`. |
 | Testing | **vitest** + **@testing-library/react** | Behavior-focused tests per `CLAUDE.md`; storage tests run against fake-indexeddb. |
+| Analytics | **@vercel/analytics** | `<Analytics>` mounted in `src/main.tsx`. Its `beforeSend` returns `null` (dropping the event) unless `isTrackingOptedOut()` from **privacy-signals** returns exactly `false`, so a Do Not Track or Global Privacy Control signal, or an unreadable signal, suppresses all page views and events. |
 
 > **As-built stack versions:** Vite 8 (Rolldown), React 19, Tailwind v4, zod v4, react-day-picker v10.
 

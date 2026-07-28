@@ -1,6 +1,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { Analytics } from "@vercel/analytics/react";
+import { Analytics, type BeforeSend } from "@vercel/analytics/react";
+import { isTrackingOptedOut } from "privacy-signals";
 import "@fontsource/rajdhani/latin-500.css";
 import "@fontsource/rajdhani/latin-600.css";
 import "@fontsource/rajdhani/latin-700.css";
@@ -25,9 +26,16 @@ if (!container) {
   throw new Error("#root element missing from index.html");
 }
 
+// Drop analytics events when the browser signals a tracking opt-out (DNT or
+// GPC). Checked per event so a mid-session signal change is respected, and
+// only an explicit `false` (signals readable, no opt-out) lets an event
+// through — an unreadable signal is treated as an opt-out.
+const beforeSend: BeforeSend = (event) =>
+  isTrackingOptedOut() === false ? event : null;
+
 createRoot(container).render(
   <StrictMode>
     <App />
-    <Analytics />
+    <Analytics beforeSend={beforeSend} />
   </StrictMode>,
 );
