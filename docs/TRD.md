@@ -50,7 +50,7 @@ A single person managing their own schedule of **all-day, date-based events**: m
 | Drag-and-drop | **@dnd-kit/core** | `DndContext` + `PointerSensor` in `src/App.tsx`; chips use `useDraggable`, cells use `useDroppable`. |
 | Toasts | **sonner** | Move confirmations with Undo; themed wrapper in `src/components/ui/sonner.tsx`. |
 | Testing | **vitest** + **@testing-library/react** | Behavior-focused tests per `CLAUDE.md`; storage tests run against fake-indexeddb. |
-| Analytics | **@vercel/analytics** | `<Analytics>` mounted in `src/main.tsx`. Its `beforeSend` returns `null` (dropping the event) unless `isTrackingOptedOut()` from **privacy-signals** returns exactly `false`, so a Do Not Track or Global Privacy Control signal, or an unreadable signal, suppresses all page views and events. |
+| Analytics | **@vercel/analytics** | `<Analytics>` mounted in `src/main.tsx`; page views plus a small set of product events, both gated on privacy signals. See §"Analytics". |
 
 > **As-built stack versions:** Vite 8 (Rolldown), React 19, Tailwind v4, zod v4, react-day-picker v10.
 
@@ -675,3 +675,39 @@ device that is already signed in ignores scanned links.
 - Not built yet: a password-strength meter, fully-signed-out (no-session)
   password reset by email, and Realtime live push. Code-splitting/lazy-loading
   is deliberately avoided to keep the app offline-capable.
+
+---
+
+## Analytics
+
+Vercel Web Analytics collects page views and a small set of product events.
+`src/lib/analytics` owns the whole surface: `analyticsBeforeSend` (passed to
+`<Analytics>` in `src/main.tsx`) and `trackEvent`.
+
+**Privacy gate.** Both go through one check, `isTrackingOptedOut() === false`
+from the `privacy-signals` package. A Do Not Track or Global Privacy Control
+signal suppresses everything, and so does an unreadable signal: only an
+explicit "no objection" sends. `beforeSend` returns `null` to cancel page
+views, and `trackEvent` returns early so an opted-out visitor's events never
+reach the queue. The check runs per event, so a signal that changes mid-session
+takes effect immediately.
+
+**Events.** Names are a closed union in `src/lib/analytics/types.ts`. Props
+carry no user content (no titles, amounts, dates, categories, or emails).
+
+| Event | Fired when | Props |
+| --- | --- | --- |
+| `new-event-clicked` | The New Event button (full toolbar) or + Add (compact day panel) opens the editor | `layout` |
+| `sync-opened` / `data-opened` / `categories-opened` | The matching toolbar button or compact menu item opens its dialog | `layout` |
+| `data-exported` | A backup download finishes | |
+| `data-imported` | A backup replaces the current data | `synced` |
+| `data-cleared` | A confirmed "clear all data" finishes | `synced` |
+| `account-created` | Signup succeeds, before 2FA setup or email confirmation | `confirmationRequired` |
+| `signed-in` | The password or device link is accepted, before the 2FA challenge | `method` |
+
+`layout` is `compact` or `full`; `synced` says whether the action also rewrote
+the account's data on every device; `method` is `password` or `device-link`.
+Dialog opens are tracked in `src/App.tsx`, data actions in `DataDialog` (on
+success, not on click), and the account events in `SyncContext`, which is the
+only place the outcome is observable (`createAccount` / `signIn` record errors
+in state rather than throwing).

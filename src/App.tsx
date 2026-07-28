@@ -20,6 +20,7 @@ import {
   type EditScope,
 } from "@/context/CalendarContext";
 import { SyncProvider, useSync } from "@/context/SyncContext";
+import { trackEvent } from "@/lib/analytics";
 import CalendarToolbar from "@/components/CalendarToolbar";
 import DayPanel from "@/components/DayPanel";
 import MonthGrid from "@/components/MonthGrid";
@@ -104,6 +105,23 @@ const CalendarScreen = () => {
   );
 
   const openCreate = (date: string) => setEditor({ mode: "create", date });
+
+  // Which toolbar the surface was reached from; the compact layout puts these
+  // behind a menu and swaps the New Event button for the day panel's + Add.
+  const layout = isCompact ? "compact" : "full";
+
+  const openNewEvent = (date: string) => {
+    trackEvent("new-event-clicked", { layout });
+    openCreate(date);
+  };
+
+  const openSurface = (
+    name: "sync-opened" | "data-opened" | "categories-opened",
+    show: (open: boolean) => void,
+  ) => {
+    trackEvent(name, { layout });
+    show(true);
+  };
 
   // Recover from an unopenable local database by deleting it and reloading, so
   // the app reopens against a fresh one.
@@ -245,10 +263,12 @@ const CalendarScreen = () => {
         onNext={cal.goToNextMonth}
         onToday={cal.goToToday}
         onToggleCategory={cal.toggleCategory}
-        onManageCategories={() => setManageOpen(true)}
-        onManageData={() => setDataOpen(true)}
-        onSync={() => setSyncOpen(true)}
-        onNewEvent={() => openCreate(cal.todayISO)}
+        onManageCategories={() =>
+          openSurface("categories-opened", setManageOpen)
+        }
+        onManageData={() => openSurface("data-opened", setDataOpen)}
+        onSync={() => openSurface("sync-opened", setSyncOpen)}
+        onNewEvent={() => openNewEvent(cal.todayISO)}
         compact={isCompact}
       />
 
@@ -283,7 +303,7 @@ const CalendarScreen = () => {
           occurrences={cal.occurrencesByDate[resolvedSelectedDate] ?? []}
           balance={cal.balancesByDate[resolvedSelectedDate] ?? 0}
           onSelectOccurrence={openEdit}
-          onAddEvent={() => openCreate(resolvedSelectedDate)}
+          onAddEvent={() => openNewEvent(resolvedSelectedDate)}
         />
       )}
 

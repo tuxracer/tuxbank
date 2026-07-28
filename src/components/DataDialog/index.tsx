@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import type { ImportPreview } from "@/lib/storage";
 import { isStorageError } from "@/lib/storage";
+import { trackEvent } from "@/lib/analytics";
 import {
   Dialog,
   DialogContent,
@@ -64,6 +65,7 @@ const DataDialog = ({
   const handleExport = async () => {
     try {
       await onExport();
+      trackEvent("data-exported");
     } catch (error) {
       setStage({ kind: "error", message: friendlyError(error) });
     }
@@ -83,6 +85,9 @@ const DataDialog = ({
     setStage({ kind: "importing" });
     try {
       await onCommitImport(file);
+      // `synced` distinguishes a device-local replace from one that rewrites
+      // the account's data on every device.
+      trackEvent("data-imported", { synced: includesCloud });
       reset();
       onOpenChange(false);
     } catch (error) {
@@ -99,6 +104,7 @@ const DataDialog = ({
     setStage({ kind: "resetting" });
     try {
       await onClearAllData();
+      trackEvent("data-cleared", { synced: includesCloud });
       reset();
       onOpenChange(false);
     } catch (error) {

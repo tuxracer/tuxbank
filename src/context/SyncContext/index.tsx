@@ -10,6 +10,7 @@ import {
 import { toast } from "sonner";
 import { useCalendar } from "@/context/CalendarContext";
 import { deriveKeys } from "@/lib/crypto";
+import { trackEvent } from "@/lib/analytics";
 import {
   enrollTotp,
   fetchKeyMaterial,
@@ -258,6 +259,8 @@ export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
       try {
         const { authSecret } = await deriveKeys(password, emailInput);
         const hasSession = await signUp(emailInput, authSecret);
+        // The account exists now; 2FA setup (or email confirmation) follows.
+        trackEvent("account-created", { confirmationRequired: !hasSession });
         setEmail(emailInput);
         setError(null);
         if (hasSession) {
@@ -283,6 +286,8 @@ export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
       try {
         const { authSecret } = await deriveKeys(password, emailInput);
         await authSignIn(emailInput, authSecret);
+        // The password was accepted; the 2FA challenge still has to pass.
+        trackEvent("signed-in", { method: "password" });
         setEmail(emailInput);
         setError(null);
         const factorId = await getTotpFactorId();
@@ -433,6 +438,7 @@ export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
           );
           return;
         }
+        trackEvent("signed-in", { method: "device-link" });
         setEmail(payload.email);
         setError(null);
         pendingRef.current = {
