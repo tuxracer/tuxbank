@@ -232,7 +232,7 @@ This mirrors iCalendar semantics (`EXDATE` / `RECURRENCE-ID` for single override
 - **Event editor (Dialog):** built with shadcn `Form` + **react-hook-form**/zod. Fields: Title, Date (native `<input type="date">`), Category (`CategoryCombobox`: creatable combobox built on shadcn `Command` + `Popover`; backed by `useCategorySearch` for filtering and exact-match detection; pick existing or create a new name + color via `CategoryCreateRow`), Notes (Textarea), Repeat (native `<select>`: Does-not-repeat / Daily / Weekly / Monthly / Yearly) with interval + optional end date; footer with **Delete**, **Cancel**, **Save**. The shadcn `calendar`/`Select` primitives remain available for future use.
 - **Recurring scope dialog:** This event / This and following / All events (used for edit, delete, and move).
 - **Move toast:** a `sonner` toast at the bottom center confirms every move and provides an Undo action. Styled to the cyberpunk panel look via `.cy-toast` / `.cy-toast-action` in `globals.css`.
-- **Responsive / compact mode:** below 640px (Tailwind's `sm` breakpoint) the `useIsCompact()` hook (`src/hooks/useIsCompact/`, matchMedia-driven) switches the calendar to compact rendering. The grid always shows the full 6 week-rows (unlike desktop, which trims to the weeks the month spans). Day cells show up to 4 category-colored dots (plus a `+` marker when there are more) instead of full chips, and tapping a day selects it. Swiping the grid left or right changes months (left for next, right for previous), with a brief glitch flash as feedback. The selected day's events, running balance, and an Add button appear in a `DayPanel` below the grid. The toolbar becomes two rows: navigation and an overflow menu (shadcn Popover) on row 1, the category legend on row 2; the menu holds SYNC, DATA, and CATEGORIES, and its trigger shows a bare attention dot when any item inside needs attention. Drag-and-drop is disabled in compact mode; events move between days by editing the date in the event editor. Dialogs cap their height at `85dvh` and scroll internally.
+- **Responsive / compact mode:** below 640px (Tailwind's `sm` breakpoint) the `useIsCompact()` hook (`src/hooks/useIsCompact/`, matchMedia-driven) switches the calendar to compact rendering. The grid always shows the full 6 week-rows (unlike desktop, which trims to the weeks the month spans). Day cells show up to 4 category-colored dots (plus a `+` marker when there are more) instead of full chips, and tapping a day selects it. Swiping the grid left or right changes months (left for next, right for previous), with a brief glitch flash as feedback. The selected day's events, running balance, and an Add button appear in a `DayPanel` below the grid. The toolbar becomes two rows: navigation and an overflow menu (shadcn Popover) on row 1, the category legend on row 2; the menu holds SYNC, DATA, CATEGORIES, and ABOUT, and its trigger shows a bare attention dot when any item inside needs attention. Drag-and-drop is disabled in compact mode; events move between days by editing the date in the event editor. Dialogs cap their height at `85dvh` and scroll internally.
 - **Empty state:** a styled prompt to create the first event when the calendar has none.
 
 ---
@@ -307,6 +307,7 @@ src/
     DataDialog/             # JSON backup export/import (validate -> confirm -> swap) + guarded clear-all
     StorageUnavailableBanner/ # shown when storage fails; offers a reset when the DB is unopenable
     SyncDialog/             # optional account sync: create / sign-in / TOTP / recovery-key / change-password
+    AboutDialog/            # what the app is, MIT license, link to the source repository
   context/
     CalendarContext/        # visible month, events, CRUD actions (including moveEvent), filter state
     SyncContext/            # optional account-sync state machine; consume via useSync()
@@ -698,7 +699,7 @@ carry no user content (no titles, amounts, dates, categories, or emails).
 | Event | Fired when | Props |
 | --- | --- | --- |
 | `new-event-clicked` | The New Event button (full toolbar) or + Add (compact day panel) opens the editor | `layout` |
-| `sync-opened` / `data-opened` / `categories-opened` | The matching toolbar button or compact menu item opens its dialog | `layout` |
+| `sync-opened` / `data-opened` / `categories-opened` / `about-opened` | The matching toolbar button or compact menu item opens its dialog | `layout` |
 | `data-exported` | A backup download finishes | |
 | `data-imported` | A backup replaces the current data | `synced` |
 | `data-cleared` | A confirmed "clear all data" finishes | `synced` |

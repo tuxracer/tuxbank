@@ -27,6 +27,7 @@ const baseProps = (
   onToggleCategory: vi.fn(),
   onManageCategories: vi.fn(),
   onManageData: vi.fn(),
+  onAbout: vi.fn(),
   onNewEvent: vi.fn(),
   ...over,
 });
@@ -83,6 +84,14 @@ describe("CalendarToolbar compact mode", () => {
     await userEvent.click(screen.getByText("◢ DATA"));
     expect(onManageData).toHaveBeenCalled();
     expect(screen.queryByText("◢ DATA")).not.toBeInTheDocument();
+  });
+
+  it("fires onAbout from the menu", async () => {
+    const onAbout = vi.fn();
+    render(<CalendarToolbar {...baseProps({ onAbout })} compact />);
+    await userEvent.click(screen.getByTitle("More actions"));
+    await userEvent.click(screen.getByText("◢ ABOUT"));
+    expect(onAbout).toHaveBeenCalled();
   });
 
   it("fires onSync and onManageCategories from the menu", async () => {

@@ -7,6 +7,7 @@ export type AnalyticsEventName =
   | "sync-opened"
   | "data-opened"
   | "categories-opened"
+  | "about-opened"
   | "data-exported"
   | "data-imported"
   | "data-cleared"
