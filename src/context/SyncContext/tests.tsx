@@ -752,3 +752,126 @@ describe("SyncContext sign-in conflict gate", () => {
     expect(mocks.runSync).not.toHaveBeenCalled();
   });
 });
+
+describe("SyncContext conflict resolutions", () => {
+  // The mocked runSync stands in for a real first sync: it lands one
+  // account-only event on the device and writes a cursor, exactly as the pull
+  // half of runSync would. It must be mockImplementationOnce, not
+  // mockImplementation: keep-local calls doSync twice, and a mock that pulled
+  // remote-1 again on the second call would re-add the event the resolution
+  // just deleted. Later calls fall back to the beforeEach mockResolvedValue.
+  const simulateFirstSync = () => {
+    mocks.runSync.mockImplementationOnce(async () => {
+      await putEvent(testEvent("remote-1"));
+      await setSyncCursor("2026-06-11T00:00:00.000Z");
+      return { pushed: 0, pulled: 1 };
+    });
+  };
+
+  const arriveAtChoice = async () => {
+    await putEvent(testEvent("e1"));
+    mocks.count.mockResolvedValue(3);
+    await setStoredDek(new Uint8Array([1, 2, 3, 4, 5]));
+    const { result } = renderHook(() => useSync(), { wrapper });
+    await waitFor(() => expect(result.current.status).toBe("choice"));
+    return result;
+  };
+
+  beforeEach(async () => {
+    await resetDbForTests();
+    mocks.signOut.mockResolvedValue(undefined);
+    mocks.runSync.mockReset();
+    mocks.runSync.mockResolvedValue({ pushed: 0, pulled: 0 });
+    mocks.count.mockReset();
+    mocks.count.mockResolvedValue(0);
+    mocks.getActiveSession.mockResolvedValue({
+      email: "user@example.com",
+      aal2: true,
+    });
+  });
+
+  it("merge syncs without deleting anything", async () => {
+    const result = await arriveAtChoice();
+    simulateFirstSync();
+
+    await act(async () => {
+      await result.current.resolveSignInChoice("merge");
+    });
+
+    await waitFor(() => expect(result.current.status).toBe("synced"));
+    const ids = (await getAllEvents()).map((e) => e.id).sort();
+    expect(ids).toEqual(["e1", "remote-1"]);
+    expect(await getTombstones()).toEqual([]);
+    expect(result.current.signInChoice).toBeNull();
+  });
+
+  it("merge does not re-prompt after it resolves", async () => {
+    const result = await arriveAtChoice();
+
+    await act(async () => {
+      await result.current.resolveSignInChoice("merge");
+    });
+    await waitFor(() => expect(result.current.status).toBe("synced"));
+
+    await act(async () => {
+      await result.current.syncNow();
+    });
+
+    expect(result.current.status).not.toBe("choice");
+  });
+
+  it("keep remote wipes this device and records no tombstones", async () => {
+    const result = await arriveAtChoice();
+
+    await act(async () => {
+      await result.current.resolveSignInChoice("remote");
+    });
+
+    await waitFor(() => expect(result.current.status).toBe("synced"));
+    expect(await getAllEvents()).toEqual([]);
+    // Crucial: no tombstones, so the account is untouched by this device.
+    expect(await getTombstones()).toEqual([]);
+  });
+
+  it("keep local tombstones the account-only events", async () => {
+    const result = await arriveAtChoice();
+    simulateFirstSync();
+
+    await act(async () => {
+      await result.current.resolveSignInChoice("local");
+    });
+
+    await waitFor(() => expect(result.current.status).toBe("synced"));
+    // The device's own event survives; the account-only one does not.
+    expect((await getAllEvents()).map((e) => e.id)).toEqual(["e1"]);
+    expect(await getTombstones()).toEqual([
+      expect.objectContaining({ id: "remote-1", type: "event" }),
+    ]);
+  });
+
+  it("keep local captures this device's events before any pull", async () => {
+    const result = await arriveAtChoice();
+    simulateFirstSync();
+
+    await act(async () => {
+      await result.current.resolveSignInChoice("local");
+    });
+
+    await waitFor(() => expect(result.current.status).toBe("synced"));
+    // If the export were captured after the first sync, remote-1 would have
+    // been treated as part of this device's authoritative set and survived.
+    expect((await getAllEvents()).map((e) => e.id)).not.toContain("remote-1");
+  });
+
+  it("keep local pushes after rewriting, so the deletions leave the device", async () => {
+    const result = await arriveAtChoice();
+    simulateFirstSync();
+
+    await act(async () => {
+      await result.current.resolveSignInChoice("local");
+    });
+
+    await waitFor(() => expect(result.current.status).toBe("synced"));
+    expect(mocks.runSync.mock.calls.length).toBeGreaterThanOrEqual(2);
+  });
+});

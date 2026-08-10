@@ -44,6 +44,7 @@ import {
   clearStoredDek,
   commitImportLocal,
   commitImportSynced,
+  exportDatabase,
   getStoredDek,
   setStoredDek,
 } from "@/lib/storage";
@@ -58,6 +59,7 @@ import { fromBase64, toBase64 } from "@/utils/base64";
 import type {
   OnboardStep,
   PwResult,
+  SignInChoice,
   SyncContextValue,
   SyncStatus,
 } from "./types";
@@ -701,6 +703,50 @@ export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
     [status, refreshFromStorage, doSync],
   );
 
+  // Answer the first-sync conflict prompt. Each branch ends with a sync that
+  // writes a cursor, so the gate never re-detects the same conflict.
+  //
+  // keep-local reuses the unlocked import path: commitImportSynced only knows
+  // about ids present locally, so the first sync has to land the account's rows
+  // here before they can become tombstone candidates. The export is captured
+  // before that sync, otherwise the account's rows would be folded into the set
+  // being declared authoritative.
+  const resolveSignInChoice = useCallback(
+    async (choice: SignInChoice) => {
+      trackEvent("sign-in-choice", { choice });
+      setSignInChoice(null);
+      setStep("idle");
+      try {
+        if (choice === "remote") {
+          await clearLocalData();
+          await refreshFromStorage();
+          choiceRef.current = "resolved";
+          await doSync();
+          return;
+        }
+        if (choice === "local") {
+          const mine = await exportDatabase();
+          choiceRef.current = "resolved";
+          await doSync();
+          await commitImportSynced(mine);
+          await refreshFromStorage();
+          await doSync();
+          return;
+        }
+        choiceRef.current = "resolved";
+        await doSync();
+      } catch (caught) {
+        // Stay resolved on failure: keep-local may already have merged, and
+        // re-running it would upload that merged set as truth. Recovery is the
+        // Data dialog (import a backup, or clear all data).
+        choiceRef.current = "resolved";
+        setError(describeError(caught));
+        setStatus("error");
+      }
+    },
+    [doSync, refreshFromStorage],
+  );
+
   const unlocked = status !== "off" && status !== "locked";
 
   const value: SyncContextValue = {
@@ -728,6 +774,7 @@ export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
     unlocked,
     syncNow,
     signInChoice,
+    resolveSignInChoice,
   };
 
   return <SyncContext.Provider value={value}>{children}</SyncContext.Provider>;

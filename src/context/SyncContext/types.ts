@@ -13,6 +13,9 @@ export type SyncStatus =
 /** Result of a password change/recovery: done, needs an emailed code, or failed. */
 export type PwResult = "done" | "reauth" | "error";
 
+/** Which side wins when a first sync finds data on both. */
+export type SignInChoice = "merge" | "local" | "remote";
+
 /** Which onboarding step the dialog should show, if any. */
 export type OnboardStep =
   | "idle"
@@ -89,4 +92,11 @@ export interface SyncContextValue {
    * The user must choose before anything syncs; null at every other time.
    */
   signInChoice: SignInConflict | null;
+  /**
+   * Answer the first-sync conflict prompt. "merge" keeps both sides,
+   * "remote" deletes this device's data and pulls the account's, "local"
+   * makes this device authoritative and deletes the account's other events
+   * on every device.
+   */
+  resolveSignInChoice: (choice: SignInChoice) => Promise<void>;
 }

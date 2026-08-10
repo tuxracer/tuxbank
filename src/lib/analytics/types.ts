@@ -12,7 +12,8 @@ export type AnalyticsEventName =
   | "data-imported"
   | "data-cleared"
   | "account-created"
-  | "signed-in";
+  | "signed-in"
+  | "sign-in-choice";
 
 /**
  * Event properties. Values are limited to what Vercel Analytics accepts.
