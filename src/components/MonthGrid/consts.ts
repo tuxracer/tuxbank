@@ -14,9 +14,9 @@ export const DAY_NUMBER_HEIGHT_PX = 13;
 export const BALANCE_HEIGHT_PX = 15;
 /** DayCell flex column gap (gap-1) between number / chips / balance. */
 export const SECTION_GAP_PX = 4;
-/** One .cy-chip row: 11px text at line-height 1.25 plus 2.5px vertical padding
-    each side, measured at 18.75px. */
-export const CHIP_HEIGHT_PX = 19;
+/** One .cy-chip row: 11px text at line-height 1.25 plus 2px vertical padding
+    each side, measured at 17.75px. */
+export const CHIP_HEIGHT_PX = 18;
 /** Gap between stacked chips (gap-1). */
 export const CHIP_GAP_PX = 4;
 /** The "+N more" trigger: 10px text plus mt-1. */
