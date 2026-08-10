@@ -157,3 +157,105 @@ describe("SyncDialog sign-in conflict", () => {
     expect(syncValue.resolveSignInChoice).not.toHaveBeenCalled();
   });
 });
+
+describe("SyncDialog sign out", () => {
+  const reload = vi.fn();
+  const confirm = vi.fn();
+
+  // jsdom's window.location is not writable, so swap in a stand-in carrying a
+  // spyable reload. Restored in afterEach so other suites see the real one.
+  const realLocation = window.location;
+  const realConfirm = window.confirm;
+
+  beforeEach(() => {
+    reload.mockReset();
+    confirm.mockReset();
+    Object.defineProperty(window, "location", {
+      configurable: true,
+      value: { ...realLocation, reload },
+    });
+    window.confirm = confirm;
+    syncValue.status = "synced";
+    syncValue.step = "idle";
+    syncValue.signOut = vi.fn();
+    window.localStorage.setItem("leftover", "1");
+    window.sessionStorage.setItem("leftover", "1");
+  });
+
+  afterEach(() => {
+    window.confirm = realConfirm;
+    Object.defineProperty(window, "location", {
+      configurable: true,
+      value: realLocation,
+    });
+    window.localStorage.clear();
+    window.sessionStorage.clear();
+  });
+
+  // Reach the confirm panel: the account-active section's ghost "Sign out"
+  // button is what reveals it.
+  const openSignOutPanel = () => {
+    render(<SyncDialog open onOpenChange={() => {}} />);
+    fireEvent.click(screen.getByRole("button", { name: /^sign out$/i }));
+  };
+
+  it("does not sign out when the native confirm is dismissed", async () => {
+    confirm.mockReturnValue(false);
+    openSignOutPanel();
+
+    fireEvent.click(screen.getByRole("button", { name: /^sign out$/i }));
+
+    await waitFor(() => expect(confirm).toHaveBeenCalled());
+    expect(syncValue.signOut).not.toHaveBeenCalled();
+    expect(reload).not.toHaveBeenCalled();
+    expect(window.localStorage.getItem("leftover")).toBe("1");
+  });
+
+  it("clears local data, wipes web storage, and reloads once confirmed", async () => {
+    confirm.mockReturnValue(true);
+    openSignOutPanel();
+
+    fireEvent.click(screen.getByRole("button", { name: /^sign out$/i }));
+
+    await waitFor(() => expect(reload).toHaveBeenCalled());
+    // true is the clear-local-data flag: signing out always erases this browser.
+    expect(syncValue.signOut).toHaveBeenCalledWith(true);
+    expect(window.localStorage.length).toBe(0);
+    expect(window.sessionStorage.length).toBe(0);
+  });
+
+  it("offers no way to sign out while keeping this browser's data", () => {
+    confirm.mockReturnValue(true);
+    openSignOutPanel();
+
+    expect(screen.queryByRole("button", { name: /erase/i })).toBeNull();
+    expect(screen.getAllByRole("button", { name: /^sign out$/i })).toHaveLength(
+      1,
+    );
+  });
+
+  it("never mentions browser storage in the prompt", async () => {
+    confirm.mockReturnValue(true);
+    openSignOutPanel();
+
+    fireEvent.click(screen.getByRole("button", { name: /^sign out$/i }));
+
+    await waitFor(() => expect(confirm).toHaveBeenCalled());
+    expect(confirm).toHaveBeenCalledWith("Sign out of a@b.com?");
+  });
+
+  it("reloads even when web storage throws", async () => {
+    confirm.mockReturnValue(true);
+    const clearSpy = vi
+      .spyOn(Storage.prototype, "clear")
+      .mockImplementation(() => {
+        throw new Error("storage blocked");
+      });
+    openSignOutPanel();
+
+    fireEvent.click(screen.getByRole("button", { name: /^sign out$/i }));
+
+    await waitFor(() => expect(reload).toHaveBeenCalled());
+    clearSpy.mockRestore();
+  });
+});

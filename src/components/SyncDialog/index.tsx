@@ -134,6 +134,24 @@ export const SyncDialog = ({ open, onOpenChange }: SyncDialogProps) => {
     }
   };
 
+  // Finish a deliberate sign-out: confirm, revoke the session and clear this
+  // browser's data, then wipe web storage and reload so nothing from the
+  // signed-in session survives in this tab. Only the sign-out button uses
+  // this. The onboarding cancels call sync.signOut directly to abort a
+  // half-finished sign-in, and must not wipe a local-only user's calendar.
+  const finishSignOut = async () => {
+    if (!window.confirm(`Sign out of ${sync.email}?`)) return;
+    await sync.signOut(true);
+    try {
+      window.localStorage.clear();
+      window.sessionStorage.clear();
+    } catch {
+      // Web storage can be unavailable (private mode, blocked cookies). The
+      // session is already revoked, so reload regardless.
+    }
+    window.location.reload();
+  };
+
   const passwordTooShort = password.length < MIN_PASSWORD_LENGTH;
 
   return (
@@ -228,27 +246,14 @@ export const SyncDialog = ({ open, onOpenChange }: SyncDialogProps) => {
                   Sign out of <span className="cy-hud on">{sync.email}</span>?
                 </p>
                 <p className="cy-mono text-xs text-[color:var(--cy-muted)]">
-                  Your data stays safe in your account. You can also erase the
-                  copy stored in this browser, which is useful on a shared
-                  device.
+                  Your data stays safe in your account and comes back when you
+                  sign in again.
                 </p>
                 <Button
                   className="cy-btn justify-start"
-                  onClick={async () => {
-                    await sync.signOut(false);
-                    reset();
-                  }}
+                  onClick={() => void finishSignOut()}
                 >
                   Sign out
-                </Button>
-                <Button
-                  className="cy-btn justify-start text-[color:var(--cy-magenta)]"
-                  onClick={async () => {
-                    await sync.signOut(true);
-                    reset();
-                  }}
-                >
-                  Sign out and erase this device
                 </Button>
                 <Button
                   variant="ghost"

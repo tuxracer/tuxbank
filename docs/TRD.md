@@ -720,8 +720,11 @@ device that is already signed in ignores scanned links.
   unlocked across reloads and restarts until an explicit sign-out. Local records
   are already plaintext on the device, so this adds no local exposure beyond what
   is there already. It does mean a device holding the cache can decrypt the
-  server copy without the password, so signing out (which clears the cache) is
-  how to lock a shared device.
+  server copy without the password, so signing out is how to lock a shared
+  device. Sign-out always clears this browser: it revokes the session, wipes
+  every local store (events, categories, tombstones, the sync cursor, and the
+  cached key), clears `localStorage` and `sessionStorage`, and reloads. It is
+  guarded by a native confirm, and the account copy is untouched.
 - Security is bounded by **password strength**; a minimum length is enforced.
 - A **lost authenticator** (no 2FA recovery factor exists) locks the user out of
   the cloud copy. Local data is unaffected; the path forward is a fresh account.
