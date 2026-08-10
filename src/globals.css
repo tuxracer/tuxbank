@@ -138,9 +138,12 @@
   }
 }
 
-/* ===================== DESIGN SYSTEM: NIGHT CITY, SOBER ===================== */
-/* Neon is data ink, not decoration: cyan is the only interface accent, green
-   and magenta mean money moved, yellow means today, orange is category-only. */
+/* ===================== DESIGN SYSTEM: CYBERPUNK-INSPIRED, DATA INK ===================== */
+/* Neon is data ink, not decoration: cyan is the only interface accent. Beyond
+   that, colors double up: magenta is the error/destructive/negative-balance
+   color, yellow marks today and doubles as offline sync chrome, orange is the
+   category-only accent that also flags sync errors, and green appears in
+   exactly one place, the online HUD state (`.cy-hud .on`). See TRD §10. */
 :root {
   /* Surfaces — light */
   --cy-bg: #eff2f6;
@@ -152,7 +155,7 @@
   /* Text — light */
   --cy-text: #1b2430;
   --cy-text-strong: #0b1119;
-  --cy-muted: #66788c;
+  --cy-muted: #5c6d7f;
 
   /* Accents — light */
   --cy-cyan: #0e7490;
@@ -234,6 +237,7 @@ body {
   color: var(--cy-muted);
   text-transform: uppercase;
 }
+.cy-hud.on,
 .cy-hud .on {
   color: var(--cy-green);
 }
@@ -312,6 +316,12 @@ body {
 .cy-cell.today .cy-cell-num {
   color: var(--cy-yellow);
   font-weight: 700;
+}
+/* An out-of-month cell can also be today (e.g. today falls on a leading/
+   trailing week from the adjacent month). Without this, the dimmed .out
+   opacity would win by source order and leave the amber numeral unreadable. */
+.cy-cell.out.today .cy-cell-num {
+  opacity: 1;
 }
 .cy-cell.selected:not(.today) {
   background: var(--cy-panel-2);

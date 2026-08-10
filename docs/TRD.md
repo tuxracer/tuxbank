@@ -244,7 +244,7 @@ A flat, disciplined treatment where color carries meaning instead of decoration.
 
 ### Palette: data ink, not decoration
 
-Cyan is the only interface accent: navigation, links, the primary CTA, focus and selection state. Green and magenta are reserved for money moved, green for deposits and magenta for withdrawals. Yellow marks today and nothing else. Orange is category-only and never used for UI chrome. Light and dark are independently designed token sets defined in `src/globals.css`, not one derived from the other.
+Cyan is the only interface accent: navigation, links, the primary CTA, focus and selection state. All five accents (cyan, magenta, yellow, green, orange) are also available as user-assigned category colors. Beyond that, colors double up rather than staying reserved to one meaning: magenta is the error/destructive/negative-balance color (validation errors, destructive buttons, `.cy-balance-neg`); yellow marks today's cell and also flags offline sync status (`SyncAttentionBadge`); orange also flags sync-error status alongside its category use; green appears in exactly one place, the online HUD indicator (`.cy-hud .on`). Light and dark are independently designed token sets defined in `src/globals.css`, not one derived from the other.
 
 **Light** (`:root`)
 
@@ -257,7 +257,7 @@ Cyan is the only interface accent: navigation, links, the primary CTA, focus and
 | `--cy-hairline` | `#e6ebf1` | day-cell borders |
 | `--cy-text` | `#1b2430` | body text |
 | `--cy-text-strong` | `#0b1119` | headings, emphasis |
-| `--cy-muted` | `#66788c` | secondary text, HUD labels |
+| `--cy-muted` | `#5c6d7f` | secondary text, HUD labels |
 | `--cy-cyan` | `#0e7490` | interface accent |
 | `--cy-magenta` | `#be123c` | withdrawals |
 | `--cy-yellow` | `#b45309` | today |
@@ -286,7 +286,7 @@ Category accents (`--cat-{color}` for cyan, magenta, yellow, green, orange) mirr
 
 ### Effects: none
 
-No glow anywhere: no outer glow, no colored drop-shadow, no `text-shadow`. The only `box-shadow` in the system is the flat 2px inset left edge used for the day-cell highlight states (today / selected / drop, see Component styling below); it is a flat color fill, not a blur or a glow. No radial gradients, no CRT-style overlay lines, no background grid. No cut or angled corners: every surface is a flat fill with a straight 1px CSS border (`--cy-line` or `--cy-hairline`). The only animation in the app is the month-change slide described under Component styling; everything else is static.
+No glow anywhere: no outer glow, no colored drop-shadow, no `text-shadow`. The only `box-shadow` in the system is the flat 2px inset left edge used for the day-cell highlight states (today / selected / drop, see Component styling below); it is a flat color fill, not a blur or a glow. No radial gradients, no CRT-style overlay lines, no background grid. No cut or angled corners: every surface is a flat fill with a straight 1px CSS border (`--cy-line` or `--cy-hairline`). The design system itself adds exactly one animation, the month-change slide described under Component styling; shadcn/Radix UI primitives (dialogs, popovers, toasts) keep their own built-in open/close transitions on top of that.
 
 ### Typography
 - **Rajdhani** (600/700): display headings, month label, CTAs.
@@ -297,7 +297,7 @@ No glow anywhere: no outer glow, no colored drop-shadow, no `text-shadow`. The o
 - Event chips (`.cy-chip`): flat fill, a 2px cyan left border, no glow.
 - Primary CTA (`.cy-cta`): solid cyan fill, square corners, no glow.
 - Dialogs (`.cy-dialog`): flat panel fill, 1px `--cy-line` border, `box-shadow: none`.
-- Day-cell states (`.cy-cell.out` / `.today` / `.selected` / `.drop`) share one grammar: a 2px inset left edge (`box-shadow: inset 2px 0 0 <color>`) over a `--cy-panel-2` fill. Source order in `globals.css` is the precedence rule: `.cy-cell.drop` is defined last, so a cell that is both today and an active drop target shows the cyan drop edge, since the drag affordance is the more urgent signal.
+- Day-cell states `.today` / `.selected` / `.drop` share one grammar: a 2px inset left edge (`box-shadow: inset 2px 0 0 <color>`) over a `--cy-panel-2` fill. Source order in `globals.css` is the precedence rule: `.cy-cell.drop` is defined last, so a cell that is both today and an active drop target shows the cyan drop edge, since the drag affordance is the more urgent signal. `.cy-cell.out` (a day outside the current month) is a different treatment: a flat `--cy-bg` fill and a dimmed date numeral (`opacity: 0.45`), no box-shadow edge. When a cell is both `.out` and `.today`, the numeral opacity is forced back to `1` so the amber today color stays legible.
 - Month-change feedback (`.cy-shift-next` / `.cy-shift-prev`): a 180ms directional slide (`translateX` plus an opacity fade), applied by `MonthGrid` and cleared on `animationend`. Disabled under `prefers-reduced-motion` (`animation: none !important`).
 
 ### Theming: light/dark (auto, follows OS)
