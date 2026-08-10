@@ -34,6 +34,12 @@ export interface SyncContextValue {
   lastSyncedAt: string | null;
   /** Unpushed local changes (rows + tombstones the next push would send). */
   pendingCount: number;
+  /**
+   * The unpushed count read fresh from storage. Callers that need it right
+   * after awaiting a sync must use this: `pendingCount` still holds the
+   * pre-sync value until the next render.
+   */
+  readPendingCount: () => Promise<number>;
   error: string | null;
   /** False when Supabase env is absent (sync cannot be used). */
   configured: boolean;

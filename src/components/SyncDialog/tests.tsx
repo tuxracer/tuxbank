@@ -15,6 +15,7 @@ const syncValue: SyncContextValue = {
   recoveryKey: null,
   lastSyncedAt: null,
   pendingCount: 0,
+  readPendingCount: vi.fn().mockResolvedValue(0),
   error: null,
   configured: true,
   createAccount: vi.fn(),
@@ -178,6 +179,9 @@ describe("SyncDialog sign out", () => {
     syncValue.status = "synced";
     syncValue.step = "idle";
     syncValue.signOut = vi.fn();
+    syncValue.syncNow = vi.fn();
+    // Default: the pre-sign-out sync cleared everything.
+    syncValue.readPendingCount = vi.fn().mockResolvedValue(0);
     window.localStorage.setItem("leftover", "1");
     window.sessionStorage.setItem("leftover", "1");
   });
@@ -188,18 +192,10 @@ describe("SyncDialog sign out", () => {
       configurable: true,
       value: realLocation,
     });
-    setOnline(true);
     syncValue.pendingCount = 0;
     window.localStorage.clear();
     window.sessionStorage.clear();
   });
-
-  const setOnline = (value: boolean) => {
-    Object.defineProperty(navigator, "onLine", {
-      configurable: true,
-      value,
-    });
-  };
 
   // Reach the confirm panel: the account-active section's ghost "Sign out"
   // button is what reveals it.
@@ -268,10 +264,46 @@ describe("SyncDialog sign out", () => {
     clearSpy.mockRestore();
   });
 
-  it("warns separately about unpushed changes when offline", async () => {
+  it("syncs before signing out, so pending work is pushed first", async () => {
     confirm.mockReturnValue(true);
-    setOnline(false);
-    syncValue.pendingCount = 3;
+    openSignOutPanel();
+
+    fireEvent.click(screen.getByRole("button", { name: /^sign out$/i }));
+
+    await waitFor(() => expect(reload).toHaveBeenCalled());
+    expect(syncValue.syncNow).toHaveBeenCalled();
+    // The sync has to run before the wipe, or it would push nothing.
+    const syncOrder = vi.mocked(syncValue.syncNow).mock.invocationCallOrder[0];
+    const outOrder = vi.mocked(syncValue.signOut).mock.invocationCallOrder[0];
+    expect(syncOrder).toBeLessThan(outOrder);
+  });
+
+  it("signs out even when the pre-sign-out sync throws", async () => {
+    confirm.mockReturnValue(true);
+    syncValue.syncNow = vi.fn().mockRejectedValue(new Error("network down"));
+    openSignOutPanel();
+
+    fireEvent.click(screen.getByRole("button", { name: /^sign out$/i }));
+
+    await waitFor(() => expect(reload).toHaveBeenCalled());
+    expect(syncValue.signOut).toHaveBeenCalledWith(true);
+  });
+
+  it("does not warn when the sync cleared everything", async () => {
+    confirm.mockReturnValue(true);
+    syncValue.pendingCount = 5;
+    syncValue.readPendingCount = vi.fn().mockResolvedValue(0);
+    openSignOutPanel();
+
+    fireEvent.click(screen.getByRole("button", { name: /^sign out$/i }));
+
+    await waitFor(() => expect(reload).toHaveBeenCalled());
+    expect(confirm).toHaveBeenCalledTimes(1);
+  });
+
+  it("warns separately about changes the sync could not push", async () => {
+    confirm.mockReturnValue(true);
+    syncValue.readPendingCount = vi.fn().mockResolvedValue(3);
     openSignOutPanel();
 
     fireEvent.click(screen.getByRole("button", { name: /^sign out$/i }));
@@ -287,8 +319,7 @@ describe("SyncDialog sign out", () => {
 
   it("aborts when the unpushed-changes warning is dismissed", async () => {
     confirm.mockReturnValueOnce(true).mockReturnValueOnce(false);
-    setOnline(false);
-    syncValue.pendingCount = 2;
+    syncValue.readPendingCount = vi.fn().mockResolvedValue(2);
     openSignOutPanel();
 
     fireEvent.click(screen.getByRole("button", { name: /^sign out$/i }));
@@ -301,8 +332,7 @@ describe("SyncDialog sign out", () => {
 
   it("says change, not changes, for a single pending edit", async () => {
     confirm.mockReturnValue(true);
-    setOnline(false);
-    syncValue.pendingCount = 1;
+    syncValue.readPendingCount = vi.fn().mockResolvedValue(1);
     openSignOutPanel();
 
     fireEvent.click(screen.getByRole("button", { name: /^sign out$/i }));
@@ -314,27 +344,20 @@ describe("SyncDialog sign out", () => {
     );
   });
 
-  it("does not warn when offline with nothing pending", async () => {
+  it("falls back to the last known count when storage cannot be read", async () => {
     confirm.mockReturnValue(true);
-    setOnline(false);
-    syncValue.pendingCount = 0;
+    syncValue.pendingCount = 4;
+    syncValue.readPendingCount = vi
+      .fn()
+      .mockRejectedValue(new Error("storage gone"));
     openSignOutPanel();
 
     fireEvent.click(screen.getByRole("button", { name: /^sign out$/i }));
 
     await waitFor(() => expect(reload).toHaveBeenCalled());
-    expect(confirm).toHaveBeenCalledTimes(1);
-  });
-
-  it("does not warn when online, even with pending changes", async () => {
-    confirm.mockReturnValue(true);
-    setOnline(true);
-    syncValue.pendingCount = 5;
-    openSignOutPanel();
-
-    fireEvent.click(screen.getByRole("button", { name: /^sign out$/i }));
-
-    await waitFor(() => expect(reload).toHaveBeenCalled());
-    expect(confirm).toHaveBeenCalledTimes(1);
+    expect(confirm).toHaveBeenNthCalledWith(
+      2,
+      "Are you sure you want to sign out now? You have 4 local changes that will be lost.",
+    );
   });
 });

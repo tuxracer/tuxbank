@@ -191,6 +191,16 @@ export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
       .catch(() => undefined);
   }, []);
 
+  // The awaitable form, for callers that need the count immediately after a
+  // sync rather than on the next render (the sign-out warning). Rejects on a
+  // storage failure so the caller can decide, unlike the fire-and-forget
+  // refresh above.
+  const readPendingCount = useCallback(async (): Promise<number> => {
+    const count = await countPendingChanges();
+    setPendingCount(count);
+    return count;
+  }, []);
+
   const doSync = useCallback(async () => {
     if (!remote || !dekRef.current || syncingRef.current) return;
     if (!navigator.onLine) {
@@ -785,6 +795,7 @@ export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
     recoveryKey,
     lastSyncedAt,
     pendingCount,
+    readPendingCount,
     error,
     configured: remote !== null,
     createAccount,
