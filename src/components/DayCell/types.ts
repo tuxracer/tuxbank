@@ -14,6 +14,10 @@ export type DayCellProps = {
   dateLabel: string;
   onSelectDate: (iso: string) => void;
   onSelectOccurrence: (occurrence: Occurrence) => void;
-  /** Visible-chip cap for short windows; defaults to MAX_VISIBLE_CHIPS. */
+  /**
+   * How many chips fit the measured row height, from `chipCapacity`. Omitted
+   * when no measurement exists yet, which means "no limit" rather than a
+   * fallback cap: there is no fixed maximum.
+   */
   maxVisibleChips?: number;
 };

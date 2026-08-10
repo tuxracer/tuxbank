@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { inMonthWeekCount, type DateCell } from "@/lib/dateGrid";
-import DayCell, { MAX_VISIBLE_CHIPS } from "@/components/DayCell";
+import DayCell from "@/components/DayCell";
 import { useSwipeNavigation } from "@/hooks/useSwipeNavigation";
 
 import {
@@ -37,18 +37,19 @@ const chipsThatFit = (px: number): number =>
 
 /**
  * How many whole event chips a day cell should render at the given row
- * height. Reserves space for the "+N more" line when the occurrences exceed
- * what fits, so the trigger itself never clips.
+ * height. There is no fixed maximum: the answer is whatever the row can hold,
+ * so a taller window shows more chips rather than collapsing them behind a
+ * trigger it has the space to avoid. Reserves the "+N more" line only when the
+ * occurrences genuinely exceed what fits, so the trigger itself never clips.
  */
 export const chipCapacity = (
   rowHeightPx: number,
   occurrenceCount: number,
 ): number => {
   const available = rowHeightPx - CHIP_AREA_OVERHEAD_PX;
-  const fit = Math.min(chipsThatFit(available), MAX_VISIBLE_CHIPS);
+  const fit = chipsThatFit(available);
   if (occurrenceCount <= fit) return fit;
-  const fitWithMore = chipsThatFit(available - MORE_LINE_HEIGHT_PX);
-  return Math.min(fitWithMore, MAX_VISIBLE_CHIPS);
+  return chipsThatFit(available - MORE_LINE_HEIGHT_PX);
 };
 
 const MonthGrid = ({
@@ -118,7 +119,7 @@ const MonthGrid = ({
   // track, so one grid-level measurement serves every cell. Re-runs when the
   // row count changes (month nav, or desktop/compact) since that resizes rows
   // without a container resize. Stays null in jsdom (the stub never fires),
-  // keeping the default cap.
+  // which leaves cells unlimited.
   const [rowHeightPx, setRowHeightPx] = useState<number | null>(null);
   useEffect(() => {
     const el = gridRef.current;

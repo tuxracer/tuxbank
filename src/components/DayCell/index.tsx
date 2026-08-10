@@ -4,7 +4,7 @@ import DayEventsPopover from "@/components/DayEventsPopover";
 import { formatCurrency } from "@/utils/formatCurrency";
 import { catColorVar } from "@/utils/categoryColor";
 
-import { MAX_VISIBLE_CHIPS, MAX_COMPACT_DOTS } from "./consts";
+import { MAX_COMPACT_DOTS } from "./consts";
 import type { DayCellProps } from "./types";
 
 export * from "./consts";
@@ -21,15 +21,20 @@ const DayCell = ({
   dateLabel,
   onSelectDate,
   onSelectOccurrence,
-  maxVisibleChips = MAX_VISIBLE_CHIPS,
+  maxVisibleChips,
 }: DayCellProps) => {
   // Compact cells are not drop targets: drag-and-drop is desktop-only.
   const { setNodeRef, isOver } = useDroppable({
     id: cell.iso,
     disabled: compact,
   });
-  const visible = occurrences.slice(0, maxVisibleChips);
-  const overflow = occurrences.slice(maxVisibleChips);
+  // No cap: a cell shows every chip that fits its measured row height. Until
+  // MonthGrid has a measurement to give (first paint, and always under jsdom)
+  // there is no limit to apply, so render them all and let the row height
+  // narrow it on the next frame.
+  const limit = maxVisibleChips ?? occurrences.length;
+  const visible = occurrences.slice(0, limit);
+  const overflow = occurrences.slice(limit);
   const dots = occurrences.slice(0, MAX_COMPACT_DOTS);
   const classes = ["cy-cell", "flex", "min-h-0", "flex-col", "gap-1", "p-1.5"];
   if (!cell.inMonth) classes.push("out");

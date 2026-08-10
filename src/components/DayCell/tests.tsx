@@ -70,7 +70,7 @@ describe("DayCell maxVisibleChips", () => {
     expect(screen.getByText("1 event")).toBeInTheDocument();
   });
 
-  it("defaults to the standard cap when the prop is omitted", () => {
+  it("renders every chip when no capacity has been measured yet", () => {
     renderCell(undefined);
     expect(screen.getByTitle("Event 3")).toBeInTheDocument();
     expect(screen.queryByText(/more/)).not.toBeInTheDocument();

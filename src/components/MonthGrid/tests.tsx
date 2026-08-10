@@ -10,7 +10,6 @@ import MonthGrid, {
   CHIP_GAP_PX,
   MORE_LINE_HEIGHT_PX,
 } from "./index";
-import { MAX_VISIBLE_CHIPS } from "@/components/DayCell";
 
 const occ: Occurrence = {
   eventId: "e1",
@@ -41,6 +40,54 @@ const makeOcc = (i: number): Occurrence => ({
   direction: "deposit",
   isRecurring: false,
 });
+
+/**
+ * jsdom has no layout engine, so the adaptive-capacity path never runs on its
+ * own: clientHeight is always 0 and the ResizeObserver stub never fires. Pin
+ * both to drive a chosen row height through `chipCapacity`.
+ */
+const withObservedGridHeight = (clientHeightPx: number, run: () => void) => {
+  const originalObserver = window.ResizeObserver;
+  const originalHeight = Object.getOwnPropertyDescriptor(
+    Element.prototype,
+    "clientHeight",
+  );
+  // A real ResizeObserver delivers one observation on observe(); mirror that.
+  const entry = {
+    contentRect: { width: 0, height: clientHeightPx },
+    borderBoxSize: [],
+    contentBoxSize: [],
+    devicePixelContentBoxSize: [],
+    target: document.createElement("div"),
+  } as unknown as ResizeObserverEntry;
+
+  Object.defineProperty(Element.prototype, "clientHeight", {
+    configurable: true,
+    get: () => clientHeightPx,
+  });
+  window.ResizeObserver = class implements ResizeObserver {
+    private cb: ResizeObserverCallback;
+    constructor(cb: ResizeObserverCallback) {
+      this.cb = cb;
+    }
+    observe() {
+      this.cb([entry], this);
+    }
+    unobserve() {}
+    disconnect() {}
+  };
+
+  try {
+    act(run);
+  } finally {
+    window.ResizeObserver = originalObserver;
+    if (originalHeight) {
+      Object.defineProperty(Element.prototype, "clientHeight", originalHeight);
+    } else {
+      Reflect.deleteProperty(Element.prototype, "clientHeight");
+    }
+  }
+};
 
 describe("MonthGrid", () => {
   it("reports clicks on a day's occurrence chip", async () => {
@@ -121,27 +168,28 @@ describe("MonthGrid", () => {
     expect(screen.getByText("$4,200.00")).toBeInTheDocument();
   });
 
-  it("shows at most 3 chips and collapses the rest into +N more", () => {
-    render(
-      <MonthGrid
-        cells={buildMonthGrid(new Date(2026, 4, 1))}
-        todayISO="2026-05-14"
-        occurrencesByDate={{
-          "2026-05-14": [
-            makeOcc(1),
-            makeOcc(2),
-            makeOcc(3),
-            makeOcc(4),
-            makeOcc(5),
-          ],
-        }}
-        onSelectDate={vi.fn()}
-        onSelectOccurrence={vi.fn()}
-      />,
-    );
-    expect(screen.getByText("+2 more")).toBeInTheDocument();
-    expect(screen.getByTitle("Event 1")).toBeInTheDocument();
-    expect(screen.queryByTitle("Event 4")).not.toBeInTheDocument();
+  it("shows every chip when the observed grid has room for them all", () => {
+    withObservedGridHeight(6_000, () => {
+      render(
+        <MonthGrid
+          cells={buildMonthGrid(new Date(2026, 4, 1))}
+          todayISO="2026-05-14"
+          occurrencesByDate={{
+            "2026-05-14": [
+              makeOcc(1),
+              makeOcc(2),
+              makeOcc(3),
+              makeOcc(4),
+              makeOcc(5),
+            ],
+          }}
+          onSelectDate={vi.fn()}
+          onSelectOccurrence={vi.fn()}
+        />,
+      );
+    });
+    expect(screen.getByTitle("Event 5")).toBeInTheDocument();
+    expect(screen.queryByText(/more/)).not.toBeInTheDocument();
   });
 
   it("colors a negative balance with the negative sign class", () => {
@@ -349,45 +397,20 @@ describe("MonthGrid swipe navigation", () => {
 
 describe("MonthGrid adaptive capacity wiring", () => {
   it("collapses chips to the events trigger when the observed grid is too short", () => {
-    const original = window.ResizeObserver;
-    // Auto-firing stub: invokes the callback once on observe, like a real
-    // ResizeObserver's initial observation. jsdom clientHeight is 0, so the
-    // derived row height is negative and capacity becomes 0.
-    const fakeEntry = {
-      contentRect: { width: 0, height: 0 },
-      borderBoxSize: [],
-      contentBoxSize: [],
-      devicePixelContentBoxSize: [],
-      target: document.createElement("div"),
-    } as unknown as ResizeObserverEntry;
-    window.ResizeObserver = class implements ResizeObserver {
-      private cb: ResizeObserverCallback;
-      constructor(cb: ResizeObserverCallback) {
-        this.cb = cb;
-      }
-      observe() {
-        this.cb([fakeEntry], this);
-      }
-      unobserve() {}
-      disconnect() {}
-    };
-    try {
-      act(() => {
-        render(
-          <MonthGrid
-            cells={buildMonthGrid(new Date(2026, 4, 1))}
-            todayISO="2026-05-14"
-            occurrencesByDate={{ "2026-05-14": [makeOcc(1)] }}
-            onSelectDate={vi.fn()}
-            onSelectOccurrence={vi.fn()}
-          />,
-        );
-      });
-      expect(screen.queryByTitle("Event 1")).not.toBeInTheDocument();
-      expect(screen.getByText("1 event")).toBeInTheDocument();
-    } finally {
-      window.ResizeObserver = original;
-    }
+    // A zero-height grid leaves a negative row height, so capacity is 0.
+    withObservedGridHeight(0, () => {
+      render(
+        <MonthGrid
+          cells={buildMonthGrid(new Date(2026, 4, 1))}
+          todayISO="2026-05-14"
+          occurrencesByDate={{ "2026-05-14": [makeOcc(1)] }}
+          onSelectDate={vi.fn()}
+          onSelectOccurrence={vi.fn()}
+        />,
+      );
+    });
+    expect(screen.queryByTitle("Event 1")).not.toBeInTheDocument();
+    expect(screen.getByText("1 event")).toBeInTheDocument();
   });
 });
 
@@ -396,8 +419,9 @@ describe("chipCapacity", () => {
   const heightForChips = (n: number) =>
     CHIP_AREA_OVERHEAD_PX + n * CHIP_HEIGHT_PX + (n - 1) * CHIP_GAP_PX;
 
-  it("caps at MAX_VISIBLE_CHIPS regardless of available height", () => {
-    expect(chipCapacity(10_000, 8)).toBe(MAX_VISIBLE_CHIPS);
+  it("grows with the row height instead of stopping at a fixed cap", () => {
+    expect(chipCapacity(heightForChips(8), 8)).toBe(8);
+    expect(chipCapacity(heightForChips(20), 20)).toBe(20);
   });
 
   it("returns the full fit when the occurrences fit exactly", () => {
