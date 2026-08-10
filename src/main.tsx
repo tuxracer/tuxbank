@@ -10,6 +10,9 @@ import "@fontsource/chakra-petch/latin-500.css";
 import "@fontsource/chakra-petch/latin-600.css";
 import "@fontsource/chakra-petch/latin-700.css";
 import "@fontsource/jetbrains-mono/latin-400.css";
+// 500 carries the figure in an event chip (.cy-chip-amount); without it the
+// weight silently falls back to 400.
+import "@fontsource/jetbrains-mono/latin-500.css";
 import "@fontsource/jetbrains-mono/latin-700.css";
 import "./globals.css";
 import App from "./App";

@@ -95,7 +95,7 @@ const PreviewGrid = () => (
   <div className="hidden flex-col gap-1.5 p-2 sm:flex sm:p-3">
     <div className="grid grid-cols-7 gap-1.5">
       {LANDING_PREVIEW_WEEKDAYS.map((day, index) => (
-        <div key={index} className="cy-weekhead px-1 text-[10px]">
+        <div key={index} className="cy-weekhead px-1">
           {day}
         </div>
       ))}
@@ -120,7 +120,10 @@ const PreviewGrid = () => (
             {day.event && (
               <span className="cy-chip" style={chipStyle(day)}>
                 <span className="truncate">{day.event.title}</span>
-                <span className="cy-mono ml-auto pl-1">
+                <span
+                  className="cy-chip-amount ml-auto"
+                  style={{ color: catColorVar(day.event.color) }}
+                >
                   {formatSignedCompact(day.event.amount)}
                 </span>
               </span>
@@ -158,7 +161,12 @@ const PreviewTape = () => (
         </span>
         <span className="cy-chip min-w-0 flex-1" style={chipStyle(day)}>
           <span className="truncate">{day.event?.title}</span>
-          <span className="cy-mono ml-auto pl-1">
+          <span
+            className="cy-chip-amount ml-auto"
+            style={
+              day.event ? { color: catColorVar(day.event.color) } : undefined
+            }
+          >
             {formatSignedCompact(day.event?.amount ?? 0)}
           </span>
         </span>

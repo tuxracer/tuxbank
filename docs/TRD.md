@@ -295,10 +295,12 @@ No glow anywhere: no outer glow, no colored drop-shadow, no `text-shadow`. The o
 - **Chakra Petch**: general UI text.
 - **JetBrains Mono**: all figures, date numbers, HUD readouts, field labels.
 
-Inside a day cell there are two sizes, not three: **chrome at 10-11px** (`.cy-cell-num` at 11px/1.1, `.cy-balance` at 10px) and **content at 11px** (`.cy-chip`). The date numeral's size is set on `.cy-cell-num` itself rather than at the call site, because a day cell's vertical budget is zero-sum: every pixel the numeral takes is one the chip stack cannot use, and it is modelled as `DAY_NUMBER_HEIGHT_PX` in `MonthGrid/consts.ts`. The landing-page preview reuses the same class, so the two cannot drift.
+Day-cell type follows the source design mock. Chrome sits at 9-11px (`.cy-weekhead` 9px/`0.22em`, `.cy-cell-num` 11px/1.1, `.cy-balance` 10px) and the chip carries an 11px/1.25 title against a 10.5px figure (`.cy-chip-amount`) at **weight 500**, tinted with the same category accent that draws the chip's left edge. The figure is smaller than the title but heavier, because in a money calendar the number is what the eye goes to. JetBrains Mono 500 is imported in `src/main.tsx`; without that weight loaded the rule silently falls back to 400.
+
+Sizes for `.cy-weekhead`, `.cy-cell-num`, and `.cy-chip` live on the classes themselves, never at the call site. Two reasons: the landing preview reuses the same classes and has to stay identical, and a day cell's vertical budget is zero-sum, so `DAY_NUMBER_HEIGHT_PX` and `CHIP_HEIGHT_PX` in `MonthGrid/consts.ts` mirror these rules and are re-measured in a browser whenever they change.
 
 ### Component styling
-- Event chips (`.cy-chip`): flat fill, a 2px cyan left border, no glow.
+- Event chips (`.cy-chip`): flat fill, a 2px left border in the category accent, no glow. The amount (`.cy-chip-amount`) takes that same accent, so the category reads twice in one chip; the title stays in the strong text ink. Baseline-aligned, with the amount pushed right by `ml-auto` (rather than the mock's `space-between`, which would strand the recurring **↻** marker in the middle).
 - Primary CTA (`.cy-cta`): solid cyan fill, square corners, no glow.
 - Dialogs (`.cy-dialog`): flat panel fill, 1px `--cy-line` border, `box-shadow: none`.
 - Day-cell states `.today` / `.selected` / `.drop` share one grammar: a 2px inset left edge (`box-shadow: inset 2px 0 0 <color>`) over a `--cy-panel-2` fill. Source order in `globals.css` is the precedence rule: `.cy-cell.drop` is defined last, so a cell that is both today and an active drop target shows the cyan drop edge, since the drag affordance is the more urgent signal. `.cy-cell.out` (a day outside the current month) is a different treatment: a flat `--cy-bg` fill and a dimmed date numeral (`opacity: 0.45`), no box-shadow edge. When a cell is both `.out` and `.today`, the numeral opacity is forced back to `1` so the amber today color stays legible.

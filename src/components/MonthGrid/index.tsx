@@ -172,11 +172,7 @@ const MonthGrid = ({
     >
       <div className="grid grid-cols-7 gap-1.5" role="row">
         {WEEKDAYS.map((d) => (
-          <div
-            key={d}
-            className="cy-weekhead px-1 text-[10px]"
-            role="columnheader"
-          >
+          <div key={d} className="cy-weekhead px-1" role="columnheader">
             {d}
           </div>
         ))}

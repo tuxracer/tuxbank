@@ -15,6 +15,7 @@ const EventChip = ({
   isDragging,
 }: EventChipProps) => {
   const { color } = occurrence.category;
+  const accent = catColorVar(color);
   const delta = signedAmount(occurrence.direction, occurrence.amount);
   return (
     <button
@@ -22,7 +23,7 @@ const EventChip = ({
       type="button"
       className={`cy-chip w-full text-left${isDragging ? " cy-chip-dragging" : ""}`}
       style={{
-        borderLeftColor: catColorVar(color),
+        borderLeftColor: accent,
         // Only suppress touch-scroll on actually-draggable chips; static chips
         // (overflow popover, drag overlay) keep native scrolling.
         ...(dragListeners ? { touchAction: "none" } : {}),
@@ -39,7 +40,9 @@ const EventChip = ({
     >
       {occurrence.isRecurring && <span>↻</span>}
       <span className="truncate">{occurrence.title}</span>
-      <span className="cy-mono ml-auto pl-1">{formatSignedCompact(delta)}</span>
+      <span className="cy-chip-amount ml-auto" style={{ color: accent }}>
+        {formatSignedCompact(delta)}
+      </span>
     </button>
   );
 };
