@@ -141,6 +141,14 @@ export const SyncDialog = ({ open, onOpenChange }: SyncDialogProps) => {
   // half-finished sign-in, and must not wipe a local-only user's calendar.
   const finishSignOut = async () => {
     if (!window.confirm(`Sign out of ${sync.email}?`)) return;
+    // Offline there is no way to push first, so the wipe below destroys these
+    // edits for good. That earns its own gate rather than a line the user has
+    // already clicked past.
+    if (!navigator.onLine && sync.pendingCount > 0) {
+      const changes = `${sync.pendingCount} local ${sync.pendingCount === 1 ? "change" : "changes"}`;
+      const lost = `Are you sure you want to sign out now? You have ${changes} that will be lost.`;
+      if (!window.confirm(lost)) return;
+    }
     await sync.signOut(true);
     try {
       window.localStorage.clear();

@@ -188,9 +188,18 @@ describe("SyncDialog sign out", () => {
       configurable: true,
       value: realLocation,
     });
+    setOnline(true);
+    syncValue.pendingCount = 0;
     window.localStorage.clear();
     window.sessionStorage.clear();
   });
+
+  const setOnline = (value: boolean) => {
+    Object.defineProperty(navigator, "onLine", {
+      configurable: true,
+      value,
+    });
+  };
 
   // Reach the confirm panel: the account-active section's ghost "Sign out"
   // button is what reveals it.
@@ -257,5 +266,75 @@ describe("SyncDialog sign out", () => {
 
     await waitFor(() => expect(reload).toHaveBeenCalled());
     clearSpy.mockRestore();
+  });
+
+  it("warns separately about unpushed changes when offline", async () => {
+    confirm.mockReturnValue(true);
+    setOnline(false);
+    syncValue.pendingCount = 3;
+    openSignOutPanel();
+
+    fireEvent.click(screen.getByRole("button", { name: /^sign out$/i }));
+
+    await waitFor(() => expect(reload).toHaveBeenCalled());
+    expect(confirm).toHaveBeenCalledTimes(2);
+    expect(confirm).toHaveBeenNthCalledWith(1, "Sign out of a@b.com?");
+    expect(confirm).toHaveBeenNthCalledWith(
+      2,
+      "Are you sure you want to sign out now? You have 3 local changes that will be lost.",
+    );
+  });
+
+  it("aborts when the unpushed-changes warning is dismissed", async () => {
+    confirm.mockReturnValueOnce(true).mockReturnValueOnce(false);
+    setOnline(false);
+    syncValue.pendingCount = 2;
+    openSignOutPanel();
+
+    fireEvent.click(screen.getByRole("button", { name: /^sign out$/i }));
+
+    await waitFor(() => expect(confirm).toHaveBeenCalledTimes(2));
+    expect(syncValue.signOut).not.toHaveBeenCalled();
+    expect(reload).not.toHaveBeenCalled();
+    expect(window.localStorage.getItem("leftover")).toBe("1");
+  });
+
+  it("says change, not changes, for a single pending edit", async () => {
+    confirm.mockReturnValue(true);
+    setOnline(false);
+    syncValue.pendingCount = 1;
+    openSignOutPanel();
+
+    fireEvent.click(screen.getByRole("button", { name: /^sign out$/i }));
+
+    await waitFor(() => expect(reload).toHaveBeenCalled());
+    expect(confirm).toHaveBeenNthCalledWith(
+      2,
+      "Are you sure you want to sign out now? You have 1 local change that will be lost.",
+    );
+  });
+
+  it("does not warn when offline with nothing pending", async () => {
+    confirm.mockReturnValue(true);
+    setOnline(false);
+    syncValue.pendingCount = 0;
+    openSignOutPanel();
+
+    fireEvent.click(screen.getByRole("button", { name: /^sign out$/i }));
+
+    await waitFor(() => expect(reload).toHaveBeenCalled());
+    expect(confirm).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not warn when online, even with pending changes", async () => {
+    confirm.mockReturnValue(true);
+    setOnline(true);
+    syncValue.pendingCount = 5;
+    openSignOutPanel();
+
+    fireEvent.click(screen.getByRole("button", { name: /^sign out$/i }));
+
+    await waitFor(() => expect(reload).toHaveBeenCalled());
+    expect(confirm).toHaveBeenCalledTimes(1);
   });
 });

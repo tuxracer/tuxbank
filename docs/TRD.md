@@ -724,7 +724,9 @@ device that is already signed in ignores scanned links.
   device. Sign-out always clears this browser: it revokes the session, wipes
   every local store (events, categories, tombstones, the sync cursor, and the
   cached key), clears `localStorage` and `sessionStorage`, and reloads. It is
-  guarded by a native confirm, and the account copy is untouched.
+  guarded by a native confirm, and the account copy is untouched. Signing out
+  offline with unpushed changes cannot save them first, so that case gets a
+  second confirm naming how many changes are about to be lost.
 - Security is bounded by **password strength**; a minimum length is enforced.
 - A **lost authenticator** (no 2FA recovery factor exists) locks the user out of
   the cloud copy. Local data is unaffected; the path forward is a fresh account.
