@@ -4,7 +4,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { catColorVar, catGlowVar } from "@/utils/categoryColor";
+import { catColorVar } from "@/utils/categoryColor";
 import { CyberFrame } from "@/components/CyberFrame";
 import { CyControlFrame } from "@/components/CyControlFrame";
 import {
@@ -136,10 +136,7 @@ const CalendarToolbar = ({
           >
             <span
               className="inline-block h-2.5 w-2.5 rounded-full"
-              style={{
-                background: colorVar,
-                boxShadow: `0 0 8px ${catGlowVar(c.color)}`,
-              }}
+              style={{ background: colorVar }}
             />
             {c.name}
           </button>

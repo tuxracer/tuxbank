@@ -1,4 +1,4 @@
-import { catColorVar, catGlowVar } from "@/utils/categoryColor";
+import { catColorVar } from "@/utils/categoryColor";
 import { formatSignedCompact } from "@/utils/formatCurrency";
 import { signedAmount } from "@/lib/balance";
 
@@ -23,7 +23,6 @@ const EventChip = ({
       className={`cy-chip w-full text-left${isDragging ? " cy-chip-dragging" : ""}`}
       style={{
         borderLeftColor: catColorVar(color),
-        boxShadow: `-1px 0 8px color-mix(in srgb, ${catGlowVar(color)} 40%, transparent)`,
         // Only suppress touch-scroll on actually-draggable chips; static chips
         // (overflow popover, drag overlay) keep native scrolling.
         ...(dragListeners ? { touchAction: "none" } : {}),

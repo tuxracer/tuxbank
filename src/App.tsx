@@ -247,7 +247,7 @@ const CalendarScreen = () => {
 
   return (
     <main
-      className={`cy-scanlines flex h-[100dvh] flex-col ${isCompact ? "gap-2 p-2" : "gap-3 p-3.5"}`}
+      className={`flex h-[100dvh] flex-col ${isCompact ? "gap-2 p-2" : "gap-3 p-3.5"}`}
       onKeyDown={onKeyDown}
     >
       {cal.loaded && !cal.storageAvailable && (

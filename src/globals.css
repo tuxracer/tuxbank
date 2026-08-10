@@ -138,102 +138,74 @@
   }
 }
 
-/* ===================== CYBERPUNK DESIGN SYSTEM ===================== */
+/* ===================== DESIGN SYSTEM: NIGHT CITY, SOBER ===================== */
+/* Neon is data ink, not decoration: cyan is the only interface accent, green
+   and magenta mean money moved, yellow means today, orange is category-only. */
 :root {
-  /* Cyberpunk surfaces — light (Direction C: neutral/minimal) */
-  --cy-bg: #f5f6f8;
+  /* Surfaces — light */
+  --cy-bg: #eff2f6;
   --cy-panel: #ffffff;
-  --cy-panel-2: #f1f2f4;
-  --cy-line: rgba(15, 23, 42, 0.12);
+  --cy-panel-2: #f7f9fb;
+  --cy-line: #d6dde6;
+  --cy-hairline: #e6ebf1;
+
+  /* Text — light */
+  --cy-text: #1b2430;
+  --cy-text-strong: #0b1119;
+  --cy-muted: #66788c;
+
+  /* Accents — light */
   --cy-cyan: #0e7490;
-  --cy-magenta: #be185d;
-  --cy-yellow: #a16207;
+  --cy-magenta: #be123c;
+  --cy-yellow: #b45309;
   --cy-green: #047857;
   --cy-orange: #c2410c;
-  --cy-text: #1e293b;
-  --cy-muted: #64748b;
 
-  /* Derived surface tokens — light */
+  /* Derived — light */
   --cy-chip-bg: #f1f5f9;
-  --cy-chip-text: #1e293b;
+  --cy-chip-text: #0b1119;
   --cy-cta-fg: #ffffff;
-  --cy-cell-top: #ffffff;
-  --cy-cell-bottom: #f8fafc;
-  --cy-dialog-top: #ffffff;
-  --cy-dialog-bottom: #f8fafc;
 
-  /* Glow/effect tokens — off in light */
-  --cy-radial-magenta: transparent;
-  --cy-radial-cyan: transparent;
-  --cy-scanline-opacity: 0;
-  --cy-glow-cyan: transparent;
-  --cy-glow-cyan-soft: transparent;
-  --cy-glow-yellow: transparent;
-  --cy-glow-green: transparent;
-  --cy-glow-magenta-soft: transparent;
-  --cy-glow-today: transparent;
-  --cy-glow-today-inset: transparent;
-
-  /* Category accents — light (darkened ~700 shade) */
+  /* Category accents — light */
   --cat-cyan: #0e7490;
-  --cat-magenta: #be185d;
-  --cat-yellow: #a16207;
+  --cat-magenta: #be123c;
+  --cat-yellow: #b45309;
   --cat-green: #047857;
   --cat-orange: #c2410c;
-  --cat-cyan-glow: transparent;
-  --cat-magenta-glow: transparent;
-  --cat-yellow-glow: transparent;
-  --cat-green-glow: transparent;
-  --cat-orange-glow: transparent;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    /* Cyberpunk surfaces — dark (current values) */
-    --cy-bg: #07080d;
-    --cy-panel: #0b0e16;
-    --cy-panel-2: #0e1320;
-    --cy-line: rgba(0, 240, 255, 0.16);
-    --cy-cyan: #00f0ff;
-    --cy-magenta: #ff2a6d;
-    --cy-yellow: #fcee0a;
-    --cy-green: #00ff9f;
-    --cy-orange: #ff9f1c;
-    --cy-text: #cfe0ec;
-    --cy-muted: #5d7488;
+    /* Surfaces — dark */
+    --cy-bg: #0a0c11;
+    --cy-panel: #0d1119;
+    --cy-panel-2: #10151f;
+    --cy-line: #1b2431;
+    --cy-hairline: #151c27;
 
-    /* Derived surface tokens — dark (current literals) */
-    --cy-chip-bg: rgba(0, 0, 0, 0.35);
-    --cy-chip-text: #eaf6ff;
-    --cy-cta-fg: #04141a;
-    --cy-cell-top: rgba(14, 19, 32, 0.92);
-    --cy-cell-bottom: rgba(8, 11, 18, 0.92);
-    --cy-dialog-top: #0b1019;
-    --cy-dialog-bottom: #080b12;
+    /* Text — dark */
+    --cy-text: #c8d4e0;
+    --cy-text-strong: #eaf2f8;
+    --cy-muted: #6b7c8f;
 
-    /* Glow/effect tokens — dark (current literals) */
-    --cy-radial-magenta: rgba(255, 42, 109, 0.08);
-    --cy-radial-cyan: rgba(0, 240, 255, 0.07);
-    --cy-scanline-opacity: 0.06;
-    --cy-glow-cyan: #00f0ff;
-    --cy-glow-cyan-soft: rgba(0, 240, 255, 0.45);
-    --cy-glow-yellow: #fcee0a;
-    --cy-glow-green: #00ff9f;
-    --cy-glow-magenta-soft: rgba(255, 42, 109, 0.5);
-    --cy-glow-today: rgba(252, 238, 10, 0.25);
-    --cy-glow-today-inset: rgba(252, 238, 10, 0.12);
+    /* Accents — dark */
+    --cy-cyan: #22d3ee;
+    --cy-magenta: #f0407a;
+    --cy-yellow: #fbbf24;
+    --cy-green: #34d399;
+    --cy-orange: #fb923c;
 
-    /* Category accents — dark (current neon) */
-    --cat-cyan: #00f0ff;
-    --cat-magenta: #ff2a6d;
-    --cat-yellow: #fcee0a;
-    --cat-green: #00ff9f;
-    --cat-orange: #ff9f1c;
-    --cat-cyan-glow: #00f0ff;
-    --cat-magenta-glow: #ff2a6d;
-    --cat-yellow-glow: #fcee0a;
-    --cat-green-glow: #00ff9f;
-    --cat-orange-glow: #ff9f1c;
+    /* Derived — dark */
+    --cy-chip-bg: #10151f;
+    --cy-chip-text: #eaf2f8;
+    --cy-cta-fg: #0a0c11;
+
+    /* Category accents — dark */
+    --cat-cyan: #22d3ee;
+    --cat-magenta: #f0407a;
+    --cat-yellow: #fbbf24;
+    --cat-green: #34d399;
+    --cat-orange: #fb923c;
   }
 }
 
@@ -242,37 +214,10 @@ body {
   height: 100%;
 }
 body {
-  background:
-    radial-gradient(
-      1300px 800px at 75% -15%,
-      var(--cy-radial-magenta),
-      transparent 62%
-    ),
-    radial-gradient(
-      1000px 700px at 8% 115%,
-      var(--cy-radial-cyan),
-      transparent 62%
-    ),
-    var(--cy-bg);
+  background: var(--cy-bg);
   color: var(--cy-text);
   font-family: var(--font-ui), system-ui, sans-serif;
   overflow: hidden;
-}
-
-/* Faint CRT scanline whisper — the heavy scanlines + line-grid were removed for a cleaner look. */
-.cy-scanlines::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 50;
-  background: repeating-linear-gradient(
-    0deg,
-    transparent 0 3px,
-    rgba(0, 0, 0, 0.16) 3px 4px
-  );
-  mix-blend-mode: multiply;
-  opacity: var(--cy-scanline-opacity);
 }
 
 .cy-mono {

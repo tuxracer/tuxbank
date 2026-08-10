@@ -3,7 +3,7 @@ import DraggableEventChip from "@/components/DraggableEventChip";
 import DayEventsPopover from "@/components/DayEventsPopover";
 import { CyberFrame } from "@/components/CyberFrame";
 import { formatCurrency } from "@/utils/formatCurrency";
-import { catColorVar, catGlowVar } from "@/utils/categoryColor";
+import { catColorVar } from "@/utils/categoryColor";
 
 import { MAX_VISIBLE_CHIPS, MAX_COMPACT_DOTS } from "./consts";
 import type { DayCellProps } from "./types";
@@ -73,10 +73,7 @@ const DayCell = ({
               key={`${o.eventId}:${o.date}`}
               title={o.title}
               className="inline-block h-1.5 w-1.5 rounded-full"
-              style={{
-                background: catColorVar(o.category.color),
-                boxShadow: `0 0 6px ${catGlowVar(o.category.color)}`,
-              }}
+              style={{ background: catColorVar(o.category.color) }}
             />
           ))}
           {occurrences.length > MAX_COMPACT_DOTS && (

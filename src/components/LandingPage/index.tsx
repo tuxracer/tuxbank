@@ -13,7 +13,7 @@ export * from "./types";
  * app boots straight into the calendar.
  */
 const LandingPage = ({ onTryNow }: LandingPageProps) => (
-  <main className="cy-scanlines flex min-h-[100dvh] flex-col gap-8 overflow-y-auto p-4 sm:p-6">
+  <main className="flex min-h-[100dvh] flex-col gap-8 overflow-y-auto p-4 sm:p-6">
     <header className="cy-hud flex items-center justify-between gap-3">
       <span>
         tuxbank <span className="dim">{"// local-first money calendar"}</span>
@@ -23,18 +23,8 @@ const LandingPage = ({ onTryNow }: LandingPageProps) => (
 
     <section className="flex grow flex-col items-center justify-center gap-6 text-center">
       <h1 className="cy-display text-[clamp(3.5rem,12vw,7rem)] leading-none font-bold tracking-wide uppercase">
-        <span
-          className="text-[color:var(--cy-cyan)]"
-          style={{ textShadow: "0 0 28px var(--cy-glow-cyan-soft)" }}
-        >
-          tux
-        </span>
-        <span
-          className="text-[color:var(--cy-magenta)]"
-          style={{ textShadow: "0 0 28px var(--cy-glow-magenta-soft)" }}
-        >
-          bank
-        </span>
+        <span className="text-[color:var(--cy-cyan)]">tux</span>
+        <span className="text-[color:var(--cy-magenta)]">bank</span>
       </h1>
 
       <p className="max-w-xl text-base text-balance text-[color:var(--cy-text)] sm:text-lg">
