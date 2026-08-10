@@ -304,3 +304,14 @@ pnpm format      # Auto-fix formatting (prettier --write)
     ).toBe(true);
   });
   ```
+
+- **Be conservative about adding tests**: Every test carries maintenance cost, so each one has to earn it. Before writing a test, ask what bug it would catch. If the only way it fails is a deliberate change whose "fix" is editing the test to match, don't write it. Prefer few tests over logic that can actually break (recurrence expansion, balance math, sync merge, crypto, storage migrations, key wrapping) over many tests over wiring that TypeScript and the compiler already guarantee.
+
+  Do not write tests that:
+  - Assert rendered copy (headings, labels, button text, placeholders, empty-state sentences). Copy changes are intentional and the test just has to be updated in lockstep.
+  - Re-state a constant, a default, or a type's shape (`expect(DEFAULTS.foo).toBe("bar")`, "exports these keys", "has these fields").
+  - Check that a component renders at all, or that a prop passed in comes back out unchanged.
+  - Verify a mock was called with the exact arguments the code literally passes one line above, when no transformation happens in between.
+  - Exercise a library's behavior rather than ours (date-fns formatting, zod's own validation, Radix open/close mechanics).
+
+  When a test needs to find an element, prefer a stable handle (role, label, test id) over matching a copy string, so that rewording the UI does not break it. When asserting on user-visible behavior, assert the state change (the event was saved, the balance recomputed, the dialog closed), not the sentence displayed.
