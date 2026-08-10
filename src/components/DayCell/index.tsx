@@ -61,9 +61,7 @@ const DayCell = ({
         if (e.key === "Enter") onSelectDate(cell.iso);
       }}
     >
-      <span className="cy-cell-num">
-        {String(cell.dayOfMonth).padStart(2, "0")}
-      </span>
+      <span className="cy-cell-num">{cell.dayOfMonth}</span>
       {compact ? (
         <div className="flex flex-wrap items-center gap-1">
           {dots.map((o) => (

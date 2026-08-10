@@ -114,9 +114,7 @@ const PreviewGrid = () => (
             className={classes.join(" ")}
             style={{ animationDelay: `${index * LANDING_STAGGER_MS}ms` }}
           >
-            <span className="cy-cell-num">
-              {String(day.label).padStart(2, "0")}
-            </span>
+            <span className="cy-cell-num">{day.label}</span>
             {day.event && (
               <span className="cy-chip" style={chipStyle(day)}>
                 <span className="truncate">{day.event.title}</span>
@@ -149,15 +147,17 @@ const PreviewTape = () => (
         className="cy-land flex items-center gap-3 border-t border-[color:var(--cy-hairline)] px-3 py-2 first:border-t-0"
         style={{ animationDelay: `${index * LANDING_STAGGER_MS}ms` }}
       >
+        {/* Right-aligned: the tape stacks dates in a column, so without the
+            leading zero the ones and tens digits would sit ragged. */}
         <span
-          className="cy-cell-num w-6 shrink-0"
+          className="cy-cell-num w-5 shrink-0 text-right"
           style={
             day.label === LANDING_PREVIEW_TODAY
               ? { color: "var(--cy-yellow)", fontWeight: 700 }
               : undefined
           }
         >
-          {String(day.label).padStart(2, "0")}
+          {day.label}
         </span>
         <span className="cy-chip min-w-0 flex-1" style={chipStyle(day)}>
           <span className="truncate">{day.event?.title}</span>
