@@ -5,7 +5,6 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { catColorVar } from "@/utils/categoryColor";
-import { CyberFrame } from "@/components/CyberFrame";
 import {
   SyncAttentionBadge,
   SyncAttentionDot,
@@ -138,7 +137,6 @@ const CalendarToolbar = ({
     return (
       <header className="flex flex-col gap-2">
         <div className="cy-toolbar flex flex-col gap-2 px-3 py-2.5">
-          <CyberFrame chamfer={18} color="var(--cy-line)" />
           <div className="flex items-center gap-2">
             {navControls}
             <Popover open={menuOpen} onOpenChange={setMenuOpen}>
@@ -156,7 +154,6 @@ const CalendarToolbar = ({
                 align="end"
                 className="cy-dialog w-48 border-0 p-2"
               >
-                <CyberFrame />
                 <div className="flex flex-col gap-1">
                   <button
                     type="button"
@@ -200,7 +197,6 @@ const CalendarToolbar = ({
   return (
     <header className="flex flex-col gap-3">
       <div className="cy-toolbar flex flex-wrap items-center justify-between gap-3 px-4 py-3">
-        <CyberFrame chamfer={18} color="var(--cy-line)" />
         <div className="flex items-center gap-3">{navControls}</div>
 
         <div className="flex items-center gap-3">

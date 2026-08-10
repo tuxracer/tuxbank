@@ -10,7 +10,6 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { CyberFrame } from "@/components/CyberFrame";
 
 import type { DataDialogProps } from "./types";
 
@@ -123,7 +122,6 @@ const DataDialog = ({
           sizes to content, ignoring max-h — the body wrapper could never shrink
           and overflow-y-auto would never engage. */}
       <DialogContent className="cy-dialog max-h-[85dvh] grid-rows-[minmax(0,1fr)] border-0 sm:max-w-md">
-        <CyberFrame />
         <div className="grid min-h-0 gap-4 overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="cy-display uppercase tracking-wide">

@@ -1,6 +1,5 @@
 import { parseISO } from "date-fns";
 import EventChip from "@/components/EventChip";
-import { CyberFrame } from "@/components/CyberFrame";
 import { formatCurrency } from "@/utils/formatCurrency";
 
 import type { DayPanelProps } from "./types";
@@ -22,7 +21,6 @@ const DayPanel = ({
   onAddEvent,
 }: DayPanelProps) => (
   <section className="cy-toolbar relative flex flex-col gap-2 px-3 py-2.5">
-    <CyberFrame chamfer={18} color="var(--cy-line)" />
     <div className="flex items-center justify-between gap-2">
       <p className="cy-mono text-[10px] uppercase tracking-widest text-[color:var(--cy-cyan)]">
         {dateLabeler.format(parseISO(dateISO))}

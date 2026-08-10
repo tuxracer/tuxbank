@@ -4,7 +4,6 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import EventChip from "@/components/EventChip";
-import { CyberFrame } from "@/components/CyberFrame";
 
 import type { DayEventsPopoverProps } from "./types";
 
@@ -27,7 +26,6 @@ const DayEventsPopover = ({
       </button>
     </PopoverTrigger>
     <PopoverContent className="cy-dialog w-56 border-0 p-3">
-      <CyberFrame />
       <p className="cy-mono mb-2 text-[10px] uppercase tracking-widest text-[color:var(--cy-cyan)]">
         {dateLabel}
       </p>

@@ -4,7 +4,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { CyberFrame } from "@/components/CyberFrame";
 import { LICENSE_URL, REPO_URL } from "./consts";
 
 import type { AboutDialogProps } from "./types";
@@ -18,7 +17,6 @@ const linkClasses =
 const AboutDialog = ({ open, onOpenChange }: AboutDialogProps) => (
   <Dialog open={open} onOpenChange={onOpenChange}>
     <DialogContent className="cy-dialog max-h-[85dvh] grid-rows-[minmax(0,1fr)] border-0 sm:max-w-md">
-      <CyberFrame />
       <div className="grid min-h-0 gap-4 overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="cy-display uppercase tracking-wide">

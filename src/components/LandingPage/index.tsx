@@ -1,4 +1,3 @@
-import { CyberFrame } from "@/components/CyberFrame";
 import { REPO_URL } from "@/components/AboutDialog";
 import { LANDING_FEATURES } from "./consts";
 
@@ -57,7 +56,6 @@ const LandingPage = ({ onTryNow }: LandingPageProps) => (
     </section>
 
     <section className="cy-toolbar mx-auto w-full max-w-3xl px-5 py-4">
-      <CyberFrame chamfer={18} color="var(--cy-line)" />
       <div className="grid gap-x-8 gap-y-4 sm:grid-cols-2">
         {LANDING_FEATURES.map((feature) => (
           <div key={feature.title} className="flex flex-col gap-1">

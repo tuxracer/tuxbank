@@ -1,7 +1,6 @@
 import { useDroppable } from "@dnd-kit/core";
 import DraggableEventChip from "@/components/DraggableEventChip";
 import DayEventsPopover from "@/components/DayEventsPopover";
-import { CyberFrame } from "@/components/CyberFrame";
 import { formatCurrency } from "@/utils/formatCurrency";
 import { catColorVar } from "@/utils/categoryColor";
 
@@ -37,11 +36,6 @@ const DayCell = ({
   if (isToday) classes.push("today");
   if (isSelected) classes.push("selected");
   if (isOver) classes.push("drop");
-  const frameColor = isToday
-    ? "var(--cy-yellow)"
-    : isSelected
-      ? "var(--cy-cyan)"
-      : "var(--cy-line)";
 
   // "+N more" implies something is shown above it; with zero visible chips
   // the trigger is the only signal, so it reads as a count instead.
@@ -62,7 +56,6 @@ const DayCell = ({
         if (e.key === "Enter") onSelectDate(cell.iso);
       }}
     >
-      <CyberFrame chamfer={12} corners={["tr"]} color={frameColor} />
       <span className="cy-cell-num">
         {String(cell.dayOfMonth).padStart(2, "0")}
       </span>

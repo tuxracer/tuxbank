@@ -10,7 +10,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
-import { CyberFrame } from "@/components/CyberFrame";
 
 import { OPTIONS } from "./consts";
 import type { RecurrenceScopeDialogProps } from "./types";
@@ -29,7 +28,6 @@ const RecurrenceScopeDialog = ({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="cy-dialog border-0 sm:max-w-sm">
-        <CyberFrame />
         <DialogHeader>
           <DialogTitle className="cy-display uppercase tracking-wide">
             {action === "edit"

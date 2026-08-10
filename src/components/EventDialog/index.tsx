@@ -14,7 +14,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { eventFormSchema, toEventInput, type EventFormValues } from "./schema";
 import CategoryCombobox from "@/components/CategoryCombobox";
-import { CyberFrame } from "@/components/CyberFrame";
 
 import type { EventDialogProps } from "./types";
 
@@ -93,7 +92,6 @@ const EventDialog = (props: EventDialogProps) => {
           sizes to content, ignoring max-h — the body wrapper could never shrink
           and overflow-y-auto would never engage. */}
       <DialogContent className="cy-dialog max-h-[85dvh] grid-rows-[minmax(0,1fr)_auto] border-0 sm:max-w-md">
-        <CyberFrame />
         <div className="grid min-h-0 gap-4 overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="cy-display uppercase tracking-wide">
