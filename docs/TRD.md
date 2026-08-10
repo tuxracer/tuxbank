@@ -12,7 +12,7 @@ A single-user, full-page **month calendar** web app with a **cyberpunk-inspired*
 
 ### Goals
 - A calendar that **fills the entire viewport** and is the whole app, with no chrome competing for space.
-- A **striking, cohesive cyberpunk aesthetic** (neon-on-black, angular HUD), not a generic theme.
+- A **cohesive, cyberpunk-inspired aesthetic**: flat data-ink surfaces, a disciplined accent palette, and no glow effects, not a generic theme.
 - Fast, fully **client-side** personal scheduling: create/edit/delete events with **no sign-in and no network dependency**.
 - **Local persistence** that survives reloads via IndexedDB.
 - Support **recurring events** with familiar Google-Calendar-style edit/delete scopes.
@@ -46,7 +46,7 @@ A single person managing their own schedule of **all-day, date-based events**: m
 | Date math | **date-fns** | Grid generation, recurrence stepping, comparisons. |
 | Date picker | **Native `<input type="date">`** | Used for the event form's Date field; main month grid is custom-built. The shadcn `calendar` primitive remains available for future use. |
 | Persistence | **IndexedDB** via **idb** | Two object stores (events, categories); see §"Persistence: IndexedDB". |
-| Fonts | **Rajdhani**, **Chakra Petch**, **Share Tech Mono** | Self-hosted via `@fontsource` packages (latin subsets), imported in `src/main.tsx`. Display / UI / data, respectively. |
+| Fonts | **Rajdhani**, **Chakra Petch**, **JetBrains Mono** | Self-hosted via `@fontsource` packages (latin subsets), imported in `src/main.tsx`. Display / UI / data, respectively. |
 | Drag-and-drop | **@dnd-kit/core** | `DndContext` + `PointerSensor` in `src/App.tsx`; chips use `useDraggable`, cells use `useDroppable`. |
 | Toasts | **sonner** | Move confirmations with Undo; themed wrapper in `src/components/ui/sonner.tsx`. |
 | Testing | **vitest** + **@testing-library/react** | Behavior-focused tests per `CLAUDE.md`; storage tests run against fake-indexeddb. |
@@ -63,18 +63,18 @@ A single person managing their own schedule of **all-day, date-based events**: m
 ### 4.1 Month view & navigation
 - On load, the calendar shows the **current month** in the viewer's local time zone, filling the viewport (`100dvh`).
 - A **7-column grid** (Sunday-first) renders a fixed **6-week (6×7) matrix** so layout height is stable; leading/trailing days from adjacent months are shown **dimmed**.
-- The **today** cell is visually emphasized (neon glow).
+- The **today** cell is visually emphasized (a yellow inset left edge).
 - **Toolbar** provides: previous month (‹), next month (›), current **month/year label**, **Today** (jump to current month), a **category filter**, and **+ New Event**.
 - A **HUD status line** shows decorative/real system context (e.g., app name, `LOCAL_DB::INDEXEDDB`, record count).
 
 ### 4.2 Events
 - An event has: **title** (required), **date** (required, single all-day date), **category** (required; its color comes from a preset 5-color palette), an **amount** (required, > 0) with a **deposit/withdrawal direction** (required), **notes** (optional), and an optional **recurrence** rule.
 - Events are **all-day and single-day**: no times, no multi-day spans.
-- Day cells render events as **color-coded neon chips**. Recurring occurrences show a **↻** marker.
+- Day cells render events as **color-coded event chips**. Recurring occurrences show a **↻** marker.
 - When a day has more chips than fit, it collapses to **"+N more"**, which opens a **day popover** listing all of that day's events.
 
 ### 4.3 Categories
-- Categories are **user-managed and persisted** (no presets; the store starts empty for a fresh user). Each has a name and a neon color from the 5-color palette (`cyan`, `magenta`, `yellow`, `green`, `orange`).
+- Categories are **user-managed and persisted** (no presets; the store starts empty for a fresh user). Each has a name and a color from the 5-color palette (`cyan`, `magenta`, `yellow`, `green`, `orange`).
 - **Created** inline via a creatable combobox in the event editor (pick an existing one or type a new name + pick a color), or from the **Manage Categories** dialog (type a name that does not exist to surface a `Create "<name>"` row with a color picker); **renamed / recolored / deleted** in the Manage Categories dialog opened from the toolbar.
 - Each category has an opaque **GUID** `id` (`crypto.randomUUID()`), generated at creation and stable across renames. Categories live in their own object store (see §4.6); events reference a category by id, so renaming or recoloring propagates to every event that uses it.
 - **Names are unique, case-insensitively** (`categoryKey(name) = name.trim().toLowerCase()` is the match key): creating a name that already exists selects the existing category instead of duplicating it, and renaming to a name another category already uses is rejected inline in the Manage dialog.
@@ -228,51 +228,83 @@ This mirrors iCalendar semantics (`EXDATE` / `RECURRENCE-ID` for single override
 
 - **Full-viewport layout:** `HUD status line` → `toolbar` → `weekday header` → `month grid` (the grid flexes to consume all remaining height). On desktop the grid renders only the week-rows the visible month spans (4-6, via `inMonthWeekCount`), so day cells get more height; trailing weeks that fall entirely in the next month are dropped. Compact mode always renders the full 6 rows (see Responsive / compact mode).
 - **Toolbar:** ‹ / month-year / › · **Today** · **category filter** · **+ New Event** (primary CTA).
-- **Day cell:** date number; **today** glow; dimmed out-of-month days; stacked neon **event chips** (with ↻ for recurring); **"+N more"** → **day popover**. On short windows, day cells show only as many event chips as fit the row height and collapse the rest into the "+N more" popover, so chips never clip. When no chips fit, the trigger reads "N events" instead.
+- **Day cell:** date number; **today** highlight; dimmed out-of-month days; stacked **event chips** (with ↻ for recurring); **"+N more"** → **day popover**. On short windows, day cells show only as many event chips as fit the row height and collapse the rest into the "+N more" popover, so chips never clip. When no chips fit, the trigger reads "N events" instead.
 - **Event editor (Dialog):** built with shadcn `Form` + **react-hook-form**/zod. Fields: Title, Date (native `<input type="date">`), Category (`CategoryCombobox`: creatable combobox built on shadcn `Command` + `Popover`; backed by `useCategorySearch` for filtering and exact-match detection; pick existing or create a new name + color via `CategoryCreateRow`), Notes (Textarea), Repeat (native `<select>`: Does-not-repeat / Daily / Weekly / Monthly / Yearly) with interval + optional end date; footer with **Delete**, **Cancel**, **Save**. The shadcn `calendar`/`Select` primitives remain available for future use.
 - **Recurring scope dialog:** This event / This and following / All events (used for edit, delete, and move).
 - **Move toast:** a `sonner` toast at the bottom center confirms every move and provides an Undo action. Styled to the cyberpunk panel look via `.cy-toast` / `.cy-toast-action` in `globals.css`.
-- **Responsive / compact mode:** below 640px (Tailwind's `sm` breakpoint) the `useIsCompact()` hook (`src/hooks/useIsCompact/`, matchMedia-driven) switches the calendar to compact rendering. The grid always shows the full 6 week-rows (unlike desktop, which trims to the weeks the month spans). Day cells show up to 4 category-colored dots (plus a `+` marker when there are more) instead of full chips, and tapping a day selects it. Swiping the grid left or right changes months (left for next, right for previous), with a brief glitch flash as feedback. The selected day's events, running balance, and an Add button appear in a `DayPanel` below the grid. The toolbar becomes two rows: navigation and an overflow menu (shadcn Popover) on row 1, the category legend on row 2; the menu holds SYNC, DATA, CATEGORIES, and ABOUT, and its trigger shows a bare attention dot when any item inside needs attention. Drag-and-drop is disabled in compact mode; events move between days by editing the date in the event editor. Dialogs cap their height at `85dvh` and scroll internally.
+- **Responsive / compact mode:** below 640px (Tailwind's `sm` breakpoint) the `useIsCompact()` hook (`src/hooks/useIsCompact/`, matchMedia-driven) switches the calendar to compact rendering. The grid always shows the full 6 week-rows (unlike desktop, which trims to the weeks the month spans). Day cells show up to 4 category-colored dots (plus a `+` marker when there are more) instead of full chips, and tapping a day selects it. Swiping the grid left or right changes months (left for next, right for previous), with a brief 180ms directional slide as feedback. The selected day's events, running balance, and an Add button appear in a `DayPanel` below the grid. The toolbar becomes two rows: navigation and an overflow menu (shadcn Popover) on row 1, the category legend on row 2; the menu holds SYNC, DATA, CATEGORIES, and ABOUT, and its trigger shows a bare attention dot when any item inside needs attention. Drag-and-drop is disabled in compact mode; events move between days by editing the date in the event editor. Dialogs cap their height at `85dvh` and scroll internally.
 - **Empty state:** a styled prompt to create the first event when the calendar has none.
-- **Landing page (first visit only):** `src/components/LandingPage` renders instead of the calendar until the visitor clicks the **Try Now** CTA. It states the core promises (free forever, no sign-up, not even an email; data stays in this browser; optional encrypted sync) in the same Night City language: HUD status line, two-tone neon wordmark, `.cy-cta` button, chamfered spec panel with `CyberFrame`. Clicking Try Now sets a localStorage flag (`tuxbank:landing-dismissed`, see `src/lib/landingGate`) and swaps in the calendar; later visits with the flag boot straight into the app. Two flows bypass the landing page: a `#device-link=` URL (a device-link sign-in must surface its TOTP prompt immediately), and the sign-out storage wipe restores the flag before reloading so a signed-out user is not greeted as a first-time visitor.
+- **Landing page (first visit only):** `src/components/LandingPage` renders instead of the calendar until the visitor clicks the **Try Now** CTA. It's a split screen: a pitch on the left (HUD status line, headline, `.cy-cta` button) and a static month-grid preview on the right, built from the real `.cy-cell` / `.cy-chip` markup so it stays honest as the design system changes; the preview grid is hidden below the `sm` breakpoint. A feature row and a footer with the MIT license and a source-repo link close out the page. Clicking Try Now sets a localStorage flag (`tuxbank:landing-dismissed`, see `src/lib/landingGate`) and swaps in the calendar; later visits with the flag boot straight into the app. Two flows bypass the landing page: a `#device-link=` URL (a device-link sign-in must surface its TOTP prompt immediately), and the sign-out storage wipe restores the flag before reloading so a signed-out user is not greeted as a first-time visitor.
 
 ---
 
-## 10. Design Language: "Night City"
+## 10. Design Language: cyberpunk-inspired, sober
 
-A bold, cohesive **cyberpunk-inspired** treatment. This section is the canonical visual spec; final pixel-level polish happens during implementation.
+A flat, disciplined treatment where color carries meaning instead of decoration. This section is the canonical visual spec; the source-of-truth tokens live in `src/globals.css`.
 
-### Palette: **cyan/magenta synthwave-forward**
-- **Dominant neons:** cyan `#00F0FF` and magenta `#FF2A6D`.
-- **Yellow `#FCEE0A`** used sparingly as a rare spark/highlight (not the primary accent).
-- **Supporting category neons:** green `#00FF9F`, orange `#FF9F1C`.
-- **Backgrounds:** near-black `#07080D` / panels `#0B0E16`, with faint cyan/magenta radial glows.
+### Palette: data ink, not decoration
 
-### Effects: **full HUD**
-- Subtle **scanline** overlay and a faint background **grid**.
-- **Neon glow** (text-shadow / box-shadow) on accents, chips, and the today cell.
-- **Glitch** flickers on key transitions (e.g., month change, dialog open) and hover.
-- **Angular clipped panels** (cut corners via `clip-path`) and **corner brackets**.
-- **`prefers-reduced-motion`:** disable glitch/scanline animation and flicker; retain the static neon look.
+Cyan is the only interface accent: navigation, links, the primary CTA, focus and selection state. Green and magenta are reserved for money moved, green for deposits and magenta for withdrawals. Yellow marks today and nothing else. Orange is category-only and never used for UI chrome. Light and dark are independently designed token sets defined in `src/globals.css`, not one derived from the other.
+
+**Light** (`:root`)
+
+| Token | Hex | Role |
+| --- | --- | --- |
+| `--cy-bg` | `#eff2f6` | page background |
+| `--cy-panel` | `#ffffff` | cards, dialogs, toolbar |
+| `--cy-panel-2` | `#f7f9fb` | raised fill (today / selected / drop cell) |
+| `--cy-line` | `#d6dde6` | borders |
+| `--cy-hairline` | `#e6ebf1` | day-cell borders |
+| `--cy-text` | `#1b2430` | body text |
+| `--cy-text-strong` | `#0b1119` | headings, emphasis |
+| `--cy-muted` | `#66788c` | secondary text, HUD labels |
+| `--cy-cyan` | `#0e7490` | interface accent |
+| `--cy-magenta` | `#be123c` | withdrawals |
+| `--cy-yellow` | `#b45309` | today |
+| `--cy-green` | `#047857` | deposits |
+| `--cy-orange` | `#c2410c` | category-only |
+
+**Dark** (`@media (prefers-color-scheme: dark)`)
+
+| Token | Hex | Role |
+| --- | --- | --- |
+| `--cy-bg` | `#0a0c11` | page background |
+| `--cy-panel` | `#0d1119` | cards, dialogs, toolbar |
+| `--cy-panel-2` | `#10151f` | raised fill (today / selected / drop cell) |
+| `--cy-line` | `#1b2431` | borders |
+| `--cy-hairline` | `#151c27` | day-cell borders |
+| `--cy-text` | `#c8d4e0` | body text |
+| `--cy-text-strong` | `#eaf2f8` | headings, emphasis |
+| `--cy-muted` | `#6b7c8f` | secondary text, HUD labels |
+| `--cy-cyan` | `#22d3ee` | interface accent |
+| `--cy-magenta` | `#f0407a` | withdrawals |
+| `--cy-yellow` | `#fbbf24` | today |
+| `--cy-green` | `#34d399` | deposits |
+| `--cy-orange` | `#fb923c` | category-only |
+
+Category accents (`--cat-{color}` for cyan, magenta, yellow, green, orange) mirror the matching `--cy-*` accent value in each theme; components read them through `catColorVar` in `src/utils/categoryColor`.
+
+### Effects: none
+
+No glow: no `text-shadow` or `box-shadow` on any element. No radial gradients, no CRT-style overlay lines, no background grid. No cut or angled corners: every surface is a flat fill with a straight 1px CSS border (`--cy-line` or `--cy-hairline`). The only animation in the app is the month-change slide described under Component styling; everything else is static.
 
 ### Typography
 - **Rajdhani** (600/700): display headings, month label, CTAs.
 - **Chakra Petch**: general UI text.
-- **Share Tech Mono**: data, date numbers, HUD readouts, field labels.
+- **JetBrains Mono**: all figures, date numbers, HUD readouts, field labels.
 
 ### Component styling
-- Event chips: dark fill, neon left-border + matching glow, clipped corner.
-- Primary CTA: neon fill with clipped corners and glow.
-- Dialogs: dark glass panels, neon border, corner brackets, mono uppercase labels.
-- Chamfered panels (`.cy-dialog`, `.cy-toolbar`, `.cy-cell`) split shape from border: a `::before` `clip-path` paints the dark fill, and `<CyberFrame>` (`src/components/CyberFrame`) draws the neon border as an SVG vector stroke so it stays a uniform width/brightness on the 45° chamfers (a CSS clip-path fill rasterizes diagonal edges brighter than straight ones, leaving square corners comparatively dark). CyberFrame props (`chamfer`, `corners`, `color`) must match each host's `::before` shape: dialogs cut top-right + bottom-left (cyan); the toolbar likewise (dim `--cy-line`); cells cut only top-right (`--cy-line`, or `--cy-yellow` on today).
-- Chamfered controls (`.cy-btn` and `.cy-nav` buttons/selects) split shape from border the same way: the class clips the control's fill and sets no CSS `border` (the clip-path would slice the border off at the bottom-right chamfer, leaving that corner open). Each control is wrapped in `<CyControlFrame>` (`src/components/CyControlFrame`), which overlays a `<CyberFrame>` stroke tracing the full outline. The frame renders as an overlay sibling rather than a child, so it works for `<select>` (which cannot contain children or pseudo-elements) and is never clipped by the host. Chamfer sizes (8px btn with `--cy-line`, 9px nav with `--cy-cyan`) must match the clip-paths in `globals.css`.
+- Event chips (`.cy-chip`): flat fill, a 2px cyan left border, no glow.
+- Primary CTA (`.cy-cta`): solid cyan fill, square corners, no glow.
+- Dialogs (`.cy-dialog`): flat panel fill, 1px `--cy-line` border, `box-shadow: none`.
+- Day-cell states (`.cy-cell.out` / `.today` / `.selected` / `.drop`) share one grammar: a 2px inset left edge (`box-shadow: inset 2px 0 0 <color>`) over a `--cy-panel-2` fill. Source order in `globals.css` is the precedence rule: `.cy-cell.drop` is defined last, so a cell that is both today and an active drop target shows the cyan drop edge, since the drag affordance is the more urgent signal.
+- Month-change feedback (`.cy-shift-next` / `.cy-shift-prev`): a 180ms directional slide (`translateX` plus an opacity fade), applied by `MonthGrid` and cleared on `animationend`. Disabled under `prefers-reduced-motion` (`animation: none !important`).
 
 ### Theming: light/dark (auto, follows OS)
 - Both themes are selected automatically from `prefers-color-scheme`; there is **no in-app toggle and no persistence**. Pure CSS: no JS, no theme class.
 - Every theme-able color is a CSS custom property: light values live in `:root`, dark values in `@media (prefers-color-scheme: dark) { :root { … } }`. The Tailwind `dark:` variant is media-query-driven (`@custom-variant dark (@media (prefers-color-scheme: dark))`), and `:root` sets `color-scheme: light dark` for native controls.
-- **Dark** is the original neon-on-black palette (unchanged). **Light** (Direction C, neutral/minimal) uses near-white surfaces, slate text, category/accent hues darkened to ~700 shades for contrast, and drops scanlines, body glows, and neon `box-/text-shadow` glows (glow tokens resolve to `transparent`).
-- Category accents are CSS tokens `--cat-{color}` / `--cat-{color}-glow` (not a JS hex map); components reference them via `catColorVar` / `catGlowVar` in `src/utils/categoryColor`.
-- `<CyberFrame>` borders re-theme for free because their stroke color is already a `var(--cy-*)` token; on a light surface the border reads as a dark line whose width stays uniform across the 45° chamfers via the same SVG-stroke mechanism (not a `clip-path` border).
+- Light and dark are **independently designed token sets**, not a derived pair: each theme picks its own surface, text, and accent values (see the Palette tables above) rather than inverting the other theme's numbers.
+- Category accents are CSS tokens `--cat-{color}` (not a JS hex map); components reference them via `catColorVar` in `src/utils/categoryColor`.
 
 ---
 
@@ -287,22 +319,20 @@ index.html                  # Vite HTML entry
 src/
   main.tsx                  # Vite entry: fonts, globals.css, mounts <App />
   App.tsx                   # landing-page gate + calendar page composition
-  globals.css               # Tailwind layers + cyberpunk tokens & overlays
+  globals.css               # Tailwind layers + cyberpunk-inspired design tokens
   components/
     CalendarToolbar/        # month nav, Today, category filter, New Event, HUD line
     MonthGrid/              # week-grid (desktop trims to weeks spanned; compact = 6 rows); consumes dateGrid + grouped occurrences
-    DayCell/                # date number, today glow, chips, "+N more"; droppable target
-    EventChip/              # neon chip; accepts optional drag props for draggable use
+    DayCell/                # date number, today highlight, chips, "+N more"; droppable target
+    EventChip/              # color-coded chip; accepts optional drag props for draggable use
     DraggableEventChip/     # wraps EventChip with useDraggable for cells (not the overflow popover)
-    CyberFrame/             # SVG vector-stroke neon border for chamfered panels (.cy-dialog, .cy-toolbar, .cy-cell)
-    CyControlFrame/         # wraps a .cy-btn/.cy-nav control; overlays a CyberFrame border that follows the chamfer
     DayPanel/               # compact-mode selected-day detail: event chips, running balance, Add button
     DayEventsPopover/       # overflow list (shadcn Popover)
     CategoryCombobox/       # creatable combobox (shadcn Command + Popover); uses useCategorySearch + CategoryCreateRow
     ManageCategoriesDialog/ # rename / recolor / delete categories; search field + CategoryCreateRow for in-dialog creation
     CategoryCreateRow/      # "Create <name>" row with CategoryColorPicker; exports useCategorySearch hook
     CategoryColorPicker/    # row of selectable color swatches (used by CategoryCreateRow and ManageCategoriesDialog)
-    CategoryDot/            # shared neon color swatch used by the picker and chips
+    CategoryDot/            # shared color swatch used by the picker and chips
     EventDialog/            # create/edit form (shadcn Form + react-hook-form/zod, Dialog/Select/Textarea + date picker)
     RecurrenceScopeDialog/  # This / This & following / All (shadcn Dialog + RadioGroup)
     DataDialog/             # JSON backup export/import (validate -> confirm -> swap) + guarded clear-all
@@ -324,7 +354,7 @@ src/
     landingGate/            # localStorage flag for skipping the landing page on return visits
   types/                    # CalendarEvent, Category, Recurrence + type guards
   utils/
-    categoryColor/          # PALETTE, DEFAULT_CATEGORY_COLOR, catColorVar, catGlowVar
+    categoryColor/          # PALETTE, DEFAULT_CATEGORY_COLOR, catColorVar
     formatCurrency/         # Intl.NumberFormat wrapper
     base64/                 # base64 encode/decode helpers (used by the sync layer)
   components/
@@ -397,7 +427,7 @@ Vitest, **behavior-focused** (verify behavior, not implementation constants, per
 4. Editing/deleting/moving a recurring event prompts for scope, and **This / This-and-following / All** each behave per §7 and persist correctly.
 5. "+N more" reveals all events for a day via the popover; the category filter hides/shows chips.
 6. With storage unavailable (no IndexedDB), the app shows a non-blocking banner and remains usable in-memory.
-7. `prefers-reduced-motion` disables animated effects while preserving the neon look.
+7. `prefers-reduced-motion` disables the month-change slide animation.
 8. All tests pass and `pnpm check` is clean.
 
 ---
