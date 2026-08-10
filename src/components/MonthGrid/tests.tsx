@@ -311,23 +311,29 @@ describe("MonthGrid swipe navigation", () => {
       />,
     );
     swipe(screen.getByRole("grid"), { x: 300, y: 100 }, { x: 200, y: 100 });
-    expect(container.querySelector(".cy-glitch")).toBeNull();
+    expect(container.querySelector(".cy-shift-next")).toBeNull();
     expect(container.querySelector(".touch-pan-y")).toBeNull();
   });
 
-  it("flashes cy-glitch on swipe and clears it when the animation ends", () => {
+  it("slides on swipe and clears the class when the animation ends", () => {
     const { container } = renderSwipeGrid();
     swipe(screen.getByRole("grid"), { x: 300, y: 100 }, { x: 200, y: 100 });
-    const root = container.querySelector(".cy-glitch");
+    const root = container.querySelector(".cy-shift-next");
     expect(root).not.toBeNull();
     // jsdom has no AnimationEvent, so fireEvent.animationEnd produces an event
     // without animationName; build one by hand so the listener's guard matches.
     act(() => {
       const evt = new Event("animationend", { bubbles: true });
-      Object.defineProperty(evt, "animationName", { value: "cy-glitch" });
+      Object.defineProperty(evt, "animationName", { value: "cy-shift-next" });
       root!.dispatchEvent(evt);
     });
-    expect(container.querySelector(".cy-glitch")).toBeNull();
+    expect(container.querySelector(".cy-shift-next")).toBeNull();
+  });
+
+  it("slides the other way on a right swipe", () => {
+    const { container } = renderSwipeGrid();
+    swipe(screen.getByRole("grid"), { x: 200, y: 100 }, { x: 300, y: 100 });
+    expect(container.querySelector(".cy-shift-prev")).not.toBeNull();
   });
 
   it("forgets a cancelled gesture", () => {

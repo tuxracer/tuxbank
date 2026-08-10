@@ -79,31 +79,36 @@ const MonthGrid = ({
     initialActiveIndex(visibleCells, todayISO),
   );
 
-  // Swipe-to-change-month (compact mode). The glitch flash is the month-change
-  // feedback; cy-glitch is a 450ms one-shot animation cleared on animationend.
-  const [glitching, setGlitching] = useState(false);
+  // Swipe-to-change-month (compact mode). A one-shot 180ms directional slide is
+  // the month-change feedback, cleared on animationend.
+  const [shift, setShift] = useState<"next" | "prev" | null>(null);
   const swipeEnabled = Boolean(onSwipeLeft ?? onSwipeRight);
   const swipeHandlers = useSwipeNavigation({
     enabled: swipeEnabled,
     onSwipeLeft: () => {
-      setGlitching(true);
+      setShift("next");
       onSwipeLeft?.();
     },
     onSwipeRight: () => {
-      setGlitching(true);
+      setShift("prev");
       onSwipeRight?.();
     },
   });
 
-  // Clear the glitch class when the cy-glitch animation ends. Use a native
-  // listener so this fires in jsdom (React's onAnimationEnd synthetic event
-  // does not fire there). The animationName guard prevents unrelated child
-  // animations that bubble here from prematurely clearing the flag.
+  // Clear the slide class when the animation ends. Use a native listener so
+  // this fires in jsdom (React's onAnimationEnd synthetic event does not fire
+  // there). The animationName guard prevents unrelated child animations that
+  // bubble here from prematurely clearing the flag.
   useEffect(() => {
     const el = rootRef.current;
     if (!el) return;
     const onAnimationEnd = (e: AnimationEvent) => {
-      if (e.animationName === "cy-glitch") setGlitching(false);
+      if (
+        e.animationName === "cy-shift-next" ||
+        e.animationName === "cy-shift-prev"
+      ) {
+        setShift(null);
+      }
     };
     el.addEventListener("animationend", onAnimationEnd);
     return () => el.removeEventListener("animationend", onAnimationEnd);
@@ -161,7 +166,7 @@ const MonthGrid = ({
   return (
     <div
       ref={rootRef}
-      className={`flex min-h-0 flex-1 flex-col gap-1.5${swipeEnabled ? " touch-pan-y" : ""}${glitching ? " cy-glitch" : ""}`}
+      className={`flex min-h-0 flex-1 flex-col gap-1.5${swipeEnabled ? " touch-pan-y" : ""}${shift ? ` cy-shift-${shift}` : ""}`}
       {...swipeHandlers}
     >
       <div className="grid grid-cols-7 gap-1.5" role="row">
