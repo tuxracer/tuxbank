@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { SyncDialog } from "./index";
 import type { SyncContextValue } from "@/context/SyncContext";
@@ -75,5 +75,85 @@ describe("SyncDialog device linking", () => {
     fireEvent.click(screen.getByRole("button", { name: /generate code/i }));
     await waitFor(() => expect(mocks.createDeviceLink).toHaveBeenCalled());
     expect(screen.queryByTestId("device-link-qr")).toBeNull();
+  });
+});
+
+describe("SyncDialog sign-in conflict", () => {
+  beforeEach(() => {
+    syncValue.status = "choice";
+    syncValue.step = "signin-choice";
+    syncValue.signInChoice = { local: 12, remote: 34 };
+    syncValue.resolveSignInChoice = vi.fn();
+  });
+
+  afterEach(() => {
+    syncValue.status = "synced";
+    syncValue.step = "idle";
+    syncValue.signInChoice = null;
+  });
+
+  it("shows both counts", () => {
+    render(<SyncDialog open onOpenChange={() => {}} />);
+
+    expect(screen.getByText(/12/)).toBeInTheDocument();
+    expect(screen.getByText(/34/)).toBeInTheDocument();
+  });
+
+  it("merges immediately, with no confirm step", () => {
+    render(<SyncDialog open onOpenChange={() => {}} />);
+
+    fireEvent.click(screen.getByRole("button", { name: /merge both/i }));
+
+    expect(syncValue.resolveSignInChoice).toHaveBeenCalledWith("merge");
+  });
+
+  it("requires the confirm word before deleting the account's events", () => {
+    render(<SyncDialog open onOpenChange={() => {}} />);
+    fireEvent.click(screen.getByRole("button", { name: /keep this device/i }));
+
+    const confirm = screen.getByTestId("signin-choice-confirm-button");
+    expect(confirm).toBeDisabled();
+
+    fireEvent.change(screen.getByTestId("signin-choice-confirm"), {
+      target: { value: "delete" },
+    });
+
+    expect(confirm).toBeEnabled();
+    fireEvent.click(confirm);
+    expect(syncValue.resolveSignInChoice).toHaveBeenCalledWith("local");
+  });
+
+  it("requires the confirm word before deleting this device's events", () => {
+    render(<SyncDialog open onOpenChange={() => {}} />);
+    fireEvent.click(screen.getByRole("button", { name: /keep the account/i }));
+
+    fireEvent.change(screen.getByTestId("signin-choice-confirm"), {
+      target: { value: "delete" },
+    });
+    fireEvent.click(screen.getByTestId("signin-choice-confirm-button"));
+
+    expect(syncValue.resolveSignInChoice).toHaveBeenCalledWith("remote");
+  });
+
+  it("accepts the confirm word with stray case and whitespace", () => {
+    render(<SyncDialog open onOpenChange={() => {}} />);
+    fireEvent.click(screen.getByRole("button", { name: /keep the account/i }));
+
+    fireEvent.change(screen.getByTestId("signin-choice-confirm"), {
+      target: { value: "  DELETE " },
+    });
+
+    expect(screen.getByTestId("signin-choice-confirm-button")).toBeEnabled();
+  });
+
+  it("goes back to the three choices without resolving", () => {
+    render(<SyncDialog open onOpenChange={() => {}} />);
+    fireEvent.click(screen.getByRole("button", { name: /keep this device/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^back$/i }));
+
+    expect(
+      screen.getByRole("button", { name: /merge both/i }),
+    ).toBeInTheDocument();
+    expect(syncValue.resolveSignInChoice).not.toHaveBeenCalled();
   });
 });

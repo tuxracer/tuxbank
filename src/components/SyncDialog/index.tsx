@@ -33,6 +33,14 @@ interface SyncDialogProps {
 
 type Mode = "choose" | "create" | "signin";
 
+/** The exact word the user must type to confirm a destructive sign-in choice. */
+const CONFIRM_WORD = "delete";
+
+/** Which destructive choice is awaiting its typed confirmation, if any. */
+type ChoiceStage =
+  | { kind: "choose" }
+  | { kind: "confirm"; choice: "local" | "remote" };
+
 const ERROR_TEXT: Record<string, string> = {
   SIGNUP_FAILED: "Could not create the account (is the email already used?).",
   SIGNIN_FAILED: "Wrong email or password.",
@@ -92,6 +100,11 @@ export const SyncDialog = ({ open, onOpenChange }: SyncDialogProps) => {
   const [awaitingReauth, setAwaitingReauth] = useState(false);
   const [reauthCode, setReauthCode] = useState("");
   const [confirmingSignOut, setConfirmingSignOut] = useState(false);
+  const [choiceStage, setChoiceStage] = useState<ChoiceStage>({
+    kind: "choose",
+  });
+  const [choiceText, setChoiceText] = useState("");
+  const choiceConfirmed = choiceText.trim().toLowerCase() === CONFIRM_WORD;
 
   const reset = () => {
     setMode("choose");
@@ -108,6 +121,8 @@ export const SyncDialog = ({ open, onOpenChange }: SyncDialogProps) => {
     setAwaitingReauth(false);
     setReauthCode("");
     setConfirmingSignOut(false);
+    setChoiceStage({ kind: "choose" });
+    setChoiceText("");
   };
 
   const run = async (fn: () => Promise<void>) => {
@@ -625,6 +640,101 @@ export const SyncDialog = ({ open, onOpenChange }: SyncDialogProps) => {
                 >
                   I have saved it
                 </Button>
+              </section>
+            )}
+
+            {/* SIGN IN: data conflict, choose which set of events to keep */}
+            {sync.step === "signin-choice" && sync.signInChoice && (
+              <section className="flex flex-col gap-3">
+                {choiceStage.kind === "choose" && (
+                  <>
+                    <p className="cy-mono text-xs">
+                      This device has {sync.signInChoice.local} events. Your
+                      account has {sync.signInChoice.remote} events. Choose
+                      which set to keep.
+                    </p>
+                    <Button
+                      className="cy-btn justify-start"
+                      onClick={() => void sync.resolveSignInChoice("merge")}
+                    >
+                      Merge both
+                    </Button>
+                    <span className="cy-mono text-xs text-[color:var(--cy-muted)]">
+                      Keep all{" "}
+                      {sync.signInChoice.local + sync.signInChoice.remote}.
+                      Nothing is deleted.
+                    </span>
+                    <Button
+                      className="cy-btn justify-start text-[color:var(--cy-magenta)]"
+                      onClick={() => {
+                        setChoiceText("");
+                        setChoiceStage({ kind: "confirm", choice: "local" });
+                      }}
+                    >
+                      Keep this device
+                    </Button>
+                    <Button
+                      className="cy-btn justify-start text-[color:var(--cy-magenta)]"
+                      onClick={() => {
+                        setChoiceText("");
+                        setChoiceStage({ kind: "confirm", choice: "remote" });
+                      }}
+                    >
+                      Keep the account
+                    </Button>
+                  </>
+                )}
+
+                {choiceStage.kind === "confirm" && (
+                  <div className="cy-mono flex flex-col gap-2 text-xs">
+                    <span>
+                      Type{" "}
+                      <span className="text-[color:var(--cy-magenta)]">
+                        {CONFIRM_WORD}
+                      </span>{" "}
+                      to confirm.{" "}
+                      {choiceStage.choice === "local"
+                        ? `The ${sync.signInChoice.remote} events in your account will be deleted, on every device signed into it.`
+                        : `The ${sync.signInChoice.local} events on this device will be deleted. Your account is not changed.`}{" "}
+                      This cannot be undone.
+                    </span>
+                    <Input
+                      data-testid="signin-choice-confirm"
+                      type="text"
+                      autoComplete="off"
+                      autoCapitalize="off"
+                      spellCheck={false}
+                      placeholder={CONFIRM_WORD}
+                      value={choiceText}
+                      onChange={(e) => setChoiceText(e.target.value)}
+                    />
+                    <div className="flex justify-end gap-2">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        onClick={() => setChoiceStage({ kind: "choose" })}
+                      >
+                        Back
+                      </Button>
+                      <Button
+                        type="button"
+                        data-testid="signin-choice-confirm-button"
+                        className="text-[color:var(--cy-magenta)]"
+                        disabled={!choiceConfirmed}
+                        onClick={() => {
+                          const { choice } = choiceStage;
+                          setChoiceStage({ kind: "choose" });
+                          setChoiceText("");
+                          void sync.resolveSignInChoice(choice);
+                        }}
+                      >
+                        {choiceStage.choice === "local"
+                          ? `Delete ${sync.signInChoice.remote} account events`
+                          : `Delete ${sync.signInChoice.local} device events`}
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </section>
             )}
 
