@@ -286,7 +286,7 @@ Category accents (`--cat-{color}` for cyan, magenta, yellow, green, orange) mirr
 
 ### Effects: none
 
-No glow: no `text-shadow` or `box-shadow` on any element. No radial gradients, no CRT-style overlay lines, no background grid. No cut or angled corners: every surface is a flat fill with a straight 1px CSS border (`--cy-line` or `--cy-hairline`). The only animation in the app is the month-change slide described under Component styling; everything else is static.
+No glow anywhere: no outer glow, no colored drop-shadow, no `text-shadow`. The only `box-shadow` in the system is the flat 2px inset left edge used for the day-cell highlight states (today / selected / drop, see Component styling below); it is a flat color fill, not a blur or a glow. No radial gradients, no CRT-style overlay lines, no background grid. No cut or angled corners: every surface is a flat fill with a straight 1px CSS border (`--cy-line` or `--cy-hairline`). The only animation in the app is the month-change slide described under Component styling; everything else is static.
 
 ### Typography
 - **Rajdhani** (600/700): display headings, month label, CTAs.

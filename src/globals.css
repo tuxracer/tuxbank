@@ -252,6 +252,10 @@ body {
   background: transparent;
   border: 1px solid var(--cy-line);
 }
+/* `.cy-btn` and `.cy-cta` are sometimes applied to shadcn's <Button>, which
+   carries its own `rounded-lg` base class. This block is unlayered so it wins
+   over that utility, but only for properties it actually sets — border-radius
+   must be set explicitly or the Button's rounded corners show through. */
 .cy-btn {
   font-family: var(--font-mono), monospace;
   letter-spacing: 0.12em;
@@ -259,6 +263,7 @@ body {
   color: var(--cy-text);
   background: transparent;
   border: 1px solid var(--cy-line);
+  border-radius: 0;
 }
 .cy-cta {
   font-family: var(--font-display), sans-serif;
@@ -268,6 +273,7 @@ body {
   background: var(--cy-cyan);
   color: var(--cy-cta-fg);
   border: 1px solid var(--cy-cyan);
+  border-radius: 0;
   cursor: pointer;
 }
 
@@ -333,10 +339,13 @@ body {
 
 /* Applied to shadcn DialogContent / PopoverContent. Do NOT set `position` here:
    this block is unlayered, so it would override Tailwind's `fixed` centering
-   utility and push the portaled dialog off-screen. Keep this to visual props. */
+   utility and push the portaled dialog off-screen. Keep this to visual props.
+   DialogContent/PopoverContent carry their own `rounded-xl`/`rounded-lg` base
+   classes, so border-radius must be reset explicitly to keep the panel flat. */
 .cy-dialog {
   background: var(--cy-panel);
   border: 1px solid var(--cy-line);
+  border-radius: 0;
   box-shadow: none;
 }
 
