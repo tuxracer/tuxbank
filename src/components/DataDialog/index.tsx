@@ -11,7 +11,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { CyberFrame } from "@/components/CyberFrame";
-import { CyControlFrame } from "@/components/CyControlFrame";
 
 import type { DataDialogProps } from "./types";
 
@@ -138,16 +137,14 @@ const DataDialog = ({
                 Download a full backup of your database ({currentEventCount}{" "}
                 events, {currentCategoryCount} categories).
               </p>
-              <CyControlFrame>
-                <Button
-                  type="button"
-                  className="cy-btn justify-start"
-                  disabled={!storageAvailable}
-                  onClick={handleExport}
-                >
-                  ◢ EXPORT DATABASE
-                </Button>
-              </CyControlFrame>
+              <Button
+                type="button"
+                className="cy-btn justify-start"
+                disabled={!storageAvailable}
+                onClick={handleExport}
+              >
+                ◢ EXPORT DATABASE
+              </Button>
             </section>
 
             <section className="flex flex-col gap-2 border-t border-[color:var(--cy-line)] pt-3">
@@ -166,16 +163,14 @@ const DataDialog = ({
                   if (file) void handleFile(file);
                 }}
               />
-              <CyControlFrame>
-                <Button
-                  type="button"
-                  className="cy-btn justify-start"
-                  disabled={!storageAvailable || flowBusy}
-                  onClick={() => inputRef.current?.click()}
-                >
-                  ◢ IMPORT DATABASE
-                </Button>
-              </CyControlFrame>
+              <Button
+                type="button"
+                className="cy-btn justify-start"
+                disabled={!storageAvailable || flowBusy}
+                onClick={() => inputRef.current?.click()}
+              >
+                ◢ IMPORT DATABASE
+              </Button>
             </section>
 
             <section className="flex flex-col gap-2 border-t border-[color:var(--cy-line)] pt-3">
@@ -183,16 +178,14 @@ const DataDialog = ({
                 Permanently delete all events and categories. This cannot be
                 undone.
               </p>
-              <CyControlFrame>
-                <Button
-                  type="button"
-                  className="cy-btn justify-start text-[color:var(--cy-magenta)]"
-                  disabled={!storageAvailable || flowBusy}
-                  onClick={startReset}
-                >
-                  ◢ CLEAR ALL DATA
-                </Button>
-              </CyControlFrame>
+              <Button
+                type="button"
+                className="cy-btn justify-start text-[color:var(--cy-magenta)]"
+                disabled={!storageAvailable || flowBusy}
+                onClick={startReset}
+              >
+                ◢ CLEAR ALL DATA
+              </Button>
             </section>
 
             {stage.kind === "resetConfirm" && (

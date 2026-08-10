@@ -12,7 +12,6 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { CyberFrame } from "@/components/CyberFrame";
-import { CyControlFrame } from "@/components/CyControlFrame";
 import { CategoryDot } from "@/components/CategoryDot";
 import {
   CategoryCreateRow,
@@ -60,25 +59,23 @@ const CategoryCombobox = ({
 
   return (
     <Popover open={open} onOpenChange={handleOpenChange}>
-      <CyControlFrame>
-        <PopoverTrigger asChild>
-          <button
-            type="button"
-            className="cy-btn flex items-center gap-2 px-3 py-2 text-sm"
-          >
-            {selected ? (
-              <>
-                <CategoryDot color={selected.color} />
-                {selected.name}
-              </>
-            ) : (
-              <span className="text-[color:var(--cy-muted)]">
-                Select category…
-              </span>
-            )}
-          </button>
-        </PopoverTrigger>
-      </CyControlFrame>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className="cy-btn flex items-center gap-2 px-3 py-2 text-sm"
+        >
+          {selected ? (
+            <>
+              <CategoryDot color={selected.color} />
+              {selected.name}
+            </>
+          ) : (
+            <span className="text-[color:var(--cy-muted)]">
+              Select category…
+            </span>
+          )}
+        </button>
+      </PopoverTrigger>
       <PopoverContent className="cy-dialog w-64 border-0 p-0">
         <CyberFrame />
         <Command shouldFilter={false}>

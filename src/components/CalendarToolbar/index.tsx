@@ -6,7 +6,6 @@ import {
 } from "@/components/ui/popover";
 import { catColorVar } from "@/utils/categoryColor";
 import { CyberFrame } from "@/components/CyberFrame";
-import { CyControlFrame } from "@/components/CyControlFrame";
 import {
   SyncAttentionBadge,
   SyncAttentionDot,
@@ -55,65 +54,55 @@ const CalendarToolbar = ({
 
   const navControls = (
     <>
-      <CyControlFrame variant="nav">
-        <button
-          type="button"
-          title="Previous month"
-          className="cy-nav grid h-8 w-8 place-items-center"
-          onClick={onPrev}
-        >
-          ‹
-        </button>
-      </CyControlFrame>
-      <CyControlFrame>
-        <select
-          title="Month"
-          className={`${selectClasses} uppercase`}
-          value={selectedMonth}
-          onChange={(e) => onSelectMonth(Number(e.target.value))}
-        >
-          {MONTH_NAMES.map((name, index) => (
-            <option key={name} value={index}>
-              {name}
-            </option>
-          ))}
-        </select>
-      </CyControlFrame>
-      <CyControlFrame>
-        <select
-          title="Year"
-          className={selectClasses}
-          value={selectedYear}
-          onChange={(e) => onSelectYear(Number(e.target.value))}
-        >
-          {yearOptions.map((year) => (
-            <option key={year} value={year}>
-              {year}
-            </option>
-          ))}
-        </select>
-      </CyControlFrame>
-      <CyControlFrame variant="nav">
-        <button
-          type="button"
-          title="Next month"
-          className="cy-nav grid h-8 w-8 place-items-center"
-          onClick={onNext}
-        >
-          ›
-        </button>
-      </CyControlFrame>
-      <CyControlFrame>
-        <button
-          type="button"
-          className={
-            compact ? "cy-btn px-2 py-1 text-xs" : "cy-btn px-3 py-1.5 text-xs"
-          }
-          onClick={onToday}
-        >
-          ▸ Today
-        </button>
-      </CyControlFrame>
+      <button
+        type="button"
+        title="Previous month"
+        className="cy-nav grid h-8 w-8 place-items-center"
+        onClick={onPrev}
+      >
+        ‹
+      </button>
+      <select
+        title="Month"
+        className={`${selectClasses} uppercase`}
+        value={selectedMonth}
+        onChange={(e) => onSelectMonth(Number(e.target.value))}
+      >
+        {MONTH_NAMES.map((name, index) => (
+          <option key={name} value={index}>
+            {name}
+          </option>
+        ))}
+      </select>
+      <select
+        title="Year"
+        className={selectClasses}
+        value={selectedYear}
+        onChange={(e) => onSelectYear(Number(e.target.value))}
+      >
+        {yearOptions.map((year) => (
+          <option key={year} value={year}>
+            {year}
+          </option>
+        ))}
+      </select>
+      <button
+        type="button"
+        title="Next month"
+        className="cy-nav grid h-8 w-8 place-items-center"
+        onClick={onNext}
+      >
+        ›
+      </button>
+      <button
+        type="button"
+        className={
+          compact ? "cy-btn px-2 py-1 text-xs" : "cy-btn px-3 py-1.5 text-xs"
+        }
+        onClick={onToday}
+      >
+        ▸ Today
+      </button>
     </>
   );
 
@@ -153,23 +142,16 @@ const CalendarToolbar = ({
           <div className="flex items-center gap-2">
             {navControls}
             <Popover open={menuOpen} onOpenChange={setMenuOpen}>
-              {/* ml-auto lives on the frame wrapper, not the button: the
-                  button is nested inside CyControlFrame's positioning div,
-                  so a margin there can't push the control to the row end. */}
-              <div className="ml-auto">
-                <CyControlFrame>
-                  <PopoverTrigger asChild>
-                    <button
-                      type="button"
-                      title="More actions"
-                      className="cy-btn flex items-center gap-1.5 px-2 py-1 text-xs"
-                    >
-                      ☰
-                      <SyncAttentionDot />
-                    </button>
-                  </PopoverTrigger>
-                </CyControlFrame>
-              </div>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  title="More actions"
+                  className="cy-btn ml-auto flex items-center gap-1.5 px-2 py-1 text-xs"
+                >
+                  ☰
+                  <SyncAttentionDot />
+                </button>
+              </PopoverTrigger>
               <PopoverContent
                 align="end"
                 className="cy-dialog w-48 border-0 p-2"
@@ -223,44 +205,36 @@ const CalendarToolbar = ({
 
         <div className="flex items-center gap-3">
           {legend}
-          <CyControlFrame>
-            <button
-              type="button"
-              className="cy-btn flex items-center gap-2 px-3 py-1.5 text-xs"
-              onClick={onSync}
-            >
-              ◢ SYNC
-              <SyncAttentionBadge />
-            </button>
-          </CyControlFrame>
-          <CyControlFrame>
-            <button
-              type="button"
-              className="cy-btn px-3 py-1.5 text-xs"
-              onClick={onManageData}
-            >
-              ◢ DATA
-            </button>
-          </CyControlFrame>
-          <CyControlFrame>
-            <button
-              type="button"
-              className="cy-btn px-3 py-1.5 text-xs"
-              onClick={onManageCategories}
-            >
-              ◢ CATEGORIES
-            </button>
-          </CyControlFrame>
-          <CyControlFrame>
-            <button
-              type="button"
-              title="About tuxbank"
-              className="cy-btn px-3 py-1.5 text-xs"
-              onClick={onAbout}
-            >
-              ◢ ABOUT
-            </button>
-          </CyControlFrame>
+          <button
+            type="button"
+            className="cy-btn flex items-center gap-2 px-3 py-1.5 text-xs"
+            onClick={onSync}
+          >
+            ◢ SYNC
+            <SyncAttentionBadge />
+          </button>
+          <button
+            type="button"
+            className="cy-btn px-3 py-1.5 text-xs"
+            onClick={onManageData}
+          >
+            ◢ DATA
+          </button>
+          <button
+            type="button"
+            className="cy-btn px-3 py-1.5 text-xs"
+            onClick={onManageCategories}
+          >
+            ◢ CATEGORIES
+          </button>
+          <button
+            type="button"
+            title="About tuxbank"
+            className="cy-btn px-3 py-1.5 text-xs"
+            onClick={onAbout}
+          >
+            ◢ ABOUT
+          </button>
           <button
             type="button"
             className="cy-cta px-5 py-2 text-sm"
