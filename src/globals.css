@@ -280,6 +280,11 @@ body {
   border-radius: 0;
   cursor: pointer;
 }
+/* Flat inversion on hover — the fill swaps to text ink, never a glow. */
+.cy-cta:hover {
+  background: var(--cy-text-strong);
+  border-color: var(--cy-text-strong);
+}
 
 .cy-weekhead {
   font-family: var(--font-mono), monospace;
@@ -392,6 +397,66 @@ body {
   .cy-shift-next,
   .cy-shift-prev {
     animation: none !important;
+  }
+}
+
+/* ===================== LANDING-PAGE CONSOLE ===================== */
+/* The landing preview pins the dark token set in both themes. The accents are
+   data ink and only read as ink against a dark surface; on the light page the
+   month reads as an instrument set on paper rather than a white box on grey.
+   These are the same values as the `prefers-color-scheme: dark` block above,
+   not a third palette — keep them in sync with it. */
+.cy-console {
+  --cy-bg: #0a0c11;
+  --cy-panel: #0d1119;
+  --cy-panel-2: #10151f;
+  --cy-line: #1b2431;
+  --cy-hairline: #151c27;
+
+  --cy-text: #c8d4e0;
+  --cy-text-strong: #eaf2f8;
+  --cy-muted: #6b7c8f;
+
+  --cy-cyan: #22d3ee;
+  --cy-magenta: #f0407a;
+  --cy-yellow: #fbbf24;
+  --cy-green: #34d399;
+  --cy-orange: #fb923c;
+
+  --cy-chip-bg: #10151f;
+  --cy-chip-text: #eaf2f8;
+
+  --cat-cyan: #22d3ee;
+  --cat-magenta: #f0407a;
+  --cat-yellow: #fbbf24;
+  --cat-green: #34d399;
+  --cat-orange: #fb923c;
+
+  background: var(--cy-bg);
+  border: 1px solid var(--cy-line);
+  color: var(--cy-text);
+}
+
+/* One-shot fill-in on first paint, staggered per cell by inline
+   `animation-delay` so the month reads left to right the way it accumulates.
+   `both` holds the from-state through the delay. */
+.cy-land {
+  animation: cy-land 300ms ease-out both;
+}
+@keyframes cy-land {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cy-land {
+    animation: none;
   }
 }
 
