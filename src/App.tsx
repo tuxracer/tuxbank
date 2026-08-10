@@ -32,7 +32,6 @@ import EventDialog from "@/components/EventDialog";
 import RecurrenceScopeDialog from "@/components/RecurrenceScopeDialog";
 import ManageCategoriesDialog from "@/components/ManageCategoriesDialog";
 import DataDialog from "@/components/DataDialog";
-import AboutDialog from "@/components/AboutDialog";
 import StorageUnavailableBanner from "@/components/StorageUnavailableBanner";
 import { SyncDialog } from "@/components/SyncDialog";
 import { Toaster } from "@/components/ui/sonner";
@@ -82,7 +81,6 @@ const CalendarScreen = () => {
   const [scope, setScope] = useState<ScopeState | null>(null);
   const [manageOpen, setManageOpen] = useState(false);
   const [dataOpen, setDataOpen] = useState(false);
-  const [aboutOpen, setAboutOpen] = useState(false);
   const [activeOccurrence, setActiveOccurrence] = useState<Occurrence | null>(
     null,
   );
@@ -125,7 +123,7 @@ const CalendarScreen = () => {
   };
 
   const openSurface = (
-    name: "sync-opened" | "data-opened" | "categories-opened" | "about-opened",
+    name: "sync-opened" | "data-opened" | "categories-opened",
     show: (open: boolean) => void,
   ) => {
     trackEvent(name, { layout });
@@ -277,7 +275,6 @@ const CalendarScreen = () => {
         }
         onManageData={() => openSurface("data-opened", setDataOpen)}
         onSync={() => openSurface("sync-opened", setSyncOpen)}
-        onAbout={() => openSurface("about-opened", setAboutOpen)}
         onNewEvent={() => openNewEvent(cal.todayISO)}
         compact={isCompact}
       />
@@ -376,7 +373,6 @@ const CalendarScreen = () => {
         onOpenChange={setDataOpen}
       />
       <SyncDialog open={syncOpen} onOpenChange={setSyncOpen} />
-      <AboutDialog open={aboutOpen} onOpenChange={setAboutOpen} />
       <Toaster />
     </main>
   );

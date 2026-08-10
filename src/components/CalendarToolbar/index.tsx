@@ -33,7 +33,6 @@ const CalendarToolbar = ({
   onManageCategories,
   onManageData,
   onSync,
-  onAbout,
   onNewEvent,
 }: CalendarToolbarProps) => {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -177,13 +176,6 @@ const CalendarToolbar = ({
                   >
                     ◢ CATEGORIES
                   </button>
-                  <button
-                    type="button"
-                    className="cy-btn px-3 py-2 text-left text-xs"
-                    onClick={closeMenuAnd(onAbout)}
-                  >
-                    ◢ ABOUT
-                  </button>
                 </div>
               </PopoverContent>
             </Popover>
@@ -222,14 +214,6 @@ const CalendarToolbar = ({
             onClick={onManageCategories}
           >
             ◢ CATEGORIES
-          </button>
-          <button
-            type="button"
-            title="About tuxbank"
-            className="cy-btn px-3 py-1.5 text-xs"
-            onClick={onAbout}
-          >
-            ◢ ABOUT
           </button>
           <button
             type="button"

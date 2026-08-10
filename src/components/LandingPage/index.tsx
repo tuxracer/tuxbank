@@ -1,4 +1,3 @@
-import { REPO_URL } from "@/components/AboutDialog";
 import { catColorVar } from "@/utils/categoryColor";
 import { formatCurrency, formatSignedCompact } from "@/utils/formatCurrency";
 import {
@@ -11,6 +10,7 @@ import {
   LANDING_PREVIEW_WEEKDAYS,
   LANDING_SPECS,
   LANDING_STAGGER_MS,
+  REPO_URL,
 } from "./consts";
 
 import type {

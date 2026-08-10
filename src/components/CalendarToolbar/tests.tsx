@@ -27,7 +27,6 @@ const baseProps = (
   onToggleCategory: vi.fn(),
   onManageCategories: vi.fn(),
   onManageData: vi.fn(),
-  onAbout: vi.fn(),
   onNewEvent: vi.fn(),
   ...over,
 });

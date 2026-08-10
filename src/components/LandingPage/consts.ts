@@ -1,5 +1,11 @@
 import type { LandingPreviewEvent, LandingSpec } from "./types";
 
+/**
+ * Public source repository. The landing footer is the only place the app links
+ * it, now that the About dialog is gone.
+ */
+export const REPO_URL = "https://github.com/tuxracer/tuxbank";
+
 /** Weekday header letters for the landing-page preview grid. */
 export const LANDING_PREVIEW_WEEKDAYS = ["S", "M", "T", "W", "T", "F", "S"];
 
