@@ -660,9 +660,7 @@ export const SyncDialog = ({ open, onOpenChange }: SyncDialogProps) => {
                       Merge both
                     </Button>
                     <span className="cy-mono text-xs text-[color:var(--cy-muted)]">
-                      Keep all{" "}
-                      {sync.signInChoice.local + sync.signInChoice.remote}.
-                      Nothing is deleted.
+                      Keeps everything from both sides. Nothing is deleted.
                     </span>
                     <Button
                       className="cy-btn justify-start text-[color:var(--cy-magenta)]"
@@ -694,8 +692,8 @@ export const SyncDialog = ({ open, onOpenChange }: SyncDialogProps) => {
                       </span>{" "}
                       to confirm.{" "}
                       {choiceStage.choice === "local"
-                        ? `The ${sync.signInChoice.remote} events in your account will be deleted, on every device signed into it.`
-                        : `The ${sync.signInChoice.local} events on this device will be deleted. Your account is not changed.`}{" "}
+                        ? `The ${sync.signInChoice.remote} events in your account, and its categories, will be deleted on every device signed into it.`
+                        : `The ${sync.signInChoice.local} events on this device, and its categories, will be deleted. Your account is not changed.`}{" "}
                       This cannot be undone.
                     </span>
                     <Input

@@ -612,14 +612,16 @@ user gets both interleaved with no warning.
 `detectSignInConflict` (in `src/lib/sync`) returns the two event counts when all
 three of these hold, and null otherwise:
 
-1. no sync cursor is stored (this device has never synced with this account)
+1. no sync cursor is stored
 2. the device has at least one event
 3. the account has at least one non-deleted event row
 
 Condition 3 uses `SyncRemote.count`, a Supabase `head: true, count: "exact"`
 query filtered to `deleted = false`, so it transfers no ciphertext and an
 account holding only tombstones reads as empty. Short-circuiting on the cursor
-means it runs at most once per device per account.
+means it runs at most once per device, since the cursor is a single unscoped
+value: signing out of one account and into another on the same device without
+clearing local data carries the cursor over and skips the prompt.
 
 Categories are not part of the trigger and follow whichever side the user keeps.
 
@@ -654,6 +656,8 @@ merged, and re-running it would upload that merged set as truth. The status goes
 to `error` and recovery is the Data dialog. This is the same window `importData`
 already carries.
 
+### Sync triggers, offline state, and the cached key
+
 `SyncContext` drives the triggers: an initial sync on unlock/sign-in, on window
 focus, on network reconnect (the `online` event), debounced after edits and
 month navigation, and a manual "Sync now". Sync attempts are skipped while the
@@ -662,8 +666,8 @@ browser reports offline (`navigator.onLine` false): the status becomes
 local changes are waiting to push (rows and tombstones newer than the cursor).
 Pull and push requests abort after 30 seconds so a dead connection fails into
 the error state instead of hanging. The toolbar's SYNC button shows a persistent
-badge (OFFLINE, LOCKED, or ERROR) whenever sync needs attention, so a stopped
-sync is visible without opening the dialog. The data key is held in a
+badge (OFFLINE, LOCKED, ACTION, or ERROR) whenever sync needs attention, so a
+stopped sync is visible without opening the dialog. The data key is held in a
 ref and also cached on the device (the `dek` key in the `syncMeta` store, via
 `setStoredDek`/`getStoredDek`), so a reload or restart resumes unlocked and
 re-syncs instead of re-prompting. The cache is cleared only on sign-out

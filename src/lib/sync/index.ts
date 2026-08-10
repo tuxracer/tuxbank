@@ -54,9 +54,10 @@ export const countPendingChanges = async (): Promise<number> => {
 
 /**
  * Whether a first sync would silently merge two populated sides. Returns the
- * two event counts when this device has never synced with the account and both
- * hold events, otherwise null. Short-circuits on the stored cursor, so the
- * account is queried at most once per device per account.
+ * two event counts when no sync cursor is stored on this device and both
+ * sides hold events, otherwise null. Short-circuits on the stored cursor, so
+ * the account is queried at most once per device (until the cursor is
+ * cleared again, e.g. by a sign-out that wipes local data).
  */
 export const detectSignInConflict = async (
   remote: SyncRemote,

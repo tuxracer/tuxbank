@@ -833,6 +833,44 @@ describe("SyncContext conflict resolutions", () => {
     expect(await getTombstones()).toEqual([]);
   });
 
+  it("keep remote re-persists the cached DEK after the wipe", async () => {
+    const result = await arriveAtChoice();
+    // clearLocalData wipes the whole syncMeta store, the DEK cache included.
+    expect(await getStoredDek()).toBeDefined();
+
+    await act(async () => {
+      await result.current.resolveSignInChoice("remote");
+    });
+
+    await waitFor(() => expect(result.current.status).toBe("synced"));
+    // Without re-persisting, the next page load would find no cached key and
+    // land on "locked" instead of resuming synced.
+    expect(await getStoredDek()).toBeDefined();
+  });
+
+  it("ignores a stale choice once another tab has already resolved it", async () => {
+    const result = await arriveAtChoice();
+    mocks.runSync.mockClear();
+    // Simulate a second tab answering the same prompt first: it writes a
+    // cursor behind this tab's back (setSyncCursor deliberately does not
+    // broadcast).
+    await setSyncCursor("2026-06-11T00:00:00.000Z");
+
+    await act(async () => {
+      await result.current.resolveSignInChoice("local");
+    });
+
+    await waitFor(() => expect(result.current.status).toBe("synced"));
+    // The destructive keep-local path (export, re-stamp, tombstone, re-sync)
+    // never ran: a plain sync happens exactly once, and e1 keeps its original
+    // timestamp rather than being re-stamped to "now" by commitImportSynced.
+    expect(mocks.runSync).toHaveBeenCalledTimes(1);
+    expect(await getTombstones()).toEqual([]);
+    const events = await getAllEvents();
+    expect(events.map((e) => e.id)).toEqual(["e1"]);
+    expect(events[0].updatedAt).toBe("2026-06-09T00:00:00.000Z");
+  });
+
   it("keep local tombstones the account-only events", async () => {
     const result = await arriveAtChoice();
     simulateFirstSync();

@@ -46,6 +46,7 @@ import {
   commitImportSynced,
   exportDatabase,
   getStoredDek,
+  getSyncCursor,
   setStoredDek,
 } from "@/lib/storage";
 import {
@@ -726,8 +727,26 @@ export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
       setSignInChoice(null);
       setStep("idle");
       try {
+        // Cross-tab guard: two tabs can independently detect the conflict
+        // (setSyncCursor deliberately does not broadcast a change), so a
+        // cursor may already exist by the time this tab's answer comes in,
+        // written by another tab that resolved the same prompt first. That
+        // makes the question moot: running a destructive branch now would act
+        // on a premise (no cursor yet) that no longer holds, regardless of
+        // which choice was passed.
+        if ((await getSyncCursor()) !== undefined) {
+          choiceRef.current = "resolved";
+          await doSync();
+          return;
+        }
         if (choice === "remote") {
           await clearLocalData();
+          // clearLocalData clears the entire syncMeta store, including the
+          // cached DEK. dekRef.current survives in memory so this session
+          // keeps working either way, but without re-persisting it here the
+          // next page load finds no cached key and lands on "locked" instead
+          // of resuming synced.
+          if (dekRef.current) storeDek(dekRef.current);
           await refreshFromStorage();
           choiceRef.current = "resolved";
           await doSync();
@@ -753,7 +772,7 @@ export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
         setStatus("error");
       }
     },
-    [doSync, refreshFromStorage],
+    [doSync, refreshFromStorage, storeDek],
   );
 
   const unlocked = !isPreSync(status);

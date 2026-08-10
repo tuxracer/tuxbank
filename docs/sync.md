@@ -78,18 +78,19 @@ account, you are asked which set to keep before anything syncs:
 
 - **Merge both** keeps everything from both sides. Nothing is deleted.
 - **Keep this device** uploads this device's events and deletes the account's
-  other events, on every device signed into it.
-- **Keep the account** deletes this device's events and pulls the account's.
+  other events and categories, on every device signed into it.
+- **Keep the account** deletes this device's events and categories, then pulls
+  the account's.
 
 The two deleting options ask you to type `delete` first. Until you choose,
 nothing syncs in either direction, and the SYNC button shows an ACTION badge.
 
 ## Verify it worked
 
-The SYNC button settles into a synced state (no OFFLINE, LOCKED, or ERROR badge),
-and in the Table Editor `events` and `categories` hold rows whose `ciphertext` is
-unreadable base64. Seeing only ciphertext confirms the server never receives your
-plaintext.
+The SYNC button settles into a synced state (no OFFLINE, LOCKED, ACTION, or
+ERROR badge), and in the Table Editor `events` and `categories` hold rows whose
+`ciphertext` is unreadable base64. Seeing only ciphertext confirms the server
+never receives your plaintext.
 
 ## Troubleshooting
 
