@@ -83,6 +83,15 @@ const describeError = (error: unknown): string =>
       ? error.message
       : "Unknown error";
 
+/**
+ * Statuses where the provider must not touch the account: signed out, locked,
+ * or holding a live key but waiting on the first-sync conflict prompt. In all
+ * three the device has not reconciled with the account, so destructive actions
+ * stay local.
+ */
+const isPreSync = (status: SyncStatus): boolean =>
+  status === "off" || status === "locked" || status === "choice";
+
 // Apply the new auth secret, handling Secure-password-change reauthentication:
 // without a nonce a REAUTH_REQUIRED error emails a code and returns "reauth".
 const applyAuthSecret = async (
@@ -670,7 +679,7 @@ export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
   // than via signOut(true) so a failed wipe rejects and the Data dialog can
   // show its error state instead of closing as if the reset succeeded.
   const resetAllData = useCallback(async () => {
-    if (status === "off" || status === "locked") {
+    if (isPreSync(status)) {
       await signOut();
       await clearLocalData();
       await refreshFromStorage();
@@ -690,7 +699,7 @@ export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
   const importData = useCallback(
     async (file: File) => {
       const text = await file.text();
-      if (status === "off" || status === "locked") {
+      if (isPreSync(status)) {
         await commitImportLocal(text);
         await refreshFromStorage();
         return;
@@ -747,7 +756,7 @@ export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
     [doSync, refreshFromStorage],
   );
 
-  const unlocked = status !== "off" && status !== "locked";
+  const unlocked = !isPreSync(status);
 
   const value: SyncContextValue = {
     status,

@@ -875,3 +875,58 @@ describe("SyncContext conflict resolutions", () => {
     expect(mocks.runSync.mock.calls.length).toBeGreaterThanOrEqual(2);
   });
 });
+
+describe("SyncContext actions while a choice is pending", () => {
+  const arriveAtChoice = async () => {
+    await putEvent(testEvent("e1"));
+    mocks.count.mockResolvedValue(3);
+    await setStoredDek(new Uint8Array([1, 2, 3, 4, 5]));
+    const { result } = renderHook(() => useSync(), { wrapper });
+    await waitFor(() => expect(result.current.status).toBe("choice"));
+    return result;
+  };
+
+  beforeEach(async () => {
+    await resetDbForTests();
+    mocks.signOut.mockResolvedValue(undefined);
+    mocks.runSync.mockReset();
+    mocks.runSync.mockResolvedValue({ pushed: 0, pulled: 0 });
+    mocks.count.mockReset();
+    mocks.count.mockResolvedValue(0);
+    mocks.getActiveSession.mockResolvedValue({
+      email: "user@example.com",
+      aal2: true,
+    });
+  });
+
+  it("reports itself as not unlocked", async () => {
+    const result = await arriveAtChoice();
+
+    expect(result.current.unlocked).toBe(false);
+  });
+
+  it("clears only this device, recording no tombstones", async () => {
+    const result = await arriveAtChoice();
+
+    await act(async () => {
+      await result.current.resetAllData();
+    });
+
+    expect(await getAllEvents()).toEqual([]);
+    // The signed-in reset path would have tombstoned e1 to delete it from the
+    // account. A pending choice must not reach the account.
+    expect(await getTombstones()).toEqual([]);
+  });
+
+  it("imports a backup as local-only, dropping the cursor", async () => {
+    const result = await arriveAtChoice();
+
+    await act(async () => {
+      await result.current.importData(backupFile([testEvent("imported-1")]));
+    });
+
+    expect((await getAllEvents()).map((e) => e.id)).toEqual(["imported-1"]);
+    expect(await getTombstones()).toEqual([]);
+    expect(await getSyncCursor()).toBeUndefined();
+  });
+});
