@@ -25,6 +25,50 @@ Each module is a directory named after its primary export, containing `index.ts`
 
 **Bundling**: ship all application code in the initial load. Do not lazy-load scripts, use dynamic `import()`, or set up route/feature code-splitting. Runtime chunk fetches break offline use, and offline support is a goal for this client-only app. A larger initial bundle (for example, including the crypto/sync libraries even for logged-out users) is an accepted trade for an app that always works offline. Optimize bundle size by other means (drop unused deps, prefer smaller libraries) rather than deferring loads.
 
+## Design Language
+
+Every visual surface (UI, art, diagrams, promo pages) must commit to one
+specific, project-appropriate aesthetic and state it before writing any code.
+Two defaults have to be actively overridden. The first is the scraped-SaaS
+average an unconstrained prompt returns. The second, more insidious because it
+reads as "tasteful," is this model's own house style: warm cream and off-white
+backgrounds, coral/amber/terracotta accents, a friendly serif-plus-sans
+pairing, and soft generous spacing. That warm-minimal look is now as much of a
+tell as the old AI purple. If a generated page could be dropped into any other
+product without anyone noticing, it has failed.
+
+The fix is generative, not just a banlist. Before coding, name four things and
+derive them from *this* product's domain and mood, never from a default:
+
+- **Palette**: 4-6 committed inks with hex values and a defined role for each.
+  No timid, evenly-spread spectrums.
+- **Type**: a specific display face for titles and a specific mono or text face
+  for everything else, both named.
+- **Layout skeleton**: the actual structural idea (asymmetric grid, dense
+  table, single-column broadsheet, split screen), not "hero + cards."
+- **Reference direction**: e.g. Risograph print, Swiss/International, editorial
+  broadsheet, technical/terminal, brutalist, vintage systems manual. Pick the
+  one that fits and rotate across projects. Do not apply the same direction
+  every time. Riso/JPL is one option, not the answer.
+
+Banned AI-design tells:
+
+- **Color**: indigo/violet "AI purple," blue-to-purple gradients, neon glows,
+  oversized colored drop-shadows. Also the warm-default set: cream/oatmeal
+  (#faf8f5-family) backgrounds, coral/peach/amber/terracotta accent, and any
+  cozy "warm minimalism" scheme. And timid evenly-spread palettes generally.
+- **Type**: Inter, Roboto, Geist, or system-default fonts; the friendly
+  serif-plus-sans "Claude" pairing; and the lone-italic-serif-word accent
+  inside a sans headline.
+- **Layout and components**: centered hero with a pill badge above the
+  headline; three identical icon-topped feature cards; colored left-border
+  cards (as reliable a tell as em-dashes in prose); glassmorphism or frosted
+  panels; shadcn/ui defaults; one uniform 16px radius on everything; emoji as
+  nav or bullet icons; all-caps section labels; 1-2-3 numbered step rows;
+  horizontal stat-banner rows.
+- **Copy**: vague hero lines like "Build the future" and hedged marketing
+  filler (see the Writing style rule).
+
 ## Commands
 
 ```bash
