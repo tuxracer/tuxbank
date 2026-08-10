@@ -231,12 +231,11 @@ body {
   font-family: var(--font-mono), monospace;
   font-size: 11px;
   letter-spacing: 0.18em;
-  color: var(--cy-cyan);
+  color: var(--cy-muted);
   text-transform: uppercase;
 }
 .cy-hud .on {
   color: var(--cy-green);
-  text-shadow: 0 0 8px var(--cy-glow-green);
 }
 .cy-hud .dim {
   color: var(--cy-muted);
@@ -244,58 +243,22 @@ body {
 
 .cy-toolbar {
   position: relative;
-  isolation: isolate;
-}
-/* Panel fill on a pseudo so a single clip-path chamfers it; the border is drawn
-   by <CyberFrame> as an SVG stroke (uniform on the 45° chamfers, unlike a
-   clip-path fill). Host stays transparent/unclipped so the SVG isn't clipped.
-   The 18px chamfer here must match CyberFrame's `chamfer` prop in CalendarToolbar. */
-.cy-toolbar::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  background: linear-gradient(180deg, var(--cy-panel-2), var(--cy-panel));
-  clip-path: polygon(
-    0 0,
-    calc(100% - 18px) 0,
-    100% 18px,
-    100% 100%,
-    18px 100%,
-    0 calc(100% - 18px)
-  );
+  background: var(--cy-panel);
+  border: 1px solid var(--cy-line);
 }
 
-/* Chamfered controls. The clip-path here only shapes the fill; the border is
-   NOT a CSS `border` (the clip would slice it off at the bottom-right chamfer,
-   leaving that corner borderless). Wrap each control in <CyControlFrame>,
-   which overlays a <CyberFrame> SVG stroke tracing the full outline. The
-   chamfer sizes (9px nav / 8px btn) must match CyControlFrame's VARIANTS. */
 .cy-nav {
   color: var(--cy-cyan);
   background: transparent;
-  text-shadow: 0 0 8px var(--cy-glow-cyan);
-  clip-path: polygon(
-    0 0,
-    100% 0,
-    100% calc(100% - 9px),
-    calc(100% - 9px) 100%,
-    0 100%
-  );
+  border: 1px solid var(--cy-line);
 }
 .cy-btn {
   font-family: var(--font-mono), monospace;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--cy-text);
-  background: rgba(255, 255, 255, 0.02);
-  clip-path: polygon(
-    0 0,
-    100% 0,
-    100% calc(100% - 8px),
-    calc(100% - 8px) 100%,
-    0 100%
-  );
+  background: transparent;
+  border: 1px solid var(--cy-line);
 }
 .cy-cta {
   font-family: var(--font-display), sans-serif;
@@ -304,67 +267,53 @@ body {
   text-transform: uppercase;
   background: var(--cy-cyan);
   color: var(--cy-cta-fg);
-  border: none;
+  border: 1px solid var(--cy-cyan);
   cursor: pointer;
-  box-shadow: 0 0 18px var(--cy-glow-cyan-soft);
-  clip-path: polygon(
-    10px 0,
-    100% 0,
-    100% calc(100% - 10px),
-    calc(100% - 10px) 100%,
-    0 100%,
-    0 10px
-  );
 }
 
 .cy-weekhead {
   font-family: var(--font-mono), monospace;
   letter-spacing: 0.28em;
-  color: var(--cy-cyan);
+  color: var(--cy-muted);
   text-transform: uppercase;
-  opacity: 0.8;
 }
 
 .cy-cell {
   position: relative;
   overflow: hidden;
-  isolation: isolate;
-}
-/* Chamfered fill on a pseudo so the border can be a uniform SVG stroke drawn by
-   <CyberFrame> (a clip-path fill rasterizes the 45° chamfer brighter than the
-   straight edges). Host stays transparent/unclipped so the stroke isn't clipped;
-   the 12px top-right chamfer here must match CyberFrame's props in DayCell. */
-.cy-cell::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  background: linear-gradient(
-    180deg,
-    var(--cy-cell-top),
-    var(--cy-cell-bottom)
-  );
-  clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 0 100%);
+  background: var(--cy-panel);
+  border: 1px solid var(--cy-hairline);
 }
 .cy-cell.out {
-  opacity: 0.4;
+  background: var(--cy-bg);
 }
-/* Today: CyberFrame draws the border in yellow (see DayCell). The inset glow
-   rides on the chamfered fill; the soft outer glow stays on the host. */
-.cy-cell.today {
-  box-shadow: 0 0 16px var(--cy-glow-today);
-}
-.cy-cell.today::before {
-  box-shadow: inset 0 0 22px var(--cy-glow-today-inset);
+.cy-cell.out .cy-cell-num {
+  opacity: 0.45;
 }
 .cy-cell-num {
   font-family: var(--font-mono), monospace;
   color: var(--cy-muted);
 }
+
+/* All three highlight states share one grammar: a 2px inset left edge over a
+   raised fill. Source order is the precedence rule, last wins — a cell that is
+   both today and an active drop target shows the cyan drop edge, because the
+   drag affordance is the more urgent signal. */
+.cy-cell.today {
+  background: var(--cy-panel-2);
+  box-shadow: inset 2px 0 0 var(--cy-yellow);
+}
 .cy-cell.today .cy-cell-num {
   color: var(--cy-yellow);
-  text-shadow: 0 0 10px var(--cy-glow-yellow);
   font-weight: 700;
+}
+.cy-cell.selected:not(.today) {
+  background: var(--cy-panel-2);
+  box-shadow: inset 2px 0 0 var(--cy-cyan);
+}
+.cy-cell.drop {
+  background: var(--cy-panel-2);
+  box-shadow: inset 2px 0 0 var(--cy-cyan);
 }
 
 .cy-chip {
@@ -378,76 +327,51 @@ body {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  border-left: 3px solid var(--cy-cyan);
+  border-left: 2px solid var(--cy-cyan);
   cursor: pointer;
-  clip-path: polygon(0 0, 100% 0, 100% 100%, 6px 100%, 0 calc(100% - 6px));
 }
 
 /* Applied to shadcn DialogContent / PopoverContent. Do NOT set `position` here:
    this block is unlayered, so it would override Tailwind's `fixed` centering
-   utility and push the portaled dialog off-screen (leaving only the blurred
-   overlay visible). Keep this to visual props only.
-
-   Shape and border are deliberately split so the border can be a uniform
-   stroke: `::before` is the dark panel fill clipped to the chamfered shape,
-   while the cyan border is drawn by <CyberFrame> as an SVG vector stroke. A CSS
-   clip-path fill rasterizes its 45° chamfer edges brighter than its straight
-   edges, so it can't render an even border — an SVG stroke can. `.cy-dialog`
-   itself stays transparent (overriding shadcn's bg/shadow) and is intentionally
-   NOT clipped, so the child SVG stroke isn't clipped away at the edges. The 20px
-   chamfer here must match CHAMFER in CyberFrame. */
+   utility and push the portaled dialog off-screen. Keep this to visual props. */
 .cy-dialog {
-  background: transparent;
+  background: var(--cy-panel);
+  border: 1px solid var(--cy-line);
   box-shadow: none;
 }
-.cy-dialog::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  background: linear-gradient(
-    180deg,
-    var(--cy-dialog-top),
-    var(--cy-dialog-bottom)
-  );
-  clip-path: polygon(
-    0 0,
-    calc(100% - 20px) 0,
-    100% 20px,
-    100% 100%,
-    20px 100%,
-    0 calc(100% - 20px)
-  );
-}
 
-.cy-glitch {
-  animation: cy-glitch 450ms steps(2) 1;
+/* Month-change feedback on swipe. One-shot, cleared on animationend by
+   MonthGrid; the keyframe names are matched there, so keep them in sync. */
+.cy-shift-next {
+  animation: cy-shift-next 180ms ease-out 1;
 }
-@keyframes cy-glitch {
-  0% {
-    transform: translate(0, 0);
-    filter: none;
+.cy-shift-prev {
+  animation: cy-shift-prev 180ms ease-out 1;
+}
+@keyframes cy-shift-next {
+  from {
+    transform: translateX(14px);
+    opacity: 0.4;
   }
-  20% {
-    transform: translate(-2px, 1px);
-    filter: drop-shadow(2px 0 var(--cy-magenta))
-      drop-shadow(-2px 0 var(--cy-cyan));
+  to {
+    transform: translateX(0);
+    opacity: 1;
   }
-  40% {
-    transform: translate(2px, -1px);
+}
+@keyframes cy-shift-prev {
+  from {
+    transform: translateX(-14px);
+    opacity: 0.4;
   }
-  100% {
-    transform: translate(0, 0);
-    filter: none;
+  to {
+    transform: translateX(0);
+    opacity: 1;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .cy-scanlines::before,
-  .cy-scanlines::after {
-    animation: none !important;
-  }
-  .cy-glitch {
+  .cy-shift-next,
+  .cy-shift-prev {
     animation: none !important;
   }
 }
@@ -455,44 +379,19 @@ body {
 .cy-balance {
   font-family: var(--font-mono), monospace;
   font-size: 10px;
-  color: var(--cy-cyan);
-  text-shadow: 0 0 8px var(--cy-glow-cyan-soft);
+  color: var(--cy-muted);
 }
 .cy-balance-neg {
   color: var(--cy-magenta);
-  text-shadow: 0 0 8px var(--cy-glow-magenta-soft);
 }
 
-/* Drop target highlight while a chip is dragged over a day cell. Mirrors the
-   `today` cyan treatment: outer glow on the host, inset glow on the chamfered
-   fill so the highlight follows the cell's clipped shape. */
-.cy-cell.drop {
-  box-shadow: 0 0 16px var(--cy-glow-cyan-soft);
-}
-.cy-cell.drop::before {
-  box-shadow: inset 0 0 22px var(--cy-glow-cyan-soft);
-}
-/* Compact-mode selected day: persistent cyan treatment mirroring `.drop`,
-   paired with a cyan CyberFrame stroke set in DayCell. Scoped to non-today
-   cells so today's yellow glow wins when a cell is both today and selected,
-   matching DayCell's frame-color precedence (today > selected). */
-.cy-cell.selected:not(.today) {
-  box-shadow: 0 0 16px var(--cy-glow-cyan-soft);
-}
-.cy-cell.selected:not(.today)::before {
-  box-shadow: inset 0 0 22px var(--cy-glow-cyan-soft);
-}
 /* The source chip dims while its DragOverlay copy follows the pointer. */
 .cy-chip-dragging {
   opacity: 0.35;
 }
 /* sonner toast themed to the cyberpunk panel look. */
 .cy-toast {
-  background: linear-gradient(
-    180deg,
-    var(--cy-dialog-top),
-    var(--cy-dialog-bottom)
-  );
+  background: var(--cy-panel);
   color: var(--cy-text);
   border: 1px solid var(--cy-line);
   border-radius: 0;
