@@ -196,8 +196,8 @@ const LandingPage = ({ onTryNow }: LandingPageProps) => (
         <div className="flex flex-col items-start gap-5">
           <p className="max-w-[40ch] text-base text-[color:var(--cy-text)] sm:text-lg">
             Deposits and withdrawals land on the days they happen. The running
-            balance moves with them, so a short month shows up weeks before it
-            arrives.
+            balance moves with them, so you can see what you will have on any
+            day ahead.
           </p>
           <div className="flex flex-wrap items-center gap-4">
             <button
