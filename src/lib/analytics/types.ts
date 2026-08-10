@@ -3,6 +3,8 @@
  * cannot invent one-off names that never get read.
  */
 export type AnalyticsEventName =
+  | "landing-viewed"
+  | "try-now-clicked"
   | "new-event-clicked"
   | "sync-opened"
   | "data-opened"

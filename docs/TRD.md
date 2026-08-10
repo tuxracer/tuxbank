@@ -234,6 +234,7 @@ This mirrors iCalendar semantics (`EXDATE` / `RECURRENCE-ID` for single override
 - **Move toast:** a `sonner` toast at the bottom center confirms every move and provides an Undo action. Styled to the cyberpunk panel look via `.cy-toast` / `.cy-toast-action` in `globals.css`.
 - **Responsive / compact mode:** below 640px (Tailwind's `sm` breakpoint) the `useIsCompact()` hook (`src/hooks/useIsCompact/`, matchMedia-driven) switches the calendar to compact rendering. The grid always shows the full 6 week-rows (unlike desktop, which trims to the weeks the month spans). Day cells show up to 4 category-colored dots (plus a `+` marker when there are more) instead of full chips, and tapping a day selects it. Swiping the grid left or right changes months (left for next, right for previous), with a brief glitch flash as feedback. The selected day's events, running balance, and an Add button appear in a `DayPanel` below the grid. The toolbar becomes two rows: navigation and an overflow menu (shadcn Popover) on row 1, the category legend on row 2; the menu holds SYNC, DATA, CATEGORIES, and ABOUT, and its trigger shows a bare attention dot when any item inside needs attention. Drag-and-drop is disabled in compact mode; events move between days by editing the date in the event editor. Dialogs cap their height at `85dvh` and scroll internally.
 - **Empty state:** a styled prompt to create the first event when the calendar has none.
+- **Landing page (first visit only):** `src/components/LandingPage` renders instead of the calendar until the visitor clicks the **Try Now** CTA. It states the core promises (free forever, no sign-up, not even an email; data stays in this browser; optional encrypted sync) in the same Night City language: HUD status line, two-tone neon wordmark, `.cy-cta` button, chamfered spec panel with `CyberFrame`. Clicking Try Now sets a localStorage flag (`tuxbank:landing-dismissed`, see `src/lib/landingGate`) and swaps in the calendar; later visits with the flag boot straight into the app. Two flows bypass the landing page: a `#device-link=` URL (a device-link sign-in must surface its TOTP prompt immediately), and the sign-out storage wipe restores the flag before reloading so a signed-out user is not greeted as a first-time visitor.
 
 ---
 
@@ -285,7 +286,7 @@ Per `CLAUDE.md` module conventions, each module is a **directory** named after i
 index.html                  # Vite HTML entry
 src/
   main.tsx                  # Vite entry: fonts, globals.css, mounts <App />
-  App.tsx                   # calendar page composition
+  App.tsx                   # landing-page gate + calendar page composition
   globals.css               # Tailwind layers + cyberpunk tokens & overlays
   components/
     CalendarToolbar/        # month nav, Today, category filter, New Event, HUD line
@@ -308,6 +309,7 @@ src/
     StorageUnavailableBanner/ # shown when storage fails; offers a reset when the DB is unopenable
     SyncDialog/             # optional account sync: create / sign-in / TOTP / recovery-key / change-password
     AboutDialog/            # what the app is, MIT license, link to the source repository
+    LandingPage/            # first-visit entry screen; Try Now CTA dismisses it via landingGate
   context/
     CalendarContext/        # visible month, events, CRUD actions (including moveEvent), filter state
     SyncContext/            # optional account-sync state machine; consume via useSync()
@@ -319,6 +321,7 @@ src/
     recurrence/             # expand(window) + recurrence override/split/move helpers (pure)
     dateGrid/               # month -> 6x7 date matrix; inMonthWeekCount() for the weeks a month spans
     balance/                # running balance from deposits/withdrawals
+    landingGate/            # localStorage flag for skipping the landing page on return visits
   types/                    # CalendarEvent, Category, Recurrence + type guards
   utils/
     categoryColor/          # PALETTE, DEFAULT_CATEGORY_COLOR, catColorVar, catGlowVar
@@ -762,6 +765,8 @@ carry no user content (no titles, amounts, dates, categories, or emails).
 
 | Event | Fired when | Props |
 | --- | --- | --- |
+| `landing-viewed` | The first-visit landing page renders | |
+| `try-now-clicked` | The landing page's Try Now CTA enters the app | |
 | `new-event-clicked` | The New Event button (full toolbar) or + Add (compact day panel) opens the editor | `layout` |
 | `sync-opened` / `data-opened` / `categories-opened` / `about-opened` | The matching toolbar button or compact menu item opens its dialog | `layout` |
 | `data-exported` | A backup download finishes | |

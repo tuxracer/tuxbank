@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { SyncDialog } from "./index";
+import { LANDING_DISMISSED_KEY } from "@/lib/landingGate";
 import type { SyncContextValue } from "@/context/SyncContext";
 
 const mocks = vi.hoisted(() => ({
@@ -225,8 +226,12 @@ describe("SyncDialog sign out", () => {
     await waitFor(() => expect(reload).toHaveBeenCalled());
     // true is the clear-local-data flag: signing out always erases this browser.
     expect(syncValue.signOut).toHaveBeenCalledWith(true);
-    expect(window.localStorage.length).toBe(0);
+    expect(window.localStorage.getItem("leftover")).toBeNull();
     expect(window.sessionStorage.length).toBe(0);
+    // The one survivor is the restored landing flag: a signed-out user is not
+    // a first-time visitor, so the reload must land on the calendar.
+    expect(window.localStorage.getItem(LANDING_DISMISSED_KEY)).not.toBeNull();
+    expect(window.localStorage.length).toBe(1);
   });
 
   it("offers no way to sign out while keeping this browser's data", () => {

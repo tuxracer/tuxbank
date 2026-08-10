@@ -21,6 +21,8 @@ import {
 } from "@/context/CalendarContext";
 import { SyncProvider, useSync } from "@/context/SyncContext";
 import { trackEvent } from "@/lib/analytics";
+import { markLandingDismissed, shouldShowLanding } from "@/lib/landingGate";
+import LandingPage from "@/components/LandingPage";
 import CalendarToolbar from "@/components/CalendarToolbar";
 import DayPanel from "@/components/DayPanel";
 import MonthGrid from "@/components/MonthGrid";
@@ -380,12 +382,32 @@ const CalendarScreen = () => {
   );
 };
 
-const App = () => (
-  <CalendarProvider>
-    <SyncProvider>
-      <CalendarScreen />
-    </SyncProvider>
-  </CalendarProvider>
-);
+const App = () => {
+  const [showLanding, setShowLanding] = useState(shouldShowLanding);
+
+  useEffect(() => {
+    if (showLanding) trackEvent("landing-viewed");
+  }, [showLanding]);
+
+  if (showLanding) {
+    return (
+      <LandingPage
+        onTryNow={() => {
+          markLandingDismissed();
+          trackEvent("try-now-clicked");
+          setShowLanding(false);
+        }}
+      />
+    );
+  }
+
+  return (
+    <CalendarProvider>
+      <SyncProvider>
+        <CalendarScreen />
+      </SyncProvider>
+    </CalendarProvider>
+  );
+};
 
 export default App;

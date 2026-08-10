@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import { renderSVG } from "uqr";
 import { useSync } from "@/context/SyncContext";
 import type { SyncContextValue, SyncStatus } from "@/context/SyncContext";
+import { markLandingDismissed } from "@/lib/landingGate";
 import { MIN_PASSWORD_LENGTH } from "./consts";
 
 /** Statuses where the account is active (signed in and unlocked). */
@@ -169,6 +170,10 @@ export const SyncDialog = ({ open, onOpenChange }: SyncDialogProps) => {
     try {
       window.localStorage.clear();
       window.sessionStorage.clear();
+      // The wipe also removed the landing-page flag. Whoever just signed out
+      // is not a first-time visitor, so restore it: the reload should land on
+      // the calendar, not the marketing page.
+      markLandingDismissed();
     } catch {
       // Web storage can be unavailable (private mode, blocked cookies). The
       // session is already revoked, so reload regardless.
