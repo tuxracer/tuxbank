@@ -5,5 +5,6 @@ import type { SyncAttention } from "./types";
 export const SYNC_ATTENTION: Partial<Record<SyncStatus, SyncAttention>> = {
   offline: { label: "OFFLINE", colorVar: "var(--cy-yellow)" },
   locked: { label: "LOCKED", colorVar: "var(--cy-magenta)" },
+  choice: { label: "ACTION", colorVar: "var(--cy-magenta)" },
   error: { label: "ERROR", colorVar: "var(--cy-orange)" },
 };

@@ -47,7 +47,13 @@ import {
   getStoredDek,
   setStoredDek,
 } from "@/lib/storage";
-import { countPendingChanges, createSupabaseRemote, runSync } from "@/lib/sync";
+import {
+  countPendingChanges,
+  createSupabaseRemote,
+  detectSignInConflict,
+  runSync,
+} from "@/lib/sync";
+import type { SignInConflict } from "@/lib/sync";
 import { fromBase64, toBase64 } from "@/utils/base64";
 import type {
   OnboardStep,
@@ -117,10 +123,18 @@ export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
   const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);
   const [pendingCount, setPendingCount] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [signInChoice, setSignInChoice] = useState<SignInConflict | null>(null);
 
   const dekRef = useRef<Uint8Array | null>(null);
   const pendingRef = useRef<PendingAuth | null>(null);
   const syncingRef = useRef(false);
+
+  // Whether the first-sync conflict question has been settled for this session.
+  // "unknown" means it has not been asked yet, "pending" means the user is
+  // looking at the prompt, "resolved" means they answered (or there was nothing
+  // to ask). Merge changes neither side's emptiness, so without "resolved" the
+  // gate would re-detect the same conflict forever.
+  const choiceRef = useRef<"unknown" | "pending" | "resolved">("unknown");
 
   // A scanned device link arrives via the URL hash. Read-once (StrictMode
   // re-runs effects; the ref makes consumption idempotent) and the fragment
@@ -172,7 +186,30 @@ export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
       refreshPendingCount();
       return;
     }
+    // The user is looking at the conflict prompt: nothing moves until they answer.
+    if (choiceRef.current === "pending") return;
     syncingRef.current = true;
+    if (choiceRef.current === "unknown") {
+      try {
+        const conflict = await detectSignInConflict(remote);
+        if (conflict) {
+          choiceRef.current = "pending";
+          setSignInChoice(conflict);
+          setStatus("choice");
+          setStep("signin-choice");
+          return;
+        }
+        choiceRef.current = "resolved";
+      } catch (caught) {
+        // Leave the ref "unknown" so the next attempt re-checks rather than
+        // merging on the strength of a failed lookup.
+        setError(describeError(caught));
+        setStatus("error");
+        return;
+      } finally {
+        if (choiceRef.current !== "resolved") syncingRef.current = false;
+      }
+    }
     setStatus("syncing");
     try {
       const result = await runSync(dekRef.current, remote);
@@ -594,9 +631,11 @@ export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
       }
       dekRef.current = null;
       pendingRef.current = null;
+      choiceRef.current = "unknown";
       setEmail(null);
       setEnrollment(null);
       setRecoveryKey(null);
+      setSignInChoice(null);
       setStep("idle");
       setStatus("off");
       setLastSyncedAt(null);
@@ -688,6 +727,7 @@ export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
     importData,
     unlocked,
     syncNow,
+    signInChoice,
   };
 
   return <SyncContext.Provider value={value}>{children}</SyncContext.Provider>;

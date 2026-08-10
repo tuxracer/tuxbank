@@ -1,8 +1,10 @@
 import type { DeviceLinkPayload } from "@/lib/deviceLink";
+import type { SignInConflict } from "@/lib/sync";
 
 export type SyncStatus =
   | "off"
   | "locked"
+  | "choice"
   | "syncing"
   | "synced"
   | "error"
@@ -17,7 +19,8 @@ export type OnboardStep =
   | "confirm-email"
   | "create-totp"
   | "create-recovery"
-  | "signin-totp";
+  | "signin-totp"
+  | "signin-choice";
 
 export interface SyncContextValue {
   status: SyncStatus;
@@ -81,4 +84,9 @@ export interface SyncContextValue {
   /** True when signed in with the data key in memory: actions reach the cloud. */
   unlocked: boolean;
   syncNow: () => Promise<void>;
+  /**
+   * Set when a first sync found events on this device and in the account.
+   * The user must choose before anything syncs; null at every other time.
+   */
+  signInChoice: SignInConflict | null;
 }

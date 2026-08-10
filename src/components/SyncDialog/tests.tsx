@@ -31,6 +31,7 @@ const syncValue: SyncContextValue = {
   unlocked: true,
   syncNow: vi.fn(),
   createDeviceLink: mocks.createDeviceLink,
+  signInChoice: null,
 };
 
 vi.mock("@/context/SyncContext", () => ({

@@ -23,6 +23,7 @@ const mocks = vi.hoisted(() => ({
   getActiveSession: vi.fn(),
   signOut: vi.fn(),
   runSync: vi.fn(),
+  count: vi.fn(),
   signIn: vi.fn(),
   getTotpFactorId: vi.fn(),
   verifyTotp: vi.fn(),
@@ -57,7 +58,7 @@ vi.mock("@/lib/sync", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/sync")>();
   return {
     ...actual,
-    createSupabaseRemote: () => ({}),
+    createSupabaseRemote: () => ({ count: mocks.count }),
     runSync: mocks.runSync,
   };
 });
@@ -660,5 +661,94 @@ describe("device-link hash at boot", () => {
     // Unparseable payloads (e.g. a future-version link) still carry live
     // secrets and must be stripped from the address bar regardless.
     expect(window.location.hash).toBe("");
+  });
+});
+
+describe("SyncContext sign-in conflict gate", () => {
+  beforeEach(async () => {
+    await resetDbForTests();
+    mocks.signOut.mockResolvedValue(undefined);
+    mocks.runSync.mockReset();
+    mocks.runSync.mockResolvedValue({ pushed: 0, pulled: 0 });
+    mocks.count.mockReset();
+    mocks.count.mockResolvedValue(0);
+    mocks.getActiveSession.mockResolvedValue({
+      email: "user@example.com",
+      aal2: true,
+    });
+  });
+
+  it("parks in the choice status when both sides have events", async () => {
+    await putEvent(testEvent("e1"));
+    mocks.count.mockResolvedValue(3);
+    await setStoredDek(new Uint8Array([1, 2, 3, 4, 5]));
+
+    const { result } = renderHook(() => useSync(), { wrapper });
+
+    await waitFor(() => expect(result.current.status).toBe("choice"));
+    expect(result.current.step).toBe("signin-choice");
+    expect(result.current.signInChoice).toEqual({ local: 1, remote: 3 });
+    expect(mocks.runSync).not.toHaveBeenCalled();
+  });
+
+  it("syncs without prompting when this device has no events", async () => {
+    mocks.count.mockResolvedValue(3);
+    await setStoredDek(new Uint8Array([1, 2, 3, 4, 5]));
+
+    const { result } = renderHook(() => useSync(), { wrapper });
+
+    await waitFor(() => expect(result.current.status).toBe("synced"));
+    expect(result.current.signInChoice).toBeNull();
+    expect(mocks.runSync).toHaveBeenCalled();
+  });
+
+  it("syncs without prompting when the account has no events", async () => {
+    await putEvent(testEvent("e1"));
+    mocks.count.mockResolvedValue(0);
+    await setStoredDek(new Uint8Array([1, 2, 3, 4, 5]));
+
+    const { result } = renderHook(() => useSync(), { wrapper });
+
+    await waitFor(() => expect(result.current.status).toBe("synced"));
+    expect(mocks.runSync).toHaveBeenCalled();
+  });
+
+  it("syncs without prompting when this device has already synced", async () => {
+    await putEvent(testEvent("e1"));
+    await setSyncCursor("2026-06-01T00:00:00.000Z");
+    mocks.count.mockResolvedValue(3);
+    await setStoredDek(new Uint8Array([1, 2, 3, 4, 5]));
+
+    const { result } = renderHook(() => useSync(), { wrapper });
+
+    await waitFor(() => expect(result.current.status).toBe("synced"));
+    expect(mocks.count).not.toHaveBeenCalled();
+  });
+
+  it("does not re-query the account while the choice is pending", async () => {
+    await putEvent(testEvent("e1"));
+    mocks.count.mockResolvedValue(3);
+    await setStoredDek(new Uint8Array([1, 2, 3, 4, 5]));
+
+    const { result } = renderHook(() => useSync(), { wrapper });
+    await waitFor(() => expect(result.current.status).toBe("choice"));
+
+    await act(async () => {
+      await result.current.syncNow();
+    });
+
+    expect(mocks.count).toHaveBeenCalledTimes(1);
+    expect(mocks.runSync).not.toHaveBeenCalled();
+  });
+
+  it("surfaces an error and syncs nothing when the account cannot be counted", async () => {
+    await putEvent(testEvent("e1"));
+    mocks.count.mockRejectedValue(new Error("network down"));
+    await setStoredDek(new Uint8Array([1, 2, 3, 4, 5]));
+
+    const { result } = renderHook(() => useSync(), { wrapper });
+
+    await waitFor(() => expect(result.current.status).toBe("error"));
+    expect(mocks.runSync).not.toHaveBeenCalled();
   });
 });
