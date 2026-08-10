@@ -62,24 +62,29 @@ export const LANDING_PREVIEW_EVENTS: Readonly<
 export const LANDING_STAGGER_MS = 16;
 
 /**
- * What the visitor is signing up for, as a datasheet rather than a feature
- * grid: a fixed mono key and the plain answer beside it.
+ * What the visitor is signing up for. Rendered as four cells built with the
+ * month grid's own grammar (panel fills over hairline dividers): a mono HUD
+ * key, a display-face claim, and one supporting sentence.
  */
 export const LANDING_SPECS: readonly LandingSpec[] = [
   {
     key: "Account",
-    body: "None. Try Now opens the calendar with nothing to fill in first.",
+    title: "Open and go.",
+    body: "No sign-up, no email, no password. Try Now opens the calendar ready to type into.",
   },
   {
     key: "Storage",
-    body: "This browser. Events keep working offline and nothing is uploaded unless you turn on sync.",
+    title: "Stays on your device.",
+    body: "Events live in this browser and keep working offline. Nothing is uploaded while sync is off.",
   },
   {
     key: "Sync",
-    body: "Optional and end-to-end encrypted, for reading the same months on another device. Off by default.",
+    title: "Encrypted before it leaves.",
+    body: "Turn it on to read the same months on another device. Only your devices hold the key. Off by default.",
   },
   {
     key: "Price",
-    body: "Free, MIT licensed, open source. No plans, no trial, no paywall at the end.",
+    title: "Free, and staying free.",
+    body: "MIT licensed and open source. No plans, no trial, no paywall at the end.",
   },
 ];

@@ -28,8 +28,12 @@ export type LandingPreviewTotals = {
   end: number;
 };
 
-/** One row of the datasheet under the console. */
+/** One cell of the spec grid under the console. */
 export type LandingSpec = {
+  /** Mono HUD key naming the axis (Account, Storage, …). */
   key: string;
+  /** The claim, set large in the display face. */
+  title: string;
+  /** One supporting sentence. */
   body: string;
 };

@@ -247,16 +247,20 @@ const LandingPage = ({ onTryNow }: LandingPageProps) => (
         <PreviewTape />
       </section>
 
-      <section className="flex flex-col">
+      {/* Spec grid: the same construction as the month grid (panel fills over
+          a hairline gap-px background) so the specs read as four cells cut
+          from the calendar above, not a separate marketing surface. */}
+      <section className="grid gap-px border border-[color:var(--cy-line)] bg-[color:var(--cy-hairline)] sm:grid-cols-2 lg:grid-cols-4">
         {LANDING_SPECS.map((spec) => (
           <div
             key={spec.key}
-            className="grid gap-1 border-t border-[color:var(--cy-line)] py-3 sm:grid-cols-[10rem_1fr] sm:gap-6"
+            className="flex flex-col gap-2.5 bg-[color:var(--cy-panel)] p-4 sm:p-5"
           >
-            <h2 className="cy-hud pt-0.5 text-[color:var(--cy-cyan)]">
-              {spec.key}
-            </h2>
-            <p className="max-w-[68ch] text-sm text-[color:var(--cy-text)]">
+            <h2 className="cy-hud text-[color:var(--cy-cyan)]">{spec.key}</h2>
+            <p className="cy-display text-2xl leading-[1.05] font-bold tracking-wide text-[color:var(--cy-text-strong)]">
+              {spec.title}
+            </p>
+            <p className="max-w-[44ch] text-sm text-[color:var(--cy-text)]">
               {spec.body}
             </p>
           </div>
