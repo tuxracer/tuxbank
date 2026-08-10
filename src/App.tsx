@@ -26,6 +26,7 @@ import LandingPage from "@/components/LandingPage";
 import CalendarToolbar from "@/components/CalendarToolbar";
 import DayPanel from "@/components/DayPanel";
 import MonthGrid from "@/components/MonthGrid";
+import MonthRail from "@/components/MonthRail";
 import { useIsCompact } from "@/hooks/useIsCompact";
 import EventChip from "@/components/EventChip";
 import EventDialog from "@/components/EventDialog";
@@ -279,30 +280,48 @@ const CalendarScreen = () => {
         compact={isCompact}
       />
 
-      <DndContext
-        sensors={sensors}
-        collisionDetection={pointerWithin}
-        onDragStart={handleDragStart}
-        onDragEnd={handleDragEnd}
-      >
-        <MonthGrid
+      {/* The calendar is the console the landing page advertises: the dark
+          instrument (see .cy-console) with the totals rail over the grid. */}
+      <section className="cy-console flex min-h-0 flex-1 flex-col">
+        <MonthRail
+          month={cal.visibleMonth}
           cells={cal.cells}
-          todayISO={cal.todayISO}
-          compact={isCompact}
-          selectedISO={isCompact ? resolvedSelectedDate : undefined}
-          onSwipeLeft={isCompact ? cal.goToNextMonth : undefined}
-          onSwipeRight={isCompact ? cal.goToPrevMonth : undefined}
           occurrencesByDate={cal.occurrencesByDate}
-          onSelectDate={isCompact ? setSelectedDate : openCreate}
-          onSelectOccurrence={openEdit}
           balancesByDate={cal.balancesByDate}
         />
-        <DragOverlay>
-          {activeOccurrence ? (
-            <EventChip occurrence={activeOccurrence} onSelect={noop} />
-          ) : null}
-        </DragOverlay>
-      </DndContext>
+        <DndContext
+          sensors={sensors}
+          collisionDetection={pointerWithin}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+        >
+          <div
+            className={`flex min-h-0 flex-1 flex-col ${isCompact ? "p-1.5" : "p-2 lg:p-3"}`}
+          >
+            <MonthGrid
+              cells={cal.cells}
+              todayISO={cal.todayISO}
+              compact={isCompact}
+              selectedISO={isCompact ? resolvedSelectedDate : undefined}
+              onSwipeLeft={isCompact ? cal.goToNextMonth : undefined}
+              onSwipeRight={isCompact ? cal.goToPrevMonth : undefined}
+              occurrencesByDate={cal.occurrencesByDate}
+              onSelectDate={isCompact ? setSelectedDate : openCreate}
+              onSelectOccurrence={openEdit}
+              balancesByDate={cal.balancesByDate}
+            />
+          </div>
+          <DragOverlay>
+            {activeOccurrence ? (
+              // cy-ink: the overlay portals to <body>, outside the console's
+              // token scope, so the dragged copy re-pins the instrument ink.
+              <div className="cy-ink">
+                <EventChip occurrence={activeOccurrence} onSelect={noop} />
+              </div>
+            ) : null}
+          </DragOverlay>
+        </DndContext>
+      </section>
 
       {isCompact && (
         <DayPanel

@@ -1,3 +1,4 @@
+import { RailFigure } from "@/components/MonthRail";
 import { catColorVar } from "@/utils/categoryColor";
 import { formatCurrency, formatSignedCompact } from "@/utils/formatCurrency";
 import {
@@ -70,16 +71,6 @@ const { days: PREVIEW_DAYS, totals: PREVIEW_TOTALS } = buildPreviewMonth();
 
 /** Transaction days only, for the phone-width ledger tape. */
 const PREVIEW_TAPE = PREVIEW_DAYS.filter((day) => day.inMonth && day.event);
-
-/** One figure on the console rail: a mono value under its key. */
-const RailFigure = ({ label, value }: { label: string; value: string }) => (
-  <div className="flex flex-col gap-0.5">
-    <span className="cy-hud">{label}</span>
-    <span className="cy-mono text-sm text-[color:var(--cy-text-strong)] sm:text-base">
-      {value}
-    </span>
-  </div>
-);
 
 const chipStyle = (day: LandingPreviewDay) => ({
   borderLeftColor: day.event ? catColorVar(day.event.color) : undefined,

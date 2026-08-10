@@ -25,7 +25,9 @@ const DayEventsPopover = ({
         {label}
       </button>
     </PopoverTrigger>
-    <PopoverContent className="cy-dialog w-56 border-0 p-3">
+    {/* cy-ink: the popover portals outside the console, so it re-pins the
+        instrument ink to keep its chips reading as data. */}
+    <PopoverContent className="cy-ink cy-dialog w-56 border-0 p-3">
       <p className="cy-mono mb-2 text-[10px] uppercase tracking-widest text-[color:var(--cy-cyan)]">
         {dateLabel}
       </p>

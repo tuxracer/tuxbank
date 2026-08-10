@@ -422,12 +422,17 @@ body {
   }
 }
 
-/* ===================== LANDING-PAGE CONSOLE ===================== */
-/* The landing preview pins the dark token set in both themes. The accents are
-   data ink and only read as ink against a dark surface; on the light page the
-   month reads as an instrument set on paper rather than a white box on grey.
-   These are the same values as the `prefers-color-scheme: dark` block above,
-   not a third palette — keep them in sync with it. */
+/* ===================== CALENDAR CONSOLE ===================== */
+/* The month console — the landing preview and the app's real calendar — pins
+   the dark token set in both themes. The accents are data ink and only read
+   as ink against a dark surface; on the light page the month reads as an
+   instrument set on paper rather than a white box on grey. These are the same
+   values as the `prefers-color-scheme: dark` block above, not a third
+   palette — keep them in sync with it.
+   `.cy-ink` pins the same ink without the panel chrome, for instrument
+   satellites that render outside the console's DOM subtree (the drag-overlay
+   chip, the day-events popover, the compact day panel). */
+.cy-ink,
 .cy-console {
   --cy-bg: #0a0c11;
   --cy-panel: #0d1119;
@@ -454,9 +459,11 @@ body {
   --cat-green: #34d399;
   --cat-orange: #fb923c;
 
+  color: var(--cy-text);
+}
+.cy-console {
   background: var(--cy-bg);
   border: 1px solid var(--cy-line);
-  color: var(--cy-text);
 }
 
 /* One-shot fill-in on first paint, staggered per cell by inline
