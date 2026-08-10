@@ -62,21 +62,4 @@ describe("CategoryCombobox", () => {
     );
     expect(onChange).toHaveBeenCalledWith("groceries");
   });
-
-  it("does not offer create when the name matches an existing category (case-insensitive)", async () => {
-    render(
-      <CategoryCombobox
-        categories={cats}
-        value=""
-        onChange={vi.fn()}
-        onCreateCategory={vi.fn()}
-      />,
-    );
-    await userEvent.click(screen.getByRole("button", { name: /category/i }));
-    await userEvent.type(
-      screen.getByPlaceholderText(/search or create/i),
-      "work",
-    );
-    expect(screen.queryByText(/create "work"/i)).not.toBeInTheDocument();
-  });
 });

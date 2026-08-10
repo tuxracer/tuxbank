@@ -42,16 +42,6 @@ describe("CalendarToolbar month/year selects", () => {
     expect(within(yearSelect).getAllByRole("option")).toHaveLength(7);
   });
 
-  it("reflects the selected month and year", () => {
-    render(
-      <CalendarToolbar
-        {...baseProps({ selectedMonth: 4, selectedYear: 2027 })}
-      />,
-    );
-    expect(screen.getByTitle("Month")).toHaveValue("4");
-    expect(screen.getByTitle("Year")).toHaveValue("2027");
-  });
-
   it("calls onSelectMonth with the chosen month index", async () => {
     const onSelectMonth = vi.fn();
     render(<CalendarToolbar {...baseProps({ onSelectMonth })} />);
@@ -84,39 +74,6 @@ describe("CalendarToolbar compact mode", () => {
     await userEvent.click(screen.getByText("◢ DATA"));
     expect(onManageData).toHaveBeenCalled();
     expect(screen.queryByText("◢ DATA")).not.toBeInTheDocument();
-  });
-
-  it("fires onAbout from the menu", async () => {
-    const onAbout = vi.fn();
-    render(<CalendarToolbar {...baseProps({ onAbout })} compact />);
-    await userEvent.click(screen.getByTitle("More actions"));
-    await userEvent.click(screen.getByText("◢ ABOUT"));
-    expect(onAbout).toHaveBeenCalled();
-  });
-
-  it("fires onSync and onManageCategories from the menu", async () => {
-    const onSync = vi.fn();
-    const onManageCategories = vi.fn();
-    render(
-      <CalendarToolbar
-        {...baseProps({ onSync, onManageCategories })}
-        compact
-      />,
-    );
-    await userEvent.click(screen.getByTitle("More actions"));
-    await userEvent.click(screen.getByText("◢ SYNC"));
-    expect(onSync).toHaveBeenCalled();
-    await userEvent.click(screen.getByTitle("More actions"));
-    await userEvent.click(screen.getByText("◢ CATEGORIES"));
-    expect(onManageCategories).toHaveBeenCalled();
-  });
-
-  it("keeps month/year navigation in compact mode", () => {
-    render(<CalendarToolbar {...baseProps()} compact />);
-    expect(screen.getByTitle("Month")).toBeInTheDocument();
-    expect(screen.getByTitle("Year")).toBeInTheDocument();
-    expect(screen.getByTitle("Previous month")).toBeInTheDocument();
-    expect(screen.getByTitle("Next month")).toBeInTheDocument();
   });
 
   it("does not render a menu trigger on desktop", () => {

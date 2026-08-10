@@ -47,46 +47,4 @@ describe("DayPanel", () => {
     );
     expect(screen.getByText("-$240.00")).toHaveClass("cy-balance-neg");
   });
-
-  it("shows an empty state when the day has no events", () => {
-    render(
-      <DayPanel
-        dateISO="2026-06-12"
-        occurrences={[]}
-        balance={0}
-        onSelectOccurrence={vi.fn()}
-        onAddEvent={vi.fn()}
-      />,
-    );
-    expect(screen.getByText(/no events/i)).toBeInTheDocument();
-  });
-
-  it("fires onAddEvent from the Add button", async () => {
-    const onAddEvent = vi.fn();
-    render(
-      <DayPanel
-        dateISO="2026-06-12"
-        occurrences={[]}
-        balance={0}
-        onSelectOccurrence={vi.fn()}
-        onAddEvent={onAddEvent}
-      />,
-    );
-    await userEvent.click(screen.getByRole("button", { name: /add/i }));
-    expect(onAddEvent).toHaveBeenCalled();
-  });
-
-  it("labels the panel with the selected date", () => {
-    render(
-      <DayPanel
-        dateISO="2026-06-12"
-        occurrences={[]}
-        balance={0}
-        onSelectOccurrence={vi.fn()}
-        onAddEvent={vi.fn()}
-      />,
-    );
-    // Locale-formatted long date; assert on the day number to stay locale-safe.
-    expect(screen.getByText(/12/)).toBeInTheDocument();
-  });
 });

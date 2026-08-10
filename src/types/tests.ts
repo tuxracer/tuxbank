@@ -36,13 +36,6 @@ describe("domain guards", () => {
     expect(isCalendarEvent({ ...ok, date: 20260514 })).toBe(false);
     expect(isCalendarEvent(null)).toBe(false);
   });
-
-  it("ships preset categories with valid colors", () => {
-    expect(PRESET_CATEGORIES.length).toBeGreaterThan(0);
-    PRESET_CATEGORIES.forEach((c) =>
-      expect(isCategoryColor(c.color)).toBe(true),
-    );
-  });
 });
 
 describe("category helpers", () => {

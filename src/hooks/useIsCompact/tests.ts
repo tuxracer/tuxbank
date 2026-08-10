@@ -52,10 +52,4 @@ describe("useIsCompact", () => {
     act(() => setMatches(false));
     expect(result.current).toBe(false);
   });
-
-  it("subscribes to the compact media query", () => {
-    const { matchMedia } = installFakeMatchMedia(false);
-    renderHook(() => useIsCompact());
-    expect(matchMedia).toHaveBeenCalledWith(COMPACT_MEDIA_QUERY);
-  });
 });

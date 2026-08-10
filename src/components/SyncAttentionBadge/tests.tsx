@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render } from "@testing-library/react";
 import type { SyncStatus } from "@/context/SyncContext";
 import { SyncAttentionBadge, SyncAttentionDot } from "./index";
 
@@ -9,47 +9,24 @@ vi.mock("@/context/SyncContext", () => ({
   useSync: () => ({ status: mockSync.status }),
 }));
 
-const renderWithStatus = (status: SyncStatus) => {
-  mockSync.status = status;
-  return render(<SyncAttentionBadge />);
-};
+// Which statuses warrant a visible warning is the only logic here; the wording
+// of the label is copy and deliberately not asserted.
+const ATTENTION: SyncStatus[] = ["offline", "locked", "error"];
+const QUIET: SyncStatus[] = ["off", "syncing", "synced"];
 
-describe("SyncAttentionBadge", () => {
-  it.each([
-    ["offline", "OFFLINE"],
-    ["locked", "LOCKED"],
-    ["error", "ERROR"],
-  ] as const)("labels the %s status %s", (status, label) => {
-    renderWithStatus(status);
-    expect(screen.getByText(label)).toBeInTheDocument();
-  });
-
-  it.each(["off", "syncing", "synced"] as const)(
-    "renders nothing for the %s status",
-    (status) => {
-      const { container } = renderWithStatus(status);
-      expect(container).toBeEmptyDOMElement();
-    },
-  );
-});
-
-describe("SyncAttentionDot", () => {
-  it.each([
-    ["offline", "OFFLINE"],
-    ["locked", "LOCKED"],
-    ["error", "ERROR"],
-  ] as const)("shows a dot titled %s -> %s", (status, label) => {
+describe.each([
+  ["SyncAttentionBadge", SyncAttentionBadge],
+  ["SyncAttentionDot", SyncAttentionDot],
+])("%s", (_name, Component) => {
+  it.each(ATTENTION)("warns about the %s status", (status) => {
     mockSync.status = status;
-    render(<SyncAttentionDot />);
-    expect(screen.getByTitle(label)).toBeInTheDocument();
+    const { container } = render(<Component />);
+    expect(container).not.toBeEmptyDOMElement();
   });
 
-  it.each(["off", "syncing", "synced"] as const)(
-    "renders nothing for the %s status",
-    (status) => {
-      mockSync.status = status;
-      const { container } = render(<SyncAttentionDot />);
-      expect(container).toBeEmptyDOMElement();
-    },
-  );
+  it.each(QUIET)("renders nothing for the %s status", (status) => {
+    mockSync.status = status;
+    const { container } = render(<Component />);
+    expect(container).toBeEmptyDOMElement();
+  });
 });

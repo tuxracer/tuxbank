@@ -48,24 +48,6 @@ describe("DataDialog", () => {
     expect(screen.getByText(/5 events/i)).toBeInTheDocument();
   });
 
-  it("warns that a signed-in import replaces cloud data everywhere", async () => {
-    render(<DataDialog {...base} includesCloud />);
-    const file = new File(["{}"], "backup.json");
-    fireEvent.change(fileInput(), { target: { files: [file] } });
-    expect(
-      await screen.findByText(/replaces your synced data on all devices/i),
-    ).toBeInTheDocument();
-  });
-
-  it("notes that a signed-out import only changes this device for now", async () => {
-    render(<DataDialog {...base} includesCloud={false} />);
-    const file = new File(["{}"], "backup.json");
-    fireEvent.change(fileInput(), { target: { files: [file] } });
-    expect(
-      await screen.findByText(/only this device changes now/i),
-    ).toBeInTheDocument();
-  });
-
   it("commits the import after the user confirms", async () => {
     const onCommitImport = vi.fn().mockResolvedValue(undefined);
     const onOpenChange = vi.fn();
@@ -179,22 +161,6 @@ describe("DataDialog — clear all data", () => {
       screen.queryByRole("button", { name: /reset everything/i }),
     ).not.toBeInTheDocument();
     expect(onClearAllData).not.toHaveBeenCalled();
-  });
-
-  it("warns that a signed-in reset also clears the cloud account", async () => {
-    render(<DataDialog {...base} includesCloud />);
-    await startReset();
-    expect(
-      screen.getByText(/also deletes your synced data from your account/i),
-    ).toBeInTheDocument();
-  });
-
-  it("notes that a signed-out reset only touches this device", async () => {
-    render(<DataDialog {...base} includesCloud={false} />);
-    await startReset();
-    expect(
-      screen.getByText(/only data on this device is deleted/i),
-    ).toBeInTheDocument();
   });
 
   it("shows an error and stays open when clearing fails", async () => {

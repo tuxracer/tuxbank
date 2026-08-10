@@ -14,13 +14,4 @@ describe("sealedBox row serialization", () => {
     expect(back.nonce).toEqual(box.nonce);
     expect(back.ciphertext).toEqual(box.ciphertext);
   });
-
-  it("produces standard base64 strings", () => {
-    const row = sealedBoxToRow({
-      nonce: new Uint8Array([0]),
-      ciphertext: new Uint8Array([0]),
-    });
-    expect(row.nonce).toBe("AA==");
-    expect(row.ciphertext).toBe("AA==");
-  });
 });

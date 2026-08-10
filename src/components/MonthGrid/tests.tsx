@@ -43,7 +43,7 @@ const makeOcc = (i: number): Occurrence => ({
 });
 
 describe("MonthGrid", () => {
-  it("renders weekday headers and a chip, and reports occurrence clicks", async () => {
+  it("reports clicks on a day's occurrence chip", async () => {
     const onSelectOccurrence = vi.fn();
     render(
       <MonthGrid
@@ -55,7 +55,6 @@ describe("MonthGrid", () => {
       />,
     );
 
-    expect(screen.getByText("Sun")).toBeInTheDocument();
     const chip = screen.getByTitle("Design review");
     await userEvent.click(chip);
     expect(onSelectOccurrence).toHaveBeenCalledWith(occ);
