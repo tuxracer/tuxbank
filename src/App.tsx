@@ -280,9 +280,10 @@ const CalendarScreen = () => {
         compact={isCompact}
       />
 
-      {/* The calendar is the console the landing page advertises: the dark
-          instrument (see .cy-console) with the totals rail over the grid. */}
-      <section className="cy-console flex min-h-0 flex-1 flex-col">
+      {/* The calendar shares the landing console's structure — a bordered
+          panel holding the totals rail over the grid — but follows the active
+          theme rather than pinning the landing's dark ink. */}
+      <section className="flex min-h-0 flex-1 flex-col border border-[color:var(--cy-line)] bg-[color:var(--cy-bg)]">
         <MonthRail
           month={cal.visibleMonth}
           cells={cal.cells}
@@ -313,11 +314,7 @@ const CalendarScreen = () => {
           </div>
           <DragOverlay>
             {activeOccurrence ? (
-              // cy-ink: the overlay portals to <body>, outside the console's
-              // token scope, so the dragged copy re-pins the instrument ink.
-              <div className="cy-ink">
-                <EventChip occurrence={activeOccurrence} onSelect={noop} />
-              </div>
+              <EventChip occurrence={activeOccurrence} onSelect={noop} />
             ) : null}
           </DragOverlay>
         </DndContext>

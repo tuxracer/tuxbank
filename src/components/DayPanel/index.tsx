@@ -20,9 +20,7 @@ const DayPanel = ({
   onSelectOccurrence,
   onAddEvent,
 }: DayPanelProps) => (
-  // cy-ink: the panel is part of the calendar instrument, so it pins the
-  // console ink instead of following the page theme.
-  <section className="cy-ink cy-toolbar relative flex flex-col gap-2 px-3 py-2.5">
+  <section className="cy-toolbar relative flex flex-col gap-2 px-3 py-2.5">
     <div className="flex items-center justify-between gap-2">
       <p className="cy-mono text-[10px] uppercase tracking-widest text-[color:var(--cy-cyan)]">
         {dateLabeler.format(parseISO(dateISO))}
