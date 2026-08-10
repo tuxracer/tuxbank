@@ -72,7 +72,17 @@ inert. That is the intended fallback, not an error.
    forget your password.
 
 Your local events and categories upload on first sign-in. On another device,
-choose Sign in, pass the TOTP challenge, and the data pulls down and merges.
+choose Sign in and pass the TOTP challenge. If that device has no events, the
+account's data pulls straight down. If it does have events, and so does the
+account, you are asked which set to keep before anything syncs:
+
+- **Merge both** keeps everything from both sides. Nothing is deleted.
+- **Keep this device** uploads this device's events and deletes the account's
+  other events, on every device signed into it.
+- **Keep the account** deletes this device's events and pulls the account's.
+
+The two deleting options ask you to type `delete` first. Until you choose,
+nothing syncs in either direction, and the SYNC button shows an ACTION badge.
 
 ## Verify it worked
 

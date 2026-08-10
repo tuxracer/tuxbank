@@ -602,6 +602,58 @@ encrypted with the DEK before it leaves the device. Known limitation:
 last-write-wins by client timestamp is vulnerable to clock skew across devices,
 which is acceptable for a single user.
 
+### First-sync conflict
+
+A first sync merges both sides last-write-wins, which is the wrong default when
+a device that has been used offline signs in to an account that already holds
+events. Event ids are random UUIDs, so the two sets almost never collide and the
+user gets both interleaved with no warning.
+
+`detectSignInConflict` (in `src/lib/sync`) returns the two event counts when all
+three of these hold, and null otherwise:
+
+1. no sync cursor is stored (this device has never synced with this account)
+2. the device has at least one event
+3. the account has at least one non-deleted event row
+
+Condition 3 uses `SyncRemote.count`, a Supabase `head: true, count: "exact"`
+query filtered to `deleted = false`, so it transfers no ciphertext and an
+account holding only tombstones reads as empty. Short-circuiting on the cursor
+means it runs at most once per device per account.
+
+Categories are not part of the trigger and follow whichever side the user keeps.
+
+The gate sits at the top of `doSync` in `SyncContext`, so it covers every path
+that can start a first sync: the TOTP confirm, device-link sign-in, a cached-key
+resume on reload, window focus, network reconnect, and the debounced post-edit
+sync. While a choice is pending the status is `choice`, nothing syncs in either
+direction, and `unlocked` reads false so the Data dialog's reset and import stay
+local-only.
+
+Nothing is persisted about the pending question. Each resolution ends with a
+sync that writes a cursor, so the condition goes false on its own, and a
+resolution that fails or never runs correctly asks again. Merge is the
+exception, since it changes neither side's emptiness, so a ref suppresses
+re-prompting for the rest of the session.
+
+The resolutions compose existing storage primitives rather than adding modes to
+`runSync`:
+
+- **merge** runs the sync unchanged
+- **keep the account** calls `clearLocalData` (which writes no tombstones, so
+  the account is untouched) and syncs, which pulls everything and pushes nothing
+- **keep this device** captures `exportDatabase`, syncs so the device learns the
+  account's ids, calls `commitImportSynced` with the captured backup (re-stamping
+  local rows and tombstoning every account-only id), then syncs again to push
+
+The export in keep-local must be captured before the first sync, otherwise the
+account's rows get folded into the set being declared authoritative.
+
+Accepted edge: if keep-local fails between its two syncs the device is left
+merged, and re-running it would upload that merged set as truth. The status goes
+to `error` and recovery is the Data dialog. This is the same window `importData`
+already carries.
+
 `SyncContext` drives the triggers: an initial sync on unlock/sign-in, on window
 focus, on network reconnect (the `online` event), debounced after edits and
 month navigation, and a manual "Sync now". Sync attempts are skipped while the
