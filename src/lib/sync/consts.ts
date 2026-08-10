@@ -15,3 +15,6 @@ export const SYNC_TABLES: readonly { table: string; type: TombstoneType }[] = [
 
 /** Abort a hung pull/push so a sync can never leave the UI stuck on "syncing". */
 export const SYNC_REQUEST_TIMEOUT_MS = 30_000;
+
+/** The table the conflict check counts. Categories never trigger a prompt. */
+export const EVENT_TABLE = STORE;

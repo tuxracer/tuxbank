@@ -9,6 +9,7 @@ import {
   encryptTombstone,
   createSupabaseRemote,
   countPendingChanges,
+  detectSignInConflict,
 } from "./index";
 import {
   getAllEvents,
@@ -103,6 +104,8 @@ const makeFakeRemote = () => {
     push: async (table, rows) => {
       for (const row of rows) tables[table].set(row.id, row);
     },
+    count: async (table) =>
+      [...tables[table].values()].filter((r) => !r.deleted).length,
   };
   return { tables, remote };
 };
@@ -359,5 +362,78 @@ describe("countPendingChanges", () => {
     await setSyncCursor("2026-06-05T00:00:00.000Z");
 
     expect(await countPendingChanges()).toBe(0);
+  });
+});
+
+describe("detectSignInConflict", () => {
+  beforeEach(async () => {
+    await resetDbForTests();
+  });
+
+  it("reports both counts when this device and the account both have events", async () => {
+    const dek = await generateDek();
+    const { tables, remote } = makeFakeRemote();
+    await putEvent(event({ id: "local-1" }));
+    await putEvent(event({ id: "local-2" }));
+    tables.events.set(
+      "remote-1",
+      await encryptRecord(event({ id: "remote-1" }), dek),
+    );
+
+    expect(await detectSignInConflict(remote)).toEqual({ local: 2, remote: 1 });
+  });
+
+  it("returns null when this device has no events", async () => {
+    const dek = await generateDek();
+    const { tables, remote } = makeFakeRemote();
+    tables.events.set(
+      "remote-1",
+      await encryptRecord(event({ id: "remote-1" }), dek),
+    );
+
+    expect(await detectSignInConflict(remote)).toBeNull();
+  });
+
+  it("returns null when the account has no events", async () => {
+    const { remote } = makeFakeRemote();
+    await putEvent(event({ id: "local-1" }));
+
+    expect(await detectSignInConflict(remote)).toBeNull();
+  });
+
+  it("treats an account holding only tombstones as empty", async () => {
+    const dek = await generateDek();
+    const { tables, remote } = makeFakeRemote();
+    await putEvent(event({ id: "local-1" }));
+    tables.events.set(
+      "remote-1",
+      await encryptTombstone("remote-1", "2026-06-10T00:00:00.000Z", dek),
+    );
+
+    expect(await detectSignInConflict(remote)).toBeNull();
+  });
+
+  it("returns null once this device has synced, however much data both sides have", async () => {
+    const dek = await generateDek();
+    const { tables, remote } = makeFakeRemote();
+    await putEvent(event({ id: "local-1" }));
+    tables.events.set(
+      "remote-1",
+      await encryptRecord(event({ id: "remote-1" }), dek),
+    );
+    await setSyncCursor("2026-06-01T00:00:00.000Z");
+
+    expect(await detectSignInConflict(remote)).toBeNull();
+  });
+
+  it("does not query the account once a cursor exists", async () => {
+    const { remote } = makeFakeRemote();
+    const count = vi.fn(remote.count);
+    await putEvent(event({ id: "local-1" }));
+    await setSyncCursor("2026-06-01T00:00:00.000Z");
+
+    await detectSignInConflict({ ...remote, count });
+
+    expect(count).not.toHaveBeenCalled();
   });
 });

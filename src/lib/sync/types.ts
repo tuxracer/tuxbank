@@ -21,6 +21,14 @@ export const isRemoteRow = (value: unknown): value is RemoteRow =>
 export interface SyncRemote {
   pull(table: string, since: string): Promise<RemoteRow[]>;
   push(table: string, rows: RemoteRow[]): Promise<void>;
+  /** How many live (non-deleted) rows the table holds. Transfers no ciphertext. */
+  count(table: string): Promise<number>;
+}
+
+/** How many events each side holds when a first sync finds data on both. */
+export interface SignInConflict {
+  local: number;
+  remote: number;
 }
 
 export interface SyncResult {

@@ -12,9 +12,19 @@ import {
 } from "@/lib/storage";
 import { isCalendarEvent, isCategory } from "@/types";
 import type { CalendarEvent, Category } from "@/types";
-import { EPOCH_CURSOR, SYNC_TABLES, SYNC_REQUEST_TIMEOUT_MS } from "./consts";
+import {
+  EPOCH_CURSOR,
+  EVENT_TABLE,
+  SYNC_TABLES,
+  SYNC_REQUEST_TIMEOUT_MS,
+} from "./consts";
 import { isRemoteRow, SyncError } from "./types";
-import type { RemoteRow, SyncRemote, SyncResult } from "./types";
+import type {
+  RemoteRow,
+  SyncRemote,
+  SyncResult,
+  SignInConflict,
+} from "./types";
 
 export * from "./consts";
 export * from "./types";
@@ -40,6 +50,23 @@ export const countPendingChanges = async (): Promise<number> => {
     categories.filter((c) => isPending(c.updatedAt)).length +
     tombstones.filter((t) => isPending(t.updatedAt)).length
   );
+};
+
+/**
+ * Whether a first sync would silently merge two populated sides. Returns the
+ * two event counts when this device has never synced with the account and both
+ * hold events, otherwise null. Short-circuits on the stored cursor, so the
+ * account is queried at most once per device per account.
+ */
+export const detectSignInConflict = async (
+  remote: SyncRemote,
+): Promise<SignInConflict | null> => {
+  if ((await getSyncCursor()) !== undefined) return null;
+  const local = (await getAllEvents()).length;
+  if (local === 0) return null;
+  const remoteCount = await remote.count(EVENT_TABLE);
+  if (remoteCount === 0) return null;
+  return { local, remote: remoteCount };
 };
 
 /** A remote row counts as newer only when strictly greater (so equal = skip). */
@@ -179,6 +206,15 @@ export const createSupabaseRemote = (): SyncRemote | null => {
         .upsert(rows)
         .abortSignal(AbortSignal.timeout(SYNC_REQUEST_TIMEOUT_MS));
       if (error) throw new SyncError("REMOTE_FAILED", error);
+    },
+    count: async (table) => {
+      const { count, error } = await client
+        .from(table)
+        .select("*", { count: "exact", head: true })
+        .eq("deleted", false)
+        .abortSignal(AbortSignal.timeout(SYNC_REQUEST_TIMEOUT_MS));
+      if (error) throw new SyncError("REMOTE_FAILED", error);
+      return count ?? 0;
     },
   };
 };
