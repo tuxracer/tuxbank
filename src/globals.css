@@ -305,8 +305,15 @@ body {
 .cy-cell.out .cy-cell-num {
   opacity: 0.45;
 }
+/* Date numerals are cell chrome, not content: they sit at the chip text size
+   with a near-solid line box. Every pixel here is subtracted from the cell's
+   chip budget (see CHIP_AREA_OVERHEAD_PX in MonthGrid/consts), so the size is
+   set once here rather than per call site — the landing preview and the real
+   calendar have to agree or the preview stops being honest. */
 .cy-cell-num {
   font-family: var(--font-mono), monospace;
+  font-size: 11px;
+  line-height: 1.1;
   color: var(--cy-muted);
 }
 

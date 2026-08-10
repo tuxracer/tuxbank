@@ -8,8 +8,8 @@ export const COLS = 7;
 export const ROW_GAP_PX = 6;
 /** DayCell vertical padding: p-1.5 top + bottom. */
 export const CELL_PADDING_Y_PX = 12;
-/** Day-number line: 16px base font at default line-height. */
-export const DAY_NUMBER_HEIGHT_PX = 24;
+/** Day-number line: 11px cy-cell-num at line-height 1.1, measured at 12.09px. */
+export const DAY_NUMBER_HEIGHT_PX = 13;
 /** Balance line: 10px cy-balance text. */
 export const BALANCE_HEIGHT_PX = 15;
 /** DayCell flex column gap (gap-1) between number / chips / balance. */

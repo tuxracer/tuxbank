@@ -295,6 +295,8 @@ No glow anywhere: no outer glow, no colored drop-shadow, no `text-shadow`. The o
 - **Chakra Petch**: general UI text.
 - **JetBrains Mono**: all figures, date numbers, HUD readouts, field labels.
 
+Inside a day cell there are two sizes, not three: **chrome at 10-11px** (`.cy-cell-num` at 11px/1.1, `.cy-balance` at 10px) and **content at 11px** (`.cy-chip`). The date numeral's size is set on `.cy-cell-num` itself rather than at the call site, because a day cell's vertical budget is zero-sum: every pixel the numeral takes is one the chip stack cannot use, and it is modelled as `DAY_NUMBER_HEIGHT_PX` in `MonthGrid/consts.ts`. The landing-page preview reuses the same class, so the two cannot drift.
+
 ### Component styling
 - Event chips (`.cy-chip`): flat fill, a 2px cyan left border, no glow.
 - Primary CTA (`.cy-cta`): solid cyan fill, square corners, no glow.

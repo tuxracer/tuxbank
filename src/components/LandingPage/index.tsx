@@ -114,7 +114,7 @@ const PreviewGrid = () => (
             className={classes.join(" ")}
             style={{ animationDelay: `${index * LANDING_STAGGER_MS}ms` }}
           >
-            <span className="cy-cell-num text-[10px]">
+            <span className="cy-cell-num">
               {String(day.label).padStart(2, "0")}
             </span>
             {day.event && (
@@ -147,7 +147,7 @@ const PreviewTape = () => (
         style={{ animationDelay: `${index * LANDING_STAGGER_MS}ms` }}
       >
         <span
-          className="cy-cell-num w-6 shrink-0 text-[11px]"
+          className="cy-cell-num w-6 shrink-0"
           style={
             day.label === LANDING_PREVIEW_TODAY
               ? { color: "var(--cy-yellow)", fontWeight: 700 }
