@@ -26,7 +26,6 @@ import LandingPage from "@/components/LandingPage";
 import CalendarToolbar from "@/components/CalendarToolbar";
 import DayPanel from "@/components/DayPanel";
 import MonthGrid from "@/components/MonthGrid";
-import MonthRail from "@/components/MonthRail";
 import { useIsCompact } from "@/hooks/useIsCompact";
 import EventChip from "@/components/EventChip";
 import EventDialog from "@/components/EventDialog";
@@ -280,16 +279,10 @@ const CalendarScreen = () => {
         compact={isCompact}
       />
 
-      {/* The calendar shares the landing console's structure — a bordered
-          panel holding the totals rail over the grid — but follows the active
-          theme rather than pinning the landing's dark ink. */}
+      {/* The calendar sits in a bordered console panel like the landing
+          preview's, but follows the active theme rather than pinning the
+          landing's dark ink. */}
       <section className="flex min-h-0 flex-1 flex-col border border-[color:var(--cy-line)] bg-[color:var(--cy-bg)]">
-        <MonthRail
-          month={cal.visibleMonth}
-          cells={cal.cells}
-          occurrencesByDate={cal.occurrencesByDate}
-          balancesByDate={cal.balancesByDate}
-        />
         <DndContext
           sensors={sensors}
           collisionDetection={pointerWithin}
