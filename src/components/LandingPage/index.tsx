@@ -206,10 +206,7 @@ const PreviewGrid = () => (
             {day.event && (
               <span className="cy-chip" style={chipStyle(day)}>
                 <span className="truncate">{day.event.title}</span>
-                <span
-                  className="cy-chip-amount ml-auto"
-                  style={{ color: catColorVar(day.event.color) }}
-                >
+                <span className="cy-chip-amount ml-auto">
                   {formatSignedCompact(day.event.amount)}
                 </span>
               </span>
@@ -256,14 +253,7 @@ const PreviewPanel = () => (
     <div className="flex flex-col gap-1">
       <span className="cy-chip w-full" style={chipStyle(PREVIEW_PANEL_DAY)}>
         <span className="truncate">{PREVIEW_PANEL_DAY.event?.title}</span>
-        <span
-          className="cy-chip-amount ml-auto"
-          style={
-            PREVIEW_PANEL_DAY.event
-              ? { color: catColorVar(PREVIEW_PANEL_DAY.event.color) }
-              : undefined
-          }
-        >
+        <span className="cy-chip-amount ml-auto">
           {formatSignedCompact(PREVIEW_PANEL_DAY.event?.amount ?? 0)}
         </span>
       </span>

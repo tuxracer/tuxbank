@@ -40,7 +40,10 @@ const EventChip = ({
     >
       {occurrence.isRecurring && <span>↻</span>}
       <span className="truncate">{occurrence.title}</span>
-      <span className="cy-chip-amount ml-auto" style={{ color: accent }}>
+      {/* The amount stays the chip's own text colour: the category already
+          speaks through the left border, and tinting the figure too made the
+          same number read differently from one row to the next. */}
+      <span className="cy-chip-amount ml-auto">
         {formatSignedCompact(delta)}
       </span>
     </button>
