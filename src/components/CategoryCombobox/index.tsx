@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Button } from "@/components/ui/button";
 import {
   Popover,
   PopoverContent,
@@ -59,9 +60,10 @@ const CategoryCombobox = ({
   return (
     <Popover open={open} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
-        <button
+        <Button
           type="button"
-          className="cy-btn flex h-8 items-center gap-2 px-2.5 text-sm"
+          variant="ghost"
+          className="cy-btn justify-start gap-2 text-sm"
         >
           {selected ? (
             <>
@@ -73,7 +75,7 @@ const CategoryCombobox = ({
               Select category…
             </span>
           )}
-        </button>
+        </Button>
       </PopoverTrigger>
       <PopoverContent className="cy-dialog w-64 border-0 p-0">
         <Command shouldFilter={false}>

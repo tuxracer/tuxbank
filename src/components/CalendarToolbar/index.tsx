@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Button } from "@/components/ui/button";
 import {
   Popover,
   PopoverContent,
@@ -41,9 +42,14 @@ const CalendarToolbar = ({
     { length: maxYear - minYear + 1 },
     (_, i) => maxYear - i,
   );
+  // The buttons in this bar are shadcn <Button>s, so their 32px height comes
+  // from the primitive. A native <select> has no primitive to inherit from
+  // (Radix's Select trades the OS picker for a listbox, which a 100-entry year
+  // list wants no part of), so it states h-8 to land on the same box. Only
+  // padding and type size flex with the breakpoint.
   const selectClasses = compact
-    ? "cy-btn px-2 py-1 text-xs"
-    : "cy-btn px-3 py-1.5 text-sm";
+    ? "cy-btn h-8 px-2 text-xs"
+    : "cy-btn h-8 px-3 text-sm";
 
   const closeMenuAnd = (action: () => void) => () => {
     setMenuOpen(false);
@@ -52,14 +58,16 @@ const CalendarToolbar = ({
 
   const navControls = (
     <>
-      <button
+      <Button
         type="button"
+        size="icon"
+        variant="ghost"
         title="Previous month"
-        className="cy-nav grid h-8 w-8 place-items-center"
+        className="cy-nav"
         onClick={onPrev}
       >
         ‹
-      </button>
+      </Button>
       <select
         title="Month"
         className={`${selectClasses} uppercase`}
@@ -84,23 +92,24 @@ const CalendarToolbar = ({
           </option>
         ))}
       </select>
-      <button
+      <Button
         type="button"
+        size="icon"
+        variant="ghost"
         title="Next month"
-        className="cy-nav grid h-8 w-8 place-items-center"
+        className="cy-nav"
         onClick={onNext}
       >
         ›
-      </button>
-      <button
+      </Button>
+      <Button
         type="button"
-        className={
-          compact ? "cy-btn px-2 py-1 text-xs" : "cy-btn px-3 py-1.5 text-xs"
-        }
+        variant="ghost"
+        className={compact ? "cy-btn px-2 text-xs" : "cy-btn px-3 text-xs"}
         onClick={onToday}
       >
         ▸ Today
-      </button>
+      </Button>
     </>
   );
 
@@ -113,12 +122,13 @@ const CalendarToolbar = ({
         const active = activeCategoryIds.has(c.id);
         const colorVar = catColorVar(c.color);
         return (
-          <button
+          <Button
             key={c.id}
             type="button"
+            variant="ghost"
             title={c.name}
             onClick={() => onToggleCategory(c.id)}
-            className="cy-mono flex shrink-0 items-center gap-1.5 border px-2 py-1 text-[10px] uppercase"
+            className="cy-mono gap-1.5 border px-2 text-[10px] uppercase"
             style={{ borderColor: colorVar, opacity: active ? 1 : 0.35 }}
           >
             <span
@@ -126,7 +136,7 @@ const CalendarToolbar = ({
               style={{ background: colorVar }}
             />
             {c.name}
-          </button>
+          </Button>
         );
       })}
     </div>
@@ -140,42 +150,46 @@ const CalendarToolbar = ({
             {navControls}
             <Popover open={menuOpen} onOpenChange={setMenuOpen}>
               <PopoverTrigger asChild>
-                <button
+                <Button
                   type="button"
+                  variant="ghost"
                   title="More actions"
-                  className="cy-btn ml-auto flex items-center gap-1.5 px-2 py-1 text-xs"
+                  className="cy-btn ml-auto gap-1.5 px-2 text-xs"
                 >
                   ☰
                   <SyncAttentionDot />
-                </button>
+                </Button>
               </PopoverTrigger>
               <PopoverContent
                 align="end"
                 className="cy-dialog w-48 border-0 p-2"
               >
                 <div className="flex flex-col gap-1">
-                  <button
+                  <Button
                     type="button"
-                    className="cy-btn flex items-center gap-2 px-3 py-2 text-left text-xs"
+                    variant="ghost"
+                    className="cy-btn justify-start gap-2 px-3 text-xs"
                     onClick={closeMenuAnd(() => onSync?.())}
                   >
                     ◢ SYNC
                     <SyncAttentionBadge />
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     type="button"
-                    className="cy-btn px-3 py-2 text-left text-xs"
+                    variant="ghost"
+                    className="cy-btn justify-start px-3 text-xs"
                     onClick={closeMenuAnd(onManageData)}
                   >
                     ◢ DATA
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     type="button"
-                    className="cy-btn px-3 py-2 text-left text-xs"
+                    variant="ghost"
+                    className="cy-btn justify-start px-3 text-xs"
                     onClick={closeMenuAnd(onManageCategories)}
                   >
                     ◢ CATEGORIES
-                  </button>
+                  </Button>
                 </div>
               </PopoverContent>
             </Popover>
@@ -193,35 +207,39 @@ const CalendarToolbar = ({
 
         <div className="flex items-center gap-3">
           {legend}
-          <button
+          <Button
             type="button"
-            className="cy-btn flex items-center gap-2 px-3 py-1.5 text-xs"
+            variant="ghost"
+            className="cy-btn gap-2 px-3 text-xs"
             onClick={onSync}
           >
             ◢ SYNC
             <SyncAttentionBadge />
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
-            className="cy-btn px-3 py-1.5 text-xs"
+            variant="ghost"
+            className="cy-btn px-3 text-xs"
             onClick={onManageData}
           >
             ◢ DATA
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
-            className="cy-btn px-3 py-1.5 text-xs"
+            variant="ghost"
+            className="cy-btn px-3 text-xs"
             onClick={onManageCategories}
           >
             ◢ CATEGORIES
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
-            className="cy-cta px-5 py-2 text-sm"
+            variant="ghost"
+            className="cy-cta px-5 text-sm"
             onClick={onNewEvent}
           >
             + New Event
-          </button>
+          </Button>
         </div>
       </div>
     </header>
