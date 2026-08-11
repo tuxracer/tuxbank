@@ -73,7 +73,13 @@
   --destructive: oklch(0.577 0.245 27.325);
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
+  /* Focus is interface state, and cyan is the only interface accent, so the
+     shadcn ring token points at it instead of the stock neutral. `--cy-cyan`
+     is defined further down and flips with the theme, so the value below and
+     its twin in the dark block resolve per theme on their own. Focus is drawn
+     flat (1px border + 1px hard ring, no blur): see the primitives in
+     `src/components/ui`. */
+  --ring: var(--cy-cyan);
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
@@ -109,7 +115,7 @@
     --destructive: oklch(0.704 0.191 22.216);
     --border: oklch(1 0 0 / 10%);
     --input: oklch(1 0 0 / 15%);
-    --ring: oklch(0.556 0 0);
+    --ring: var(--cy-cyan);
     --chart-1: oklch(0.87 0 0);
     --chart-2: oklch(0.556 0 0);
     --chart-3: oklch(0.439 0 0);
@@ -296,6 +302,24 @@ body {
   background: var(--cy-text);
   border-color: var(--cy-text);
   transition-duration: 0s;
+}
+/* One focus treatment app-wide: a flat cyan edge, never a glow. The shadcn
+   primitives draw it with their border + ring utilities, but these classes are
+   also applied to raw buttons and selects that carry no utilities and would
+   otherwise fall back to the browser's own focus ring. The offset puts the
+   line immediately outside the 1px border, so the two read as one edge the
+   same way a focused input does. */
+.cy-btn:focus-visible,
+.cy-nav:focus-visible {
+  outline: 1px solid var(--cy-cyan);
+  outline-offset: 1px;
+}
+/* The CTA is already a cyan fill, so a cyan line around it disappears into the
+   button. It focuses in the same ink its hover inversion uses, which reads
+   against the panel in both themes. */
+.cy-cta:focus-visible {
+  outline: 1px solid var(--cy-text-strong);
+  outline-offset: 1px;
 }
 
 @media (prefers-reduced-motion: reduce) {
