@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { NativeSelect } from "@/components/ui/native-select";
 import {
   Popover,
   PopoverContent,
@@ -42,14 +43,10 @@ const CalendarToolbar = ({
     { length: maxYear - minYear + 1 },
     (_, i) => maxYear - i,
   );
-  // The buttons in this bar are shadcn <Button>s, so their 32px height comes
-  // from the primitive. A native <select> has no primitive to inherit from
-  // (Radix's Select trades the OS picker for a listbox, which a 100-entry year
-  // list wants no part of), so it states h-8 to land on the same box. Only
-  // padding and type size flex with the breakpoint.
-  const selectClasses = compact
-    ? "cy-btn h-8 px-2 text-xs"
-    : "cy-btn h-8 px-3 text-sm";
+  // The buttons in this bar are shadcn <Button>s and the month/year pickers are
+  // <NativeSelect>s, so the 32px box comes from the primitive either way. Only
+  // the type size flexes with the breakpoint.
+  const selectClasses = compact ? "cy-btn text-xs" : "cy-btn text-sm";
 
   const closeMenuAnd = (action: () => void) => () => {
     setMenuOpen(false);
@@ -68,7 +65,7 @@ const CalendarToolbar = ({
       >
         ‹
       </Button>
-      <select
+      <NativeSelect
         title="Month"
         className={`${selectClasses} uppercase`}
         value={selectedMonth}
@@ -79,8 +76,8 @@ const CalendarToolbar = ({
             {name}
           </option>
         ))}
-      </select>
-      <select
+      </NativeSelect>
+      <NativeSelect
         title="Year"
         className={selectClasses}
         value={selectedYear}
@@ -91,7 +88,7 @@ const CalendarToolbar = ({
             {year}
           </option>
         ))}
-      </select>
+      </NativeSelect>
       <Button
         type="button"
         size="icon"

@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { NativeSelect } from "@/components/ui/native-select";
 import { eventFormSchema, toEventInput, type EventFormValues } from "./schema";
 import CategoryCombobox from "@/components/CategoryCombobox";
 
@@ -167,14 +168,14 @@ const EventDialog = (props: EventDialogProps) => {
               </div>
               <div className="flex flex-1 flex-col gap-1">
                 <Label htmlFor="direction">Type</Label>
-                <select
+                <NativeSelect
                   id="direction"
-                  className="cy-btn h-8 px-2.5 text-sm"
+                  className="cy-btn text-sm"
                   {...register("direction")}
                 >
                   <option value="deposit">Deposit</option>
                   <option value="withdrawal">Withdrawal</option>
-                </select>
+                </NativeSelect>
               </div>
             </div>
 
@@ -186,9 +187,9 @@ const EventDialog = (props: EventDialogProps) => {
             <div className="flex gap-2">
               <div className="flex flex-1 flex-col gap-1">
                 <Label htmlFor="repeat">Repeat</Label>
-                <select
+                <NativeSelect
                   id="repeat"
-                  className="cy-btn h-8 px-2.5 text-sm"
+                  className="cy-btn text-sm"
                   {...register("repeat")}
                 >
                   <option value="none">Does not repeat</option>
@@ -196,7 +197,7 @@ const EventDialog = (props: EventDialogProps) => {
                   <option value="weekly">Weekly</option>
                   <option value="monthly">Monthly</option>
                   <option value="yearly">Yearly</option>
-                </select>
+                </NativeSelect>
               </div>
               {repeat !== "none" && (
                 <>
