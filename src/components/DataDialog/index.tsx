@@ -120,9 +120,12 @@ const DataDialog = ({
     >
       {/* grid-rows clamp: DialogContent is a grid, and without it the auto row
           sizes to content, ignoring max-h — the body wrapper could never shrink
-          and overflow-y-auto would never engage. */}
+          and overflow-y-auto would never engage. The body's -mx-1/px-1 pair
+          gives the 3px focus ring room inside the scroll box: overflow-y auto
+          clips the x axis too, so a full-width input's ring is cut off at both
+          edges without it. */}
       <DialogContent className="cy-dialog max-h-[85dvh] grid-rows-[minmax(0,1fr)] border-0 sm:max-w-md">
-        <div className="grid min-h-0 gap-4 overflow-y-auto">
+        <div className="-mx-1 grid min-h-0 gap-4 overflow-y-auto px-1">
           <DialogHeader>
             <DialogTitle className="cy-display uppercase tracking-wide">
               Data
