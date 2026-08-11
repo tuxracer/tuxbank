@@ -1,16 +1,18 @@
 import { useLayoutEffect, useRef } from "react";
+import { COLS, WEEKDAYS } from "@/components/MonthGrid";
 import { catColorVar } from "@/utils/categoryColor";
 import { formatCurrency, formatSignedCompact } from "@/utils/formatCurrency";
 import {
   LANDING_COUNT_MS,
   LANDING_ENTRANCE_MS,
   LANDING_PREVIEW_CARRY_IN,
+  LANDING_PREVIEW_COMPACT_ROWS,
   LANDING_PREVIEW_DAYS,
   LANDING_PREVIEW_EVENTS,
   LANDING_PREVIEW_MONTH,
+  LANDING_PREVIEW_ROWS,
   LANDING_PREVIEW_TODAY,
-  LANDING_PREVIEW_TRAILING,
-  LANDING_PREVIEW_WEEKDAYS,
+  LANDING_PREVIEW_TODAY_DATE,
   LANDING_SPECS,
   LANDING_STAGGER_MS,
   REPO_URL,
@@ -42,11 +44,7 @@ const buildPreviewMonth = (): {
   };
   let balance = LANDING_PREVIEW_CARRY_IN;
 
-  for (
-    let index = 0;
-    index < LANDING_PREVIEW_DAYS + LANDING_PREVIEW_TRAILING;
-    index++
-  ) {
+  for (let index = 0; index < LANDING_PREVIEW_COMPACT_ROWS * COLS; index++) {
     const dayOfMonth = index + 1;
     const inMonth = dayOfMonth <= LANDING_PREVIEW_DAYS;
     const event = inMonth ? LANDING_PREVIEW_EVENTS[dayOfMonth] : undefined;
@@ -73,8 +71,27 @@ const buildPreviewMonth = (): {
 
 const { days: PREVIEW_DAYS, totals: PREVIEW_TOTALS } = buildPreviewMonth();
 
-/** Transaction days only, for the phone-width ledger tape. */
-const PREVIEW_TAPE = PREVIEW_DAYS.filter((day) => day.inMonth && day.event);
+/**
+ * The wide grid drops the sixth week, the way MonthGrid renders only the weeks
+ * the month spans once it has the height for taller cells.
+ */
+const PREVIEW_WIDE_DAYS = PREVIEW_DAYS.slice(0, LANDING_PREVIEW_ROWS * COLS);
+
+/**
+ * The day the compact panel is opened on. March 2026 starts on a Sunday, so
+ * there are no leading blanks and day N sits at index N-1.
+ */
+const PREVIEW_PANEL_DAY = PREVIEW_DAYS[LANDING_PREVIEW_TODAY - 1];
+
+/** The panel lands once the last cell above it has. */
+const PREVIEW_PANEL_DELAY_MS =
+  LANDING_ENTRANCE_MS.grid + PREVIEW_DAYS.length * LANDING_STAGGER_MS;
+
+const panelDateLabeler = new Intl.DateTimeFormat(undefined, {
+  weekday: "long",
+  month: "long",
+  day: "numeric",
+});
 
 const prefersReducedMotion = () =>
   window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
@@ -152,23 +169,27 @@ const chipStyle = (day: LandingPreviewDay) => ({
   borderLeftColor: day.event ? catColorVar(day.event.color) : undefined,
 });
 
+/** The weekday header row, identical in both previews and in the real grid. */
+const PreviewWeekHead = () => (
+  <div className="grid grid-cols-7 gap-1.5">
+    {WEEKDAYS.map((day) => (
+      <div key={day} className="cy-weekhead px-1">
+        {day}
+      </div>
+    ))}
+  </div>
+);
+
 /**
- * The month grid at the density the real calendar uses: every cell carries its
- * date and running balance, and the balance turns magenta where rent overdraws
- * the account before payday. Replaced by the tape below `sm`, where seven
- * columns stop being readable.
+ * The month grid at the density the real calendar uses above `sm`: every cell
+ * carries its date, its chips and its running balance, and the balance turns
+ * magenta where rent overdraws the account before payday.
  */
 const PreviewGrid = () => (
   <div className="hidden flex-col gap-1.5 p-2 sm:flex sm:p-3">
+    <PreviewWeekHead />
     <div className="grid grid-cols-7 gap-1.5">
-      {LANDING_PREVIEW_WEEKDAYS.map((day, index) => (
-        <div key={index} className="cy-weekhead px-1">
-          {day}
-        </div>
-      ))}
-    </div>
-    <div className="grid grid-cols-7 gap-1.5">
-      {PREVIEW_DAYS.map((day, index) => {
+      {PREVIEW_WIDE_DAYS.map((day, index) => {
         const classes = ["cy-cell", "cy-land", "flex", "flex-col", "gap-1"];
         classes.push("min-h-[4.75rem]", "p-1.5", "lg:min-h-[5.5rem]");
         if (!day.inMonth) classes.push("out");
@@ -211,51 +232,92 @@ const PreviewGrid = () => (
   </div>
 );
 
-/** Phone-width stand-in for the grid: the same month read as a ledger tape. */
-const PreviewTape = () => (
-  <ol className="flex flex-col sm:hidden">
-    {PREVIEW_TAPE.map((day, index) => {
-      const delayMs = LANDING_ENTRANCE_MS.grid + index * LANDING_STAGGER_MS;
-
-      return (
-        <li
-          key={day.label}
-          className="cy-land flex items-center gap-3 border-t border-[color:var(--cy-hairline)] px-3 py-2 first:border-t-0"
-          style={{ animationDelay: `${delayMs}ms` }}
+/**
+ * Stands in for the app's DayPanel, which is where a phone reads the detail a
+ * cell has no room for: the selected day's date and balance over its events,
+ * with the + Add button that replaces the toolbar's New Event in compact.
+ * Inert, like the rest of the console — this is a picture of the app, so
+ * nothing in it should invite a tap that goes nowhere.
+ */
+const PreviewPanel = () => (
+  <div
+    className="cy-toolbar cy-land pointer-events-none flex flex-col gap-2 px-3 py-2.5"
+    style={{ animationDelay: `${PREVIEW_PANEL_DELAY_MS}ms` }}
+  >
+    <div className="flex items-center justify-between gap-2">
+      <p className="cy-mono text-[10px] tracking-widest text-[color:var(--cy-cyan)] uppercase">
+        {panelDateLabeler.format(LANDING_PREVIEW_TODAY_DATE)}
+      </p>
+      <CountUpBalance
+        className={`cy-balance ${PREVIEW_PANEL_DAY.balance < 0 ? "cy-balance-neg" : ""}`}
+        delayMs={PREVIEW_PANEL_DELAY_MS}
+        from={PREVIEW_PANEL_DAY.prevBalance}
+        to={PREVIEW_PANEL_DAY.balance}
+      />
+    </div>
+    <div className="flex flex-col gap-1">
+      <span className="cy-chip w-full" style={chipStyle(PREVIEW_PANEL_DAY)}>
+        <span className="truncate">{PREVIEW_PANEL_DAY.event?.title}</span>
+        <span
+          className="cy-chip-amount ml-auto"
+          style={
+            PREVIEW_PANEL_DAY.event
+              ? { color: catColorVar(PREVIEW_PANEL_DAY.event.color) }
+              : undefined
+          }
         >
-          {/* Right-aligned: the tape stacks dates in a column, so without the
-            leading zero the ones and tens digits would sit ragged. */}
-          <span
-            className="cy-cell-num w-5 shrink-0 text-right"
-            style={
-              day.label === LANDING_PREVIEW_TODAY
-                ? { color: "var(--cy-yellow)", fontWeight: 700 }
-                : undefined
-            }
-          >
-            {day.label}
-          </span>
-          <span className="cy-chip min-w-0 flex-1" style={chipStyle(day)}>
-            <span className="truncate">{day.event?.title}</span>
-            <span
-              className="cy-chip-amount ml-auto"
-              style={
-                day.event ? { color: catColorVar(day.event.color) } : undefined
-              }
+          {formatSignedCompact(PREVIEW_PANEL_DAY.event?.amount ?? 0)}
+        </span>
+      </span>
+    </div>
+    <span className="cy-cta self-end px-4 py-1.5 text-xs">+ Add</span>
+  </div>
+);
+
+/**
+ * Phone-width preview. The app does not fall back to a list below `sm` — it
+ * keeps the month grid and drops what will not fit, so the cells carry a dot
+ * per event instead of chips and balances, the grid always fills six weeks
+ * rather than the five March spans, and the detail moves to the day panel
+ * underneath. Anything friendlier here would be advertising a screen the
+ * visitor is never going to see.
+ */
+const PreviewCompact = () => (
+  <div className="flex flex-col gap-2 p-1.5 sm:hidden">
+    <div className="flex flex-col gap-1.5">
+      <PreviewWeekHead />
+      <div className="grid grid-cols-7 gap-1.5">
+        {PREVIEW_DAYS.map((day, index) => {
+          const classes = ["cy-cell", "cy-land", "flex", "flex-col", "gap-1"];
+          classes.push("min-h-11", "p-1.5");
+          if (!day.inMonth) classes.push("out");
+          if (day.inMonth && day.label === LANDING_PREVIEW_TODAY)
+            classes.push("today");
+
+          return (
+            <div
+              key={index}
+              className={classes.join(" ")}
+              style={{
+                animationDelay: `${LANDING_ENTRANCE_MS.grid + index * LANDING_STAGGER_MS}ms`,
+              }}
             >
-              {formatSignedCompact(day.event?.amount ?? 0)}
-            </span>
-          </span>
-          <CountUpBalance
-            className={`cy-balance w-20 shrink-0 text-right ${day.balance < 0 ? "cy-balance-neg" : ""}`}
-            delayMs={delayMs}
-            from={day.prevBalance}
-            to={day.balance}
-          />
-        </li>
-      );
-    })}
-  </ol>
+              <span className="cy-cell-num">{day.label}</span>
+              <div className="flex flex-wrap items-center gap-1">
+                {day.event && (
+                  <span
+                    className="inline-block h-1.5 w-1.5 rounded-full"
+                    style={{ background: catColorVar(day.event.color) }}
+                  />
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+    <PreviewPanel />
+  </div>
 );
 
 /**
@@ -337,7 +399,7 @@ const LandingPage = ({ onTryNow }: LandingPageProps) => (
           </div>
         </div>
         <PreviewGrid />
-        <PreviewTape />
+        <PreviewCompact />
       </section>
 
       {/* Spec grid: the same construction as the month grid (panel fills over

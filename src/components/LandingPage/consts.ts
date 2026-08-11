@@ -6,20 +6,33 @@ import type { LandingPreviewEvent, LandingSpec } from "./types";
  */
 export const REPO_URL = "https://github.com/tuxracer/tuxbank";
 
-/** Weekday header letters for the landing-page preview grid. */
-export const LANDING_PREVIEW_WEEKDAYS = ["S", "M", "T", "W", "T", "F", "S"];
-
 /** Month label above the preview console. */
 export const LANDING_PREVIEW_MONTH = "March 2026";
 
 /**
  * Static month behind the landing-page preview. March 2026 starts on a Sunday,
- * so 31 days plus 4 trailing cells fill exactly five 7-day rows with no leading
- * blanks, which keeps the preview markup a plain range.
+ * so there are no leading blanks and the cells are a plain range.
+ *
+ * The month is built out to six weeks because that is what the app's compact
+ * grid always renders; the wide preview slices back to the five weeks March
+ * actually spans. Both numbers mirror MonthGrid's own `rows` split, so the
+ * preview shows the visitor the grid they will get at their own width.
  */
 export const LANDING_PREVIEW_DAYS = 31;
-export const LANDING_PREVIEW_TRAILING = 4;
+export const LANDING_PREVIEW_ROWS = 5;
+export const LANDING_PREVIEW_COMPACT_ROWS = 6;
 export const LANDING_PREVIEW_TODAY = 12;
+
+/**
+ * The selected day as a real date. The compact preview's day panel labels it
+ * through the same Intl formatter the app's DayPanel uses, rather than a
+ * hardcoded string that would not follow the visitor's locale.
+ */
+export const LANDING_PREVIEW_TODAY_DATE = new Date(
+  2026,
+  2,
+  LANDING_PREVIEW_TODAY,
+);
 
 /**
  * Balance carried into the preview month. Chosen so rent on the 1st overdraws
