@@ -17,6 +17,8 @@ export type LandingPreviewDay = {
   /** Day number as printed in the cell (restarts at 1 for trailing days). */
   label: number;
   inMonth: boolean;
+  /** Balance carried in from the day before: where the count-up starts. */
+  prevBalance: number;
   balance: number;
   event?: LandingPreviewEvent;
 };

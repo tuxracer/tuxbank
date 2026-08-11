@@ -461,8 +461,9 @@ body {
   color: var(--cy-text);
 }
 
-/* One-shot fill-in on first paint, staggered per cell by inline
-   `animation-delay` so the month reads left to right the way it accumulates.
+/* One-shot fill-in on first paint, sequenced by inline `animation-delay`:
+   the landing hero lands first (see LANDING_ENTRANCE_MS), then the preview
+   cells stagger so the month reads left to right the way it accumulates.
    `both` holds the from-state through the delay. */
 .cy-land {
   animation: cy-land 300ms ease-out both;

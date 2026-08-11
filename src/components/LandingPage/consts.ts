@@ -62,6 +62,28 @@ export const LANDING_PREVIEW_EVENTS: Readonly<
 export const LANDING_STAGGER_MS = 16;
 
 /**
+ * Entrance choreography, as milliseconds from first paint. The page lands top
+ * down — masthead, claim, then the copy that qualifies it — so the argument
+ * arrives before the evidence does. `grid` is where the per-cell stagger starts
+ * counting, which is why it trails the rail it fills in under.
+ */
+export const LANDING_ENTRANCE_MS = {
+  header: 0,
+  title: 60,
+  copy: 120,
+  rail: 180,
+  grid: 240,
+} as const;
+
+/**
+ * How long a cell's balance takes to run up from the day before's figure to its
+ * own. Deliberately shorter than the 300ms cell fade so the number has settled
+ * by the time the cell is fully opaque, leaving a readable month rather than a
+ * grid of spinning digits.
+ */
+export const LANDING_COUNT_MS = 220;
+
+/**
  * What the visitor is signing up for. Rendered as four cells built with the
  * month grid's own grammar (panel fills over hairline dividers): a mono HUD
  * key, a display-face claim, and one supporting sentence.

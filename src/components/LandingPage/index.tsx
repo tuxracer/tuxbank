@@ -1,6 +1,9 @@
+import { useLayoutEffect, useRef } from "react";
 import { catColorVar } from "@/utils/categoryColor";
 import { formatCurrency, formatSignedCompact } from "@/utils/formatCurrency";
 import {
+  LANDING_COUNT_MS,
+  LANDING_ENTRANCE_MS,
   LANDING_PREVIEW_CARRY_IN,
   LANDING_PREVIEW_DAYS,
   LANDING_PREVIEW_EVENTS,
@@ -47,6 +50,7 @@ const buildPreviewMonth = (): {
     const dayOfMonth = index + 1;
     const inMonth = dayOfMonth <= LANDING_PREVIEW_DAYS;
     const event = inMonth ? LANDING_PREVIEW_EVENTS[dayOfMonth] : undefined;
+    const prevBalance = balance;
 
     if (event) {
       balance += event.amount;
@@ -57,6 +61,7 @@ const buildPreviewMonth = (): {
     days.push({
       label: inMonth ? dayOfMonth : dayOfMonth - LANDING_PREVIEW_DAYS,
       inMonth,
+      prevBalance,
       balance,
       event,
     });
@@ -70,6 +75,68 @@ const { days: PREVIEW_DAYS, totals: PREVIEW_TOTALS } = buildPreviewMonth();
 
 /** Transaction days only, for the phone-width ledger tape. */
 const PREVIEW_TAPE = PREVIEW_DAYS.filter((day) => day.inMonth && day.event);
+
+const prefersReducedMotion = () =>
+  window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+
+/** Matches the `ease-out` the cells fade in on, so figure and cell settle together. */
+const easeOutCubic = (progress: number) => 1 - (1 - progress) ** 3;
+
+/**
+ * Runs a cell's balance up from the day before's figure to its own, starting
+ * when the cell lands. The hero claims the running balance moves with the
+ * transactions, and this is the one place the page can show that rather than
+ * assert it.
+ *
+ * React only ever commits the settled figure; the animation writes over the
+ * node for its ~220ms and puts the true value back on the way out. So reduced
+ * motion, a re-render mid-flight, or the count never starting all leave a
+ * correct month on screen.
+ */
+const CountUpBalance = ({
+  className,
+  delayMs,
+  from,
+  to,
+}: {
+  className: string;
+  delayMs: number;
+  from: number;
+  to: number;
+}) => {
+  const ref = useRef<HTMLSpanElement>(null);
+
+  useLayoutEffect(() => {
+    const node = ref.current;
+    if (!node || from === to || prefersReducedMotion()) return;
+
+    const startAt = performance.now() + delayMs;
+    let frame = 0;
+
+    const tick = (now: number) => {
+      const elapsed = Math.max(now - startAt, 0);
+      const progress = Math.min(elapsed / LANDING_COUNT_MS, 1);
+      node.textContent = formatCurrency(
+        Math.round(from + (to - from) * easeOutCubic(progress)),
+      );
+      if (progress < 1) frame = requestAnimationFrame(tick);
+    };
+
+    node.textContent = formatCurrency(from);
+    frame = requestAnimationFrame(tick);
+
+    return () => {
+      cancelAnimationFrame(frame);
+      node.textContent = formatCurrency(to);
+    };
+  }, [delayMs, from, to]);
+
+  return (
+    <span ref={ref} className={className}>
+      {formatCurrency(to)}
+    </span>
+  );
+};
 
 /** One figure on the console rail: a mono value under its key. */
 const RailFigure = ({ label, value }: { label: string; value: string }) => (
@@ -108,11 +175,13 @@ const PreviewGrid = () => (
         if (day.inMonth && day.label === LANDING_PREVIEW_TODAY)
           classes.push("today");
 
+        const delayMs = LANDING_ENTRANCE_MS.grid + index * LANDING_STAGGER_MS;
+
         return (
           <div
             key={index}
             className={classes.join(" ")}
-            style={{ animationDelay: `${index * LANDING_STAGGER_MS}ms` }}
+            style={{ animationDelay: `${delayMs}ms` }}
           >
             <span className="cy-cell-num">{day.label}</span>
             {day.event && (
@@ -126,11 +195,15 @@ const PreviewGrid = () => (
                 </span>
               </span>
             )}
-            <span
+            {/* Magenta is keyed to where the figure lands, not to what it reads
+                mid-count, so the colour announces the overdraw from the start
+                instead of flipping partway through. */}
+            <CountUpBalance
               className={`cy-balance mt-auto self-end ${day.balance < 0 ? "cy-balance-neg" : ""}`}
-            >
-              {formatCurrency(day.balance)}
-            </span>
+              delayMs={delayMs}
+              from={day.prevBalance}
+              to={day.balance}
+            />
           </div>
         );
       })}
@@ -141,42 +214,47 @@ const PreviewGrid = () => (
 /** Phone-width stand-in for the grid: the same month read as a ledger tape. */
 const PreviewTape = () => (
   <ol className="flex flex-col sm:hidden">
-    {PREVIEW_TAPE.map((day, index) => (
-      <li
-        key={day.label}
-        className="cy-land flex items-center gap-3 border-t border-[color:var(--cy-hairline)] px-3 py-2 first:border-t-0"
-        style={{ animationDelay: `${index * LANDING_STAGGER_MS}ms` }}
-      >
-        {/* Right-aligned: the tape stacks dates in a column, so without the
-            leading zero the ones and tens digits would sit ragged. */}
-        <span
-          className="cy-cell-num w-5 shrink-0 text-right"
-          style={
-            day.label === LANDING_PREVIEW_TODAY
-              ? { color: "var(--cy-yellow)", fontWeight: 700 }
-              : undefined
-          }
+    {PREVIEW_TAPE.map((day, index) => {
+      const delayMs = LANDING_ENTRANCE_MS.grid + index * LANDING_STAGGER_MS;
+
+      return (
+        <li
+          key={day.label}
+          className="cy-land flex items-center gap-3 border-t border-[color:var(--cy-hairline)] px-3 py-2 first:border-t-0"
+          style={{ animationDelay: `${delayMs}ms` }}
         >
-          {day.label}
-        </span>
-        <span className="cy-chip min-w-0 flex-1" style={chipStyle(day)}>
-          <span className="truncate">{day.event?.title}</span>
+          {/* Right-aligned: the tape stacks dates in a column, so without the
+            leading zero the ones and tens digits would sit ragged. */}
           <span
-            className="cy-chip-amount ml-auto"
+            className="cy-cell-num w-5 shrink-0 text-right"
             style={
-              day.event ? { color: catColorVar(day.event.color) } : undefined
+              day.label === LANDING_PREVIEW_TODAY
+                ? { color: "var(--cy-yellow)", fontWeight: 700 }
+                : undefined
             }
           >
-            {formatSignedCompact(day.event?.amount ?? 0)}
+            {day.label}
           </span>
-        </span>
-        <span
-          className={`cy-balance w-20 shrink-0 text-right ${day.balance < 0 ? "cy-balance-neg" : ""}`}
-        >
-          {formatCurrency(day.balance)}
-        </span>
-      </li>
-    ))}
+          <span className="cy-chip min-w-0 flex-1" style={chipStyle(day)}>
+            <span className="truncate">{day.event?.title}</span>
+            <span
+              className="cy-chip-amount ml-auto"
+              style={
+                day.event ? { color: catColorVar(day.event.color) } : undefined
+              }
+            >
+              {formatSignedCompact(day.event?.amount ?? 0)}
+            </span>
+          </span>
+          <CountUpBalance
+            className={`cy-balance w-20 shrink-0 text-right ${day.balance < 0 ? "cy-balance-neg" : ""}`}
+            delayMs={delayMs}
+            from={day.prevBalance}
+            to={day.balance}
+          />
+        </li>
+      );
+    })}
   </ol>
 );
 
@@ -188,7 +266,13 @@ const PreviewTape = () => (
 const LandingPage = ({ onTryNow }: LandingPageProps) => (
   <main className="h-[100dvh] overflow-y-auto">
     <div className="mx-auto flex min-h-[100dvh] w-full max-w-[1280px] flex-col gap-7 px-4 py-5 sm:px-8 sm:py-7 lg:gap-9">
-      <header className="cy-hud flex items-center justify-between gap-3">
+      {/* The hero rides the same `cy-land` keyframe as the preview cells, on
+          delays that run ahead of the grid stagger, so the page lands as one
+          sequence instead of a still headline over an animated box. */}
+      <header
+        className="cy-hud cy-land flex items-center justify-between gap-3"
+        style={{ animationDelay: `${LANDING_ENTRANCE_MS.header}ms` }}
+      >
         <span>
           tuxbank <span className="dim">{"// money calendar"}</span>
         </span>
@@ -196,13 +280,19 @@ const LandingPage = ({ onTryNow }: LandingPageProps) => (
       </header>
 
       <section className="grid gap-6 lg:grid-cols-[1.1fr_1fr] lg:items-end lg:gap-14">
-        <h1 className="cy-display text-[clamp(2.75rem,8vw,5.5rem)] leading-[0.88] font-bold tracking-[-0.015em] text-[color:var(--cy-text-strong)]">
+        <h1
+          className="cy-display cy-land text-[clamp(2.75rem,8vw,5.5rem)] leading-[0.88] font-bold tracking-[-0.015em] text-[color:var(--cy-text-strong)]"
+          style={{ animationDelay: `${LANDING_ENTRANCE_MS.title}ms` }}
+        >
           See your money
           <br />
           as a <span className="text-[color:var(--cy-cyan)]">month</span>.
         </h1>
 
-        <div className="flex flex-col items-start gap-5">
+        <div
+          className="cy-land flex flex-col items-start gap-5"
+          style={{ animationDelay: `${LANDING_ENTRANCE_MS.copy}ms` }}
+        >
           <p className="max-w-[40ch] text-base text-[color:var(--cy-text)] sm:text-lg">
             Deposits and withdrawals land on the days they happen. The running
             balance moves with them, so you can see what you will have on any
@@ -224,7 +314,10 @@ const LandingPage = ({ onTryNow }: LandingPageProps) => (
       </section>
 
       <section className="cy-console flex flex-col">
-        <div className="flex flex-col gap-3 border-b border-[color:var(--cy-line)] px-3 py-2.5 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between sm:gap-x-6 sm:px-4">
+        <div
+          className="cy-land flex flex-col gap-3 border-b border-[color:var(--cy-line)] px-3 py-2.5 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between sm:gap-x-6 sm:px-4"
+          style={{ animationDelay: `${LANDING_ENTRANCE_MS.rail}ms` }}
+        >
           <span className="cy-display text-xl leading-none font-bold tracking-wide text-[color:var(--cy-text-strong)]">
             {LANDING_PREVIEW_MONTH}
           </span>
