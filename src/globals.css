@@ -85,7 +85,13 @@
   --chart-3: oklch(0.439 0 0);
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
-  --radius: 0.625rem;
+  /* Square corners everywhere, per the design language: every surface is a
+     flat fill with a straight 1px border. This is the single control for it,
+     since the shadcn primitives size all their `rounded-*` utilities off this
+     token and the `--radius-*` scale above. Deliberately round elements
+     (category dots, status badges) use `rounded-full`, which does not read
+     this value. */
+  --radius: 0;
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
   --sidebar-primary: oklch(0.205 0 0);
@@ -262,10 +268,10 @@ body {
   background: transparent;
   border: 1px solid var(--cy-line);
 }
-/* `.cy-btn` and `.cy-cta` are sometimes applied to shadcn's <Button>, which
-   carries its own `rounded-lg` base class. This block is unlayered so it wins
-   over that utility, but only for properties it actually sets — border-radius
-   must be set explicitly or the Button's rounded corners show through. */
+/* `.cy-btn` and `.cy-cta` are sometimes applied to shadcn's <Button>. This
+   block is unlayered so it wins over that component's utilities, but only for
+   properties it actually sets. Corners are not among them: `--radius` is 0, so
+   the Button's own `rounded-lg` already computes square. */
 .cy-btn {
   font-family: var(--font-mono), monospace;
   letter-spacing: 0.12em;
@@ -273,7 +279,6 @@ body {
   color: var(--cy-text);
   background: transparent;
   border: 1px solid var(--cy-line);
-  border-radius: 0;
 }
 .cy-cta {
   font-family: var(--font-display), sans-serif;
@@ -283,7 +288,6 @@ body {
   background: var(--cy-cyan);
   color: var(--cy-cta-fg);
   border: 1px solid var(--cy-cyan);
-  border-radius: 0;
   cursor: pointer;
   /* Only the inks move. Timing this at all is what separates a deliberate
      inversion from a flicker; anything longer reads as a fade. */
@@ -419,12 +423,11 @@ body {
 /* Applied to shadcn DialogContent / PopoverContent. Do NOT set `position` here:
    this block is unlayered, so it would override Tailwind's `fixed` centering
    utility and push the portaled dialog off-screen. Keep this to visual props.
-   DialogContent/PopoverContent carry their own `rounded-xl`/`rounded-lg` base
-   classes, so border-radius must be reset explicitly to keep the panel flat. */
+   Corners need no reset: DialogContent/PopoverContent size their `rounded-xl`
+   and `rounded-lg` base classes off `--radius`, which is 0. */
 .cy-dialog {
   background: var(--cy-panel);
   border: 1px solid var(--cy-line);
-  border-radius: 0;
   box-shadow: none;
 }
 
