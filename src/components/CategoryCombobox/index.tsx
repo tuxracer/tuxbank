@@ -61,7 +61,7 @@ const CategoryCombobox = ({
       <PopoverTrigger asChild>
         <button
           type="button"
-          className="cy-btn flex items-center gap-2 px-3 py-2 text-sm"
+          className="cy-btn flex h-8 items-center gap-2 px-2.5 text-sm"
         >
           {selected ? (
             <>

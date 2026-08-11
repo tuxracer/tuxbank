@@ -169,7 +169,7 @@ const EventDialog = (props: EventDialogProps) => {
                 <Label htmlFor="direction">Type</Label>
                 <select
                   id="direction"
-                  className="cy-btn px-3 py-2 text-sm"
+                  className="cy-btn h-8 px-2.5 text-sm"
                   {...register("direction")}
                 >
                   <option value="deposit">Deposit</option>
@@ -188,7 +188,7 @@ const EventDialog = (props: EventDialogProps) => {
                 <Label htmlFor="repeat">Repeat</Label>
                 <select
                   id="repeat"
-                  className="cy-btn px-3 py-2 text-sm"
+                  className="cy-btn h-8 px-2.5 text-sm"
                   {...register("repeat")}
                 >
                   <option value="none">Does not repeat</option>
