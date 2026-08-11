@@ -22,6 +22,7 @@ import {
 import { SyncProvider, useSync } from "@/context/SyncContext";
 import { trackEvent } from "@/lib/analytics";
 import { markLandingDismissed, shouldShowLanding } from "@/lib/landingGate";
+import { prefersReducedMotion } from "@/utils/prefersReducedMotion";
 import LandingPage from "@/components/LandingPage";
 import CalendarToolbar from "@/components/CalendarToolbar";
 import DayPanel from "@/components/DayPanel";
@@ -45,6 +46,17 @@ const dropDateFormatter = new Intl.DateTimeFormat(undefined, {
   day: "numeric",
 });
 
+/*
+ * Try Now handoff choreography. The landing lifts out (`.cy-exit` in
+ * globals.css — the fallback below covers its animationend never firing, e.g.
+ * animations disabled outside the reduced-motion query), then the calendar
+ * screen lands top-down on the landing's own `cy-land` grammar: toolbar,
+ * console, then the compact day panel — the same order LANDING_ENTRANCE_MS
+ * brought the landing in. Plays only on this handoff, never on a normal boot.
+ */
+const LANDING_EXIT_FALLBACK_MS = 400;
+const APP_ENTRANCE_MS = { toolbar: 0, console: 70, panel: 140 } as const;
+
 type EditorState =
   | { mode: "create"; date: string }
   | { mode: "edit"; occurrence: Occurrence; event: CalendarEvent };
@@ -59,7 +71,7 @@ type ScopeState =
   | { action: "delete"; event: CalendarEvent; occurrenceDate: string }
   | { action: "move"; occurrence: Occurrence; toDate: string };
 
-const CalendarScreen = () => {
+const CalendarScreen = ({ entrance = false }: { entrance?: boolean }) => {
   const cal = useCalendar();
   const sync = useSync();
   const [syncOpen, setSyncOpen] = useState(false);
@@ -228,6 +240,12 @@ const CalendarScreen = () => {
     setScope({ action: "move", occurrence, toDate });
   };
 
+  // Entrance choreography for the Try Now handoff; both collapse to no-ops on
+  // a normal boot so the calendar paints settled.
+  const landClass = entrance ? "cy-land" : "";
+  const landStyle = (delayMs: number) =>
+    entrance ? { animationDelay: `${delayMs}ms` } : undefined;
+
   const confirmScope = (chosen: EditScope) => {
     if (!scope) return;
     if (scope.action === "edit")
@@ -255,34 +273,41 @@ const CalendarScreen = () => {
         />
       )}
 
-      <CalendarToolbar
-        selectedYear={selectedYear}
-        selectedMonth={selectedMonth}
-        minYear={cal.yearRange.min}
-        maxYear={cal.yearRange.max}
-        onSelectMonth={(monthIndex) =>
-          cal.goToDate(new Date(selectedYear, monthIndex, 1))
-        }
-        onSelectYear={(year) => cal.goToDate(new Date(year, selectedMonth, 1))}
-        usedCategories={cal.usedCategories}
-        activeCategoryIds={cal.activeCategoryIds}
-        onPrev={cal.goToPrevMonth}
-        onNext={cal.goToNextMonth}
-        onToday={cal.goToToday}
-        onToggleCategory={cal.toggleCategory}
-        onManageCategories={() =>
-          openSurface("categories-opened", setManageOpen)
-        }
-        onManageData={() => openSurface("data-opened", setDataOpen)}
-        onSync={() => openSurface("sync-opened", setSyncOpen)}
-        onNewEvent={() => openNewEvent(cal.todayISO)}
-        compact={isCompact}
-      />
+      <div className={landClass} style={landStyle(APP_ENTRANCE_MS.toolbar)}>
+        <CalendarToolbar
+          selectedYear={selectedYear}
+          selectedMonth={selectedMonth}
+          minYear={cal.yearRange.min}
+          maxYear={cal.yearRange.max}
+          onSelectMonth={(monthIndex) =>
+            cal.goToDate(new Date(selectedYear, monthIndex, 1))
+          }
+          onSelectYear={(year) =>
+            cal.goToDate(new Date(year, selectedMonth, 1))
+          }
+          usedCategories={cal.usedCategories}
+          activeCategoryIds={cal.activeCategoryIds}
+          onPrev={cal.goToPrevMonth}
+          onNext={cal.goToNextMonth}
+          onToday={cal.goToToday}
+          onToggleCategory={cal.toggleCategory}
+          onManageCategories={() =>
+            openSurface("categories-opened", setManageOpen)
+          }
+          onManageData={() => openSurface("data-opened", setDataOpen)}
+          onSync={() => openSurface("sync-opened", setSyncOpen)}
+          onNewEvent={() => openNewEvent(cal.todayISO)}
+          compact={isCompact}
+        />
+      </div>
 
       {/* The calendar sits in a bordered console panel like the landing
           preview's, but follows the active theme rather than pinning the
           landing's dark ink. */}
-      <section className="flex min-h-0 flex-1 flex-col border border-[color:var(--cy-line)] bg-[color:var(--cy-bg)]">
+      <section
+        className={`flex min-h-0 flex-1 flex-col border border-[color:var(--cy-line)] bg-[color:var(--cy-bg)] ${landClass}`}
+        style={landStyle(APP_ENTRANCE_MS.console)}
+      >
         <DndContext
           sensors={sensors}
           collisionDetection={pointerWithin}
@@ -314,17 +339,22 @@ const CalendarScreen = () => {
       </section>
 
       {isCompact && (
-        <DayPanel
-          dateISO={resolvedSelectedDate}
-          occurrences={cal.occurrencesByDate[resolvedSelectedDate] ?? []}
-          balance={cal.balancesByDate[resolvedSelectedDate] ?? 0}
-          onSelectOccurrence={openEdit}
-          onAddEvent={() => openNewEvent(resolvedSelectedDate)}
-        />
+        <div className={landClass} style={landStyle(APP_ENTRANCE_MS.panel)}>
+          <DayPanel
+            dateISO={resolvedSelectedDate}
+            occurrences={cal.occurrencesByDate[resolvedSelectedDate] ?? []}
+            balance={cal.balancesByDate[resolvedSelectedDate] ?? 0}
+            onSelectOccurrence={openEdit}
+            onAddEvent={() => openNewEvent(resolvedSelectedDate)}
+          />
+        </div>
       )}
 
       {cal.loaded && totalOccurrences === 0 && (
-        <p className="cy-mono text-center text-xs text-[color:var(--cy-muted)]">
+        <p
+          className={`cy-mono text-center text-xs text-[color:var(--cy-muted)] ${landClass}`}
+          style={landStyle(APP_ENTRANCE_MS.panel)}
+        >
           {isCompact
             ? "◢ No events this month — tap a day, then + Add."
             : "◢ No events this month — click a day or “+ New Event” to begin."}
@@ -388,20 +418,39 @@ const CalendarScreen = () => {
 };
 
 const App = () => {
-  const [showLanding, setShowLanding] = useState(shouldShowLanding);
+  const [phase, setPhase] = useState<"landing" | "leaving" | "app">(() =>
+    shouldShowLanding() ? "landing" : "app",
+  );
+  // The calendar's entrance choreography plays only on the handoff from the
+  // landing page, never on a boot that skips straight to the calendar.
+  const [cameFromLanding, setCameFromLanding] = useState(false);
 
   useEffect(() => {
-    if (showLanding) trackEvent("landing-viewed");
-  }, [showLanding]);
+    if (phase === "landing") trackEvent("landing-viewed");
+  }, [phase]);
 
-  if (showLanding) {
+  // Backstop for the exit handoff: if the landing's animationend never fires
+  // (animations disabled outside the reduced-motion query), swap anyway.
+  useEffect(() => {
+    if (phase !== "leaving") return;
+    const timer = window.setTimeout(
+      () => setPhase("app"),
+      LANDING_EXIT_FALLBACK_MS,
+    );
+    return () => window.clearTimeout(timer);
+  }, [phase]);
+
+  if (phase !== "app") {
     return (
       <LandingPage
         onTryNow={() => {
           markLandingDismissed();
           trackEvent("try-now-clicked");
-          setShowLanding(false);
+          setCameFromLanding(true);
+          setPhase(prefersReducedMotion() ? "app" : "leaving");
         }}
+        leaving={phase === "leaving"}
+        onExited={() => setPhase("app")}
       />
     );
   }
@@ -409,7 +458,7 @@ const App = () => {
   return (
     <CalendarProvider>
       <SyncProvider>
-        <CalendarScreen />
+        <CalendarScreen entrance={cameFromLanding} />
       </SyncProvider>
     </CalendarProvider>
   );

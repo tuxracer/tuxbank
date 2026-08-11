@@ -1,8 +1,12 @@
 import type { CategoryColor } from "@/types";
 
 export type LandingPageProps = {
-  /** Called when the visitor clicks Try Now; the caller swaps in the app view. */
+  /** Called when the visitor clicks Try Now; the caller starts the handoff. */
   onTryNow: () => void;
+  /** Plays the exit animation; `onExited` reports when it has finished. */
+  leaving?: boolean;
+  /** Called when the exit animation ends; the caller swaps in the app view. */
+  onExited?: () => void;
 };
 
 /** One transaction in the static preview month. `amount` is signed. */

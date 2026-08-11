@@ -2,6 +2,7 @@ import { useLayoutEffect, useRef } from "react";
 import { COLS, WEEKDAYS } from "@/components/MonthGrid";
 import { catColorVar } from "@/utils/categoryColor";
 import { formatCurrency, formatSignedCompact } from "@/utils/formatCurrency";
+import { prefersReducedMotion } from "@/utils/prefersReducedMotion";
 import {
   LANDING_COUNT_MS,
   LANDING_ENTRANCE_MS,
@@ -92,9 +93,6 @@ const panelDateLabeler = new Intl.DateTimeFormat(undefined, {
   month: "long",
   day: "numeric",
 });
-
-const prefersReducedMotion = () =>
-  window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
 
 /** Matches the `ease-out` the cells fade in on, so figure and cell settle together. */
 const easeOutCubic = (progress: number) => 1 - (1 - progress) ** 3;
@@ -325,8 +323,19 @@ const PreviewCompact = () => (
  * otherwise known to be past it: see `src/lib/landingGate`); after that the
  * app boots straight into the calendar.
  */
-const LandingPage = ({ onTryNow }: LandingPageProps) => (
-  <main className="h-[100dvh] overflow-y-auto">
+const LandingPage = ({
+  onTryNow,
+  leaving = false,
+  onExited,
+}: LandingPageProps) => (
+  <main
+    className={`h-[100dvh] overflow-y-auto ${leaving ? "cy-exit" : ""}`}
+    // The landing's own cy-land entrances bubble their animationend up here,
+    // so the handoff waits for the event fired by this element itself.
+    onAnimationEnd={(e) => {
+      if (leaving && e.target === e.currentTarget) onExited?.();
+    }}
+  >
     <div className="mx-auto flex min-h-[100dvh] w-full max-w-[1280px] flex-col gap-7 px-4 py-5 sm:px-8 sm:py-7 lg:gap-9">
       {/* The hero rides the same `cy-land` keyframe as the preview cells, on
           delays that run ahead of the grid stagger, so the page lands as one

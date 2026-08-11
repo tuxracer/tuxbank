@@ -530,6 +530,28 @@ body {
   }
 }
 
+/* Try Now handoff: the landing lifts out as one piece, fast and ease-in — an
+   exit accelerates away where the entrance decelerated in — and the calendar
+   screen then lands on the same cy-land grammar (see APP_ENTRANCE_MS in
+   App.tsx). App.tsx waits on this animation's end, with a timed fallback that
+   mirrors the duration here — keep the two in sync. */
+.cy-exit {
+  animation: cy-exit 200ms ease-in both;
+  pointer-events: none;
+}
+@keyframes cy-exit {
+  to {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cy-exit {
+    animation: none;
+  }
+}
+
 .cy-balance {
   font-family: var(--font-mono), monospace;
   font-size: 10px;
