@@ -279,11 +279,29 @@ body {
   border: 1px solid var(--cy-cyan);
   border-radius: 0;
   cursor: pointer;
+  /* Only the inks move. Timing this at all is what separates a deliberate
+     inversion from a flicker; anything longer reads as a fade. */
+  transition:
+    background-color 120ms linear,
+    border-color 120ms linear;
 }
 /* Flat inversion on hover — the fill swaps to text ink, never a glow. */
 .cy-cta:hover {
   background: var(--cy-text-strong);
   border-color: var(--cy-text-strong);
+}
+/* Pressed sits one step back off the hover ink, and lands instantly: a press
+   has to register before the pointer lifts, so it cannot wait out a fade. */
+.cy-cta:active {
+  background: var(--cy-text);
+  border-color: var(--cy-text);
+  transition-duration: 0s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cy-cta {
+    transition: none;
+  }
 }
 
 /* Sized here rather than at the call site, like .cy-cell-num: the grid and the
