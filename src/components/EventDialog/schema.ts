@@ -8,7 +8,6 @@ export const eventFormSchema = z
     title: z.string().trim().min(1, "Title is required"),
     date: z.string().regex(ISO_DATE, "Pick a date"),
     categoryId: z.string().min(1, "Pick a category"),
-    notes: z.string().optional(),
     repeat: z.enum(["none", "daily", "weekly", "monthly", "yearly"]),
     interval: z.coerce.number().int().min(1, "Must be at least 1"),
     endsOn: z.string().regex(ISO_DATE).optional().or(z.literal("")),
@@ -28,7 +27,6 @@ export const toEventInput = (v: EventFormValues): EventInput => ({
   categoryId: v.categoryId,
   amount: v.amount,
   direction: v.direction,
-  notes: v.notes?.trim() ? v.notes.trim() : undefined,
   recurrence:
     v.repeat === "none"
       ? null

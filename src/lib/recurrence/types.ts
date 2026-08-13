@@ -9,6 +9,5 @@ export type EventInput = {
   categoryId: string;
   amount: number;
   direction: TransactionDirection;
-  notes?: string;
   recurrence: Recurrence | null;
 };

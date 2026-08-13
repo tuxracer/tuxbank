@@ -57,7 +57,6 @@ export const expandEvent = (
         category: getCategory(event.categoryId),
         amount: event.amount,
         direction: event.direction,
-        notes: event.notes,
         isRecurring: false,
       },
     ];
@@ -91,7 +90,6 @@ export const expandEvent = (
       category: getCategory(categoryId),
       amount: override?.patch?.amount ?? event.amount,
       direction: override?.patch?.direction ?? event.direction,
-      notes: override?.patch?.notes ?? event.notes,
       isRecurring: true,
     });
   }
@@ -219,7 +217,6 @@ export const buildFollowingSeries = (
   categoryId: input.categoryId,
   amount: input.amount,
   direction: input.direction,
-  notes: input.notes,
   recurrence: input.recurrence,
   overrides: event.overrides.filter((o) => o.occurrenceDate >= fromDate),
   createdAt: nowISO,

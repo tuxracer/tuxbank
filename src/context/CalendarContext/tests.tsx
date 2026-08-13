@@ -39,7 +39,6 @@ describe("CalendarContext", () => {
         categoryId: "health",
         amount: 100,
         direction: "deposit",
-        notes: undefined,
         recurrence: null,
       });
       result.current.goToDate(new Date(2026, 4, 1));
@@ -64,7 +63,6 @@ describe("CalendarContext", () => {
         title: "Standup",
         date: "2026-05-08",
         categoryId: id,
-        notes: undefined,
         amount: 0,
         direction: "deposit",
         recurrence: null,
@@ -92,7 +90,6 @@ describe("CalendarContext", () => {
         title: "Paycheck",
         date: "2026-05-08",
         categoryId: "work",
-        notes: undefined,
         amount: 1000,
         direction: "deposit",
         recurrence: null,
@@ -126,7 +123,6 @@ describe("CalendarContext", () => {
         title: "Food",
         date: "2026-05-08",
         categoryId: created!.id,
-        notes: undefined,
         amount: 20,
         direction: "withdrawal",
         recurrence: null,
@@ -175,7 +171,6 @@ describe("CalendarContext", () => {
         title: "Food",
         date: "2026-05-08",
         categoryId: a.id,
-        notes: undefined,
         amount: 10,
         direction: "withdrawal",
         recurrence: null,
@@ -184,7 +179,6 @@ describe("CalendarContext", () => {
         title: "Apt",
         date: "2026-05-09",
         categoryId: b.id,
-        notes: undefined,
         amount: 20,
         direction: "withdrawal",
         recurrence: null,
@@ -219,7 +213,6 @@ describe("CalendarContext", () => {
         categoryId: "work",
         amount: 100,
         direction: "deposit",
-        notes: undefined,
         recurrence: { freq: "weekly", interval: 1, endsOn: null },
       });
     });
@@ -249,7 +242,6 @@ describe("CalendarContext", () => {
         categoryId: "work",
         amount: 100,
         direction: "withdrawal",
-        notes: undefined,
         recurrence: { freq: "weekly", interval: 1, endsOn: null },
       });
     });
@@ -265,7 +257,6 @@ describe("CalendarContext", () => {
           categoryId: "work",
           amount: 250,
           direction: "deposit",
-          notes: undefined,
           recurrence: { freq: "weekly", interval: 1, endsOn: null },
         },
         "this",
@@ -362,7 +353,6 @@ describe("CalendarContext", () => {
         categoryId: c.id,
         amount: 1000,
         direction: "deposit",
-        notes: undefined,
         recurrence: null,
       });
     });
@@ -393,7 +383,6 @@ describe("CalendarContext", () => {
         categoryId: "work",
         amount: 1,
         direction: "deposit",
-        notes: undefined,
         recurrence: null,
       });
     });
@@ -428,7 +417,6 @@ describe("CalendarContext", () => {
         categoryId: "work",
         amount: 100,
         direction: "deposit",
-        notes: undefined,
         recurrence: null,
       });
     });
@@ -482,7 +470,6 @@ describe("recurring edits bump updatedAt so they sync to other devices", () => {
       categoryId: "work",
       amount: 1000,
       direction: "withdrawal",
-      notes: undefined,
       recurrence: { freq: "monthly", interval: 1, endsOn: null },
       overrides: [],
       createdAt: OLD,
@@ -520,7 +507,6 @@ describe("recurring edits bump updatedAt so they sync to other devices", () => {
           categoryId: "work",
           amount: 1000,
           direction: "withdrawal",
-          notes: undefined,
           recurrence: { freq: "monthly", interval: 1, endsOn: null },
         },
         "following",
@@ -547,7 +533,6 @@ describe("recurring edits bump updatedAt so they sync to other devices", () => {
           categoryId: "work",
           amount: 2000,
           direction: "withdrawal",
-          notes: undefined,
           recurrence: { freq: "monthly", interval: 1, endsOn: null },
         },
         "this",
@@ -674,7 +659,6 @@ describe("cross-tab sync", () => {
         title: "Standup",
         date: "2026-05-08",
         categoryId,
-        notes: undefined,
         amount: 0,
         direction: "deposit",
         recurrence: null,
@@ -715,7 +699,6 @@ describe("cross-tab sync", () => {
         categoryId: "health",
         amount: 100,
         direction: "deposit",
-        notes: undefined,
         recurrence: null,
       });
     });
@@ -738,7 +721,6 @@ describe("cross-tab sync", () => {
           categoryId: "health",
           amount: 100,
           direction: "deposit",
-          notes: undefined,
           recurrence: null,
         },
         "all",

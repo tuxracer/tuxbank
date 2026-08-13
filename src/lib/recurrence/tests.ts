@@ -277,7 +277,7 @@ describe("recurrence mutations", () => {
       ...series,
       overrides: [
         { occurrenceDate: "2026-05-11", cancelled: true },
-        { occurrenceDate: "2026-05-25", patch: { notes: "keep" } },
+        { occurrenceDate: "2026-05-25", patch: { title: "keep" } },
       ],
     };
     const created = buildFollowingSeries(
@@ -289,7 +289,6 @@ describe("recurrence mutations", () => {
         categoryId: "work",
         amount: 0,
         direction: "deposit",
-        notes: undefined,
         recurrence: { freq: "weekly", interval: 1, endsOn: null },
       },
       "new-id",
@@ -299,7 +298,7 @@ describe("recurrence mutations", () => {
     expect(created.date).toBe("2026-05-18");
     expect(created.title).toBe("Standup v2");
     expect(created.overrides).toEqual([
-      { occurrenceDate: "2026-05-25", patch: { notes: "keep" } },
+      { occurrenceDate: "2026-05-25", patch: { title: "keep" } },
     ]);
   });
 });
@@ -373,7 +372,7 @@ describe("buildMovedFollowing (following-scope move)", () => {
     recurrence: { freq: "weekly", interval: 1, endsOn: null },
     overrides: [
       { occurrenceDate: "2026-05-11", cancelled: true },
-      { occurrenceDate: "2026-05-25", patch: { notes: "keep" } },
+      { occurrenceDate: "2026-05-25", patch: { title: "keep" } },
     ],
   };
 
@@ -400,7 +399,7 @@ describe("buildMovedFollowing (following-scope move)", () => {
     );
     // 05-11 is before the split (dropped); 05-25 carries forward shifted +1 to 05-26.
     expect(tail.overrides).toEqual([
-      { occurrenceDate: "2026-05-26", patch: { notes: "keep" } },
+      { occurrenceDate: "2026-05-26", patch: { title: "keep" } },
     ]);
   });
 

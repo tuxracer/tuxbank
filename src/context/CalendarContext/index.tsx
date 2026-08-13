@@ -247,7 +247,6 @@ export const CalendarProvider = ({
         categoryId: input.categoryId,
         amount: input.amount,
         direction: input.direction,
-        notes: input.notes,
         recurrence: input.recurrence,
         overrides: [],
         createdAt: nowISO(),
@@ -290,7 +289,6 @@ export const CalendarProvider = ({
           ...patchOccurrence(current, occurrenceDate, {
             title: input.title,
             categoryId: input.categoryId,
-            notes: input.notes,
             amount: input.amount,
             direction: input.direction,
           }),
@@ -380,7 +378,6 @@ export const CalendarProvider = ({
           categoryId: occurrence.category.id,
           amount: occurrence.amount,
           direction: occurrence.direction,
-          notes: occurrence.notes,
           recurrence: null,
           overrides: [],
           createdAt: nowISO(),

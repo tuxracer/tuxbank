@@ -25,7 +25,6 @@ export type OccurrenceOverride = {
   patch?: {
     title?: string;
     categoryId?: string;
-    notes?: string;
     amount?: number;
     direction?: TransactionDirection;
   };
@@ -38,7 +37,6 @@ export type CalendarEvent = {
   categoryId: string;
   amount: number;
   direction: TransactionDirection;
-  notes?: string;
   recurrence: Recurrence | null;
   overrides: OccurrenceOverride[];
   createdAt: string;
@@ -53,7 +51,6 @@ export type Occurrence = {
   category: Category;
   amount: number;
   direction: TransactionDirection;
-  notes?: string;
   isRecurring: boolean;
 };
 

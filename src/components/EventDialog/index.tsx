@@ -10,7 +10,6 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
 import { eventFormSchema, toEventInput, type EventFormValues } from "./schema";
@@ -32,7 +31,6 @@ const buildDefaults = (props: EventDialogProps): EventFormValues => {
       // resolved occurrence values (carry any per-occurrence patch), not the series base
       amount: initialOccurrence.amount,
       direction: initialOccurrence.direction,
-      notes: initialOccurrence.notes ?? "",
       repeat: sourceEvent.recurrence?.freq ?? "none",
       interval: sourceEvent.recurrence?.interval ?? 1,
       endsOn: sourceEvent.recurrence?.endsOn ?? "",
@@ -44,7 +42,6 @@ const buildDefaults = (props: EventDialogProps): EventFormValues => {
     categoryId: categories[0]?.id ?? "",
     amount: 0,
     direction: "withdrawal",
-    notes: "",
     repeat: "none",
     interval: 1,
     endsOn: "",
@@ -177,11 +174,6 @@ const EventDialog = (props: EventDialogProps) => {
                   <option value="withdrawal">Withdrawal</option>
                 </NativeSelect>
               </div>
-            </div>
-
-            <div className="flex flex-col gap-1">
-              <Label htmlFor="notes">Notes</Label>
-              <Textarea id="notes" rows={2} {...register("notes")} />
             </div>
 
             <div className="flex gap-2">

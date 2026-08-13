@@ -68,7 +68,7 @@ A single person managing their own schedule of **all-day, date-based events**: m
 - A **HUD status line** shows decorative/real system context (e.g., app name, `LOCAL_DB::INDEXEDDB`, record count).
 
 ### 4.2 Events
-- An event has: **title** (required), **date** (required, single all-day date), **category** (required; its color comes from a preset 5-color palette), an **amount** (required, > 0) with a **deposit/withdrawal direction** (required), **notes** (optional), and an optional **recurrence** rule.
+- An event has: **title** (required), **date** (required, single all-day date), **category** (required; its color comes from a preset 5-color palette), an **amount** (required, > 0) with a **deposit/withdrawal direction** (required), and an optional **recurrence** rule.
 - Events are **all-day and single-day**: no times, no multi-day spans.
 - Day cells render events as **color-coded event chips**. Recurring occurrences show a **↻** marker.
 - When a day has more chips than fit, it collapses to **"+N more"**, which opens a **day popover** listing all of that day's events.
@@ -140,7 +140,6 @@ type OccurrenceOverride = {
   patch?: {                // "this occurrence" edited
     title?: string;
     categoryId?: string;
-    notes?: string;
     amount?: number;
     direction?: TransactionDirection;
   };
@@ -155,7 +154,6 @@ type CalendarEvent = {
   categoryId: string;
   amount: number;
   direction: TransactionDirection;
-  notes?: string;
   recurrence: Recurrence | null;   // null => one-off
   overrides: OccurrenceOverride[]; // only meaningful when recurrence !== null
   createdAt: string;               // ISO timestamp
@@ -181,7 +179,7 @@ Pure functions in `src/lib/recurrence` turn stored events into rendered occurren
    - If `cancelled` → skip it.
    - If `patch` → apply patched fields over the base.
    - Otherwise → render base fields.
-3. Each produced **`Occurrence`** carries: source `eventId`, resolved `date`, `title`, resolved `Category`, `amount`, `direction`, `notes`, and `isRecurring`.
+3. Each produced **`Occurrence`** carries: source `eventId`, resolved `date`, `title`, resolved `Category`, `amount`, `direction`, and `isRecurring`.
 
 Occurrences are then grouped by date for the grid, and filtered by the active category filter.
 
@@ -229,7 +227,7 @@ This mirrors iCalendar semantics (`EXDATE` / `RECURRENCE-ID` for single override
 - **Full-viewport layout:** `HUD status line` → `toolbar` → `month console` (a bordered panel that flexes to consume all remaining height and holds the `weekday header` → `month grid`; it mirrors the landing preview's console frame but follows the active theme). On desktop the grid renders only the week-rows the visible month spans (4-6, via `inMonthWeekCount`), so day cells get more height; trailing weeks that fall entirely in the next month are dropped. Compact mode always renders the full 6 rows (see Responsive / compact mode).
 - **Toolbar:** ‹ / month-year / › · **Today** · **category filter** · **+ New Event** (primary CTA).
 - **Day cell:** date number; **today** highlight; dimmed out-of-month days; stacked **event chips** (with ↻ for recurring); **"+N more"** → **day popover**. A day cell shows as many event chips as fit its measured row height and collapses the rest into the "+N more" popover, so chips never clip. There is **no fixed maximum**: capacity is whatever the row can hold, so a taller window shows more chips rather than hiding them behind a trigger it has the room to avoid. `MonthGrid` measures one shared row height (every row is an equal `1fr` track) with a `ResizeObserver` and passes each cell the answer from `chipCapacity`; the "+N more" line is only reserved when the day's occurrences genuinely exceed what fits. When no chips fit, the trigger reads "N events" instead. Before the first measurement (and always under jsdom, whose `ResizeObserver` stub never fires) a cell has no limit to apply and renders every chip.
-- **Event editor (Dialog):** built with shadcn `Form` + **react-hook-form**/zod. Fields: Title, Date (native `<input type="date">`), Category (`CategoryCombobox`: creatable combobox built on shadcn `Command` + `Popover`; backed by `useCategorySearch` for filtering and exact-match detection; pick existing or create a new name + color via `CategoryCreateRow`), Notes (Textarea), Repeat (`NativeSelect`: Does-not-repeat / Daily / Weekly / Monthly / Yearly) with interval + optional end date; footer with **Delete**, **Cancel**, **Save**. The shadcn `calendar`/`Select` primitives remain available for future use.
+- **Event editor (Dialog):** built with shadcn `Form` + **react-hook-form**/zod. Fields: Title, Date (native `<input type="date">`), Category (`CategoryCombobox`: creatable combobox built on shadcn `Command` + `Popover`; backed by `useCategorySearch` for filtering and exact-match detection; pick existing or create a new name + color via `CategoryCreateRow`), Repeat (`NativeSelect`: Does-not-repeat / Daily / Weekly / Monthly / Yearly) with interval + optional end date; footer with **Delete**, **Cancel**, **Save**. The shadcn `calendar`/`Select` primitives remain available for future use.
 - **Recurring scope dialog:** This event / This and following / All events (used for edit, delete, and move).
 - **Move toast:** a `sonner` toast at the bottom center confirms every move and provides an Undo action. Styled to the cyberpunk panel look via `.cy-toast` / `.cy-toast-action` in `globals.css`.
 - **Responsive / compact mode:** below 640px (Tailwind's `sm` breakpoint) the `useIsCompact()` hook (`src/hooks/useIsCompact/`, matchMedia-driven) switches the calendar to compact rendering. The grid always shows the full 6 week-rows (unlike desktop, which trims to the weeks the month spans). Day cells show up to 4 category-colored dots (plus a `+` marker when there are more) instead of full chips, and tapping a day selects it. Swiping the grid left or right changes months (left for next, right for previous), with a brief 180ms directional slide as feedback. The selected day's events, running balance, and an Add button appear in a `DayPanel` below the grid. The toolbar becomes two rows: navigation and an overflow menu (shadcn Popover) on row 1, the category legend on row 2; the menu holds SYNC, DATA, and CATEGORIES, and its trigger shows a bare attention dot when any item inside needs attention. Drag-and-drop is disabled in compact mode; events move between days by editing the date in the event editor. Dialogs cap their height at `85dvh` and scroll internally.
@@ -387,7 +385,7 @@ moveEvent(
 It branches on four cases driven by `scope` and whether the event recurs:
 
 - **Non-recurring, or `scope === "all"` on a recurring event:** for a non-recurring event, sets `date` to `toDate`; for a recurring event, calls `shiftSeries` with `daysBetweenISO(occurrence.date, toDate)` so the whole timeline slides rigidly.
-- **`scope === "this"` on a recurring event:** cancels the occurrence on its original day via `cancelOccurrence`, then creates a new standalone (non-recurring) `CalendarEvent` at `toDate` from the occurrence's resolved fields (`title`, `amount`, `categoryId`, `direction`, `notes`). The detached event has `recurrence: null`.
+- **`scope === "this"` on a recurring event:** cancels the occurrence on its original day via `cancelOccurrence`, then creates a new standalone (non-recurring) `CalendarEvent` at `toDate` from the occurrence's resolved fields (`title`, `amount`, `categoryId`, `direction`). The detached event has `recurrence: null`.
 - **`scope === "following"` on a recurring event:** truncates the original series to end the day before `occurrence.date` via `truncateBefore`, then creates a new tail series anchored at `toDate` via `buildMovedFollowing`.
 
 `moveEvent` persists all writes through the same `persist()` / `putEvent` path as the other mutations, so cross-tab sync (the storage layer broadcasts after writes) and the storage-unavailable banner apply without additional wiring. After writing, it returns an **undo thunk**: a closure that snapshots the affected events before the move (with `null` marking events that did not exist before, such as the detached one-off or the new tail) and restores them by putting back each previous state or deleting events that are new. Calling the thunk re-persists the restored state through the same storage path.
