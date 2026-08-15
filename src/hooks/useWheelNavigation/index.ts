@@ -55,6 +55,11 @@ export const useWheelNavigation = ({
       // navigation; skip them without polluting the vertical-delta history.
       if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
       const deltaPx = deltaToPx(e.deltaY, e.deltaMode);
+      // A zero delta carries no travel and must not enter the delta history:
+      // storing 0 as the predecessor would let the next tiny momentum event
+      // pass the flick rise test (anything >= 0) and end the swallow early,
+      // turning one flick into two navigations.
+      if (deltaPx === 0) return;
       const prevPx = lastDeltaPx.current;
       lastDeltaPx.current = deltaPx;
       if (idle) {
