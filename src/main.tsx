@@ -2,18 +2,11 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { Analytics } from "@vercel/analytics/react";
 import { analyticsBeforeSend } from "@/lib/analytics";
-import "@fontsource/rajdhani/latin-500.css";
-import "@fontsource/rajdhani/latin-600.css";
-import "@fontsource/rajdhani/latin-700.css";
-import "@fontsource/chakra-petch/latin-400.css";
-import "@fontsource/chakra-petch/latin-500.css";
-import "@fontsource/chakra-petch/latin-600.css";
-import "@fontsource/chakra-petch/latin-700.css";
-import "@fontsource/jetbrains-mono/latin-400.css";
-// 500 carries the figure in an event chip (.cy-chip-amount); without it the
+// Woff2-only @font-face declarations over the @fontsource font files; see
+// fonts.css for why the packages' own CSS is not imported. JetBrains Mono 500
+// carries the figure in an event chip (.cy-chip-amount); without it the
 // weight silently falls back to 400.
-import "@fontsource/jetbrains-mono/latin-500.css";
-import "@fontsource/jetbrains-mono/latin-700.css";
+import "./fonts.css";
 import "./globals.css";
 import App from "./App";
 import { registerSW } from "virtual:pwa-register";
