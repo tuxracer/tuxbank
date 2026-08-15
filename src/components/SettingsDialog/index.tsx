@@ -85,7 +85,7 @@ const SettingsDialog = ({
                 ))}
               </nav>
               <footer className="cy-hud mt-auto border-t border-[color:var(--cy-hairline)] px-4 py-3">
-                tuxbank
+                tuxbank.app
               </footer>
             </>
           ) : (
@@ -152,7 +152,7 @@ const SettingsDialog = ({
               </Button>
             ))}
           </nav>
-          <span className="cy-hud mt-auto px-4 pb-4">tuxbank</span>
+          <span className="cy-hud mt-auto px-4 pb-4">tuxbank.app</span>
         </aside>
         <div className="flex min-h-0 flex-1 flex-col">
           <header className="border-b border-[color:var(--cy-hairline)] px-5 py-4">
