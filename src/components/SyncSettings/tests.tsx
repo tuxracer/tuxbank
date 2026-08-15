@@ -41,6 +41,56 @@ vi.mock("@/context/SyncContext", () => ({
   useSync: () => syncValue,
 }));
 
+describe("SyncSettings create-account email check", () => {
+  beforeEach(() => {
+    syncValue.status = "off";
+    syncValue.step = "idle";
+  });
+
+  afterEach(() => {
+    syncValue.status = "synced";
+  });
+
+  const fillCreateForm = (email: string) => {
+    render(<SyncSettings />);
+    fireEvent.click(screen.getByRole("button", { name: /create account/i }));
+    fireEvent.change(screen.getByLabelText(/^email$/i), {
+      target: { value: email },
+    });
+    fireEvent.change(screen.getByLabelText(/^password$/i), {
+      target: { value: "pw-123456" },
+    });
+    fireEvent.change(screen.getByLabelText(/confirm password/i), {
+      target: { value: "pw-123456" },
+    });
+    return screen.getByRole("button", { name: /create account/i });
+  };
+
+  it.each([
+    ["a@b.c", "shorter than 6 characters"],
+    ["userexample.com", "missing the @"],
+    ["user@examplecom", "missing the dot"],
+  ])("keeps Create account disabled for %s (%s)", (email) => {
+    expect(fillCreateForm(email)).toBeDisabled();
+  });
+
+  it("enables Create account once the email is plausible", () => {
+    expect(fillCreateForm("ab@b.c")).toBeEnabled();
+  });
+
+  it("does not apply the check to sign-in", () => {
+    render(<SyncSettings />);
+    fireEvent.click(screen.getByRole("button", { name: /^sign in$/i }));
+    fireEvent.change(screen.getByLabelText(/^email$/i), {
+      target: { value: "ab" },
+    });
+    fireEvent.change(screen.getByLabelText(/^password$/i), {
+      target: { value: "pw-123456" },
+    });
+    expect(screen.getByRole("button", { name: /^sign in$/i })).toBeEnabled();
+  });
+});
+
 describe("SyncSettings device linking", () => {
   beforeEach(() => {
     mocks.createDeviceLink.mockReset();

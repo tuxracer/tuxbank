@@ -24,6 +24,18 @@ type Mode = "choose" | "create" | "signin";
 /** The exact word the user must type to confirm a destructive sign-in choice. */
 const CONFIRM_WORD = "delete";
 
+/**
+ * Signup email sanity check: at least this many characters, with an "@" and a
+ * ".". Deliberately loose; the required confirmation email is the real
+ * validation, this only catches obvious typos before that round trip.
+ */
+const EMAIL_MIN_LENGTH = 6;
+
+const isPlausibleEmail = (value: string): boolean =>
+  value.length >= EMAIL_MIN_LENGTH &&
+  value.includes("@") &&
+  value.includes(".");
+
 /** Which destructive choice is awaiting its typed confirmation, if any. */
 type ChoiceStage =
   | { kind: "choose" }
@@ -788,6 +800,13 @@ export const SyncSettings = () => {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
               />
+              {mode === "create" &&
+                email.length > 0 &&
+                !isPlausibleEmail(email) && (
+                  <p className="cy-mono text-[10px] text-[color:var(--cy-magenta)]">
+                    Enter a valid email address.
+                  </p>
+                )}
               <Label htmlFor="sync-pw">Password</Label>
               <Input
                 id="sync-pw"
@@ -822,7 +841,7 @@ export const SyncSettings = () => {
                 className="cy-btn justify-start"
                 disabled={
                   busy ||
-                  !email ||
+                  (mode === "create" ? !isPlausibleEmail(email) : !email) ||
                   !password ||
                   (mode === "create" && password !== confirmPassword)
                 }
