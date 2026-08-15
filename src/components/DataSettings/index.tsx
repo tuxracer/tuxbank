@@ -186,10 +186,7 @@ const DataSettings = ({
           <span>
             Type <span className="text-[color:var(--cy-magenta)]">reset</span>{" "}
             to permanently delete all {currentEventCount} events and{" "}
-            {currentCategoryCount} categories. This cannot be undone.{" "}
-            {includesCloud
-              ? "This also deletes your synced data from your account on all devices."
-              : "Only data on this device is deleted; your synced account (if any) is not touched."}
+            {currentCategoryCount} categories. This cannot be undone.
           </span>
           <Input
             data-testid="clear-data-confirm"
