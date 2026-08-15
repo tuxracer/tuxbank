@@ -99,11 +99,6 @@ const DisplaySettings = () => {
           ))}
         </NativeSelect>
       </section>
-
-      <p className="cy-mono text-xs text-[color:var(--cy-muted)]">
-        These preferences apply to this device only and are not part of synced
-        data.
-      </p>
     </div>
   );
 };
