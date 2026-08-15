@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { isEditScope } from "@/context/CalendarContext";
 import type { EditScope } from "@/context/CalendarContext";
 import {
   Dialog,
@@ -40,7 +41,9 @@ const RecurrenceScopeDialog = ({
 
         <RadioGroup
           value={scope}
-          onValueChange={(v) => setScope(v as EditScope)}
+          onValueChange={(v) => {
+            if (isEditScope(v)) setScope(v);
+          }}
           className="flex flex-col gap-2 py-2"
         >
           {OPTIONS.map((o) => (

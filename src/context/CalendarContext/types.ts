@@ -1,3 +1,4 @@
+import { isString } from "remeda";
 import type {
   CalendarEvent,
   Category,
@@ -9,6 +10,11 @@ import type { EventInput } from "@/lib/recurrence";
 import type { ImportPreview } from "@/lib/storage";
 
 export type EditScope = "this" | "following" | "all";
+
+const EDIT_SCOPES: readonly EditScope[] = ["this", "following", "all"];
+
+export const isEditScope = (value: unknown): value is EditScope =>
+  isString(value) && EDIT_SCOPES.includes(value as EditScope);
 
 export type CalendarContextValue = {
   visibleMonth: Date;
