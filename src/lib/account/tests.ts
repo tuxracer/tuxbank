@@ -168,6 +168,37 @@ describe("rewrapForNewPassword", () => {
   );
 });
 
+describe("staged password rewrap", () => {
+  // Several real Argon2id runs; see the rewrapForNewPassword timeout note.
+  it(
+    "lets both the old and the new password unlock while a change is staged",
+    { timeout: 20_000 },
+    async () => {
+      const { keyMaterial, dek } = await provisionAccountKeys(
+        "old pw",
+        "a@b.com",
+      );
+      const rewrapped = await rewrapForNewPassword("new pw", "a@b.com", dek);
+      // What stagePasswordRewrap uploads: new wrap primary, old wrap staged.
+      const staged = {
+        ...keyMaterial,
+        wrapped_dek: rewrapped.wrapped_dek,
+        wrapped_dek_nonce: rewrapped.wrapped_dek_nonce,
+        wrapped_dek_prev: keyMaterial.wrapped_dek,
+        wrapped_dek_prev_nonce: keyMaterial.wrapped_dek_nonce,
+      };
+      expect(await unlockWithPassword("new pw", "a@b.com", staged)).toEqual(
+        dek,
+      );
+      // The auth flip may not have happened yet: the old password must still
+      // open the staged wrap or a mid-change failure locks other devices out.
+      expect(await unlockWithPassword("old pw", "a@b.com", staged)).toEqual(
+        dek,
+      );
+    },
+  );
+});
+
 describe("unlockWithKek", () => {
   it("unwraps the DEK with a directly supplied KEK", async () => {
     const { keyMaterial, dek } = await provisionAccountKeys(

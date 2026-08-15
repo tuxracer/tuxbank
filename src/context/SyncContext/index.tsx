@@ -23,11 +23,12 @@ import {
   signIn as authSignIn,
   signOut as authSignOut,
   signUp,
+  stagePasswordRewrap,
+  clearPreviousPasswordWrap,
   unlockWithKek,
   unlockWithPassword,
   unlockWithRecoveryKey,
   updateAuthPassword,
-  updatePasswordColumns,
   uploadKeyMaterial,
   verifyTotp,
   type KeyMaterial,
@@ -609,11 +610,17 @@ export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
           email,
           dekRef.current,
         );
+        // Two-phase: stage both wraps BEFORE flipping the auth password, so a
+        // failure between the steps leaves every device able to unlock with
+        // whichever password the account still accepts.
+        await stagePasswordRewrap(rewrapped);
         if ((await applyAuthSecret(rewrapped.authSecret, nonce)) === "reauth") {
           setError(null);
           return "reauth";
         }
-        await updatePasswordColumns(rewrapped);
+        // Best-effort: the staged old wrap is dead weight once the new
+        // password is live; a failure here just leaves it for the next change.
+        await clearPreviousPasswordWrap().catch(() => undefined);
         setError(null);
         return "done";
       } catch (caught) {
@@ -638,12 +645,14 @@ export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
         const material = await fetchKeyMaterial();
         const dek = await unlockWithRecoveryKey(recoveryKey, material);
         // The password was forgotten, so set a new one while we have the DEK.
+        // Same two-phase order as changePassword: stage, flip auth, clear.
         const rewrapped = await rewrapForNewPassword(newPassword, email, dek);
+        await stagePasswordRewrap(rewrapped);
         if ((await applyAuthSecret(rewrapped.authSecret, nonce)) === "reauth") {
           setError(null);
           return "reauth";
         }
-        await updatePasswordColumns(rewrapped);
+        await clearPreviousPasswordWrap().catch(() => undefined);
         storeDek(dek);
         setStatus("synced");
         setError(null);

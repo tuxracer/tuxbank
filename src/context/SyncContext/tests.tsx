@@ -51,7 +51,8 @@ vi.mock("@/lib/account", () => ({
   unlockWithPassword: vi.fn(),
   unlockWithRecoveryKey: vi.fn(),
   updateAuthPassword: vi.fn(),
-  updatePasswordColumns: vi.fn(),
+  stagePasswordRewrap: vi.fn(),
+  clearPreviousPasswordWrap: vi.fn(),
   uploadKeyMaterial: vi.fn(),
   verifyTotp: mocks.verifyTotp,
 }));

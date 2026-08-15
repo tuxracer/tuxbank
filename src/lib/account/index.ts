@@ -51,11 +51,33 @@ export const provisionAccountKeys = async (
   };
 };
 
-/** Unwrap the DEK with an already-derived KEK (device-link sign-in). */
+/** The staged previous-password wrap, when a password change is in flight. */
+const prevPasswordBox = (material: KeyMaterial): SealedBox | null =>
+  material.wrapped_dek_prev && material.wrapped_dek_prev_nonce
+    ? {
+        nonce: fromBase64(material.wrapped_dek_prev_nonce),
+        ciphertext: fromBase64(material.wrapped_dek_prev),
+      }
+    : null;
+
+/**
+ * Unwrap the DEK with an already-derived KEK (device-link sign-in). Falls
+ * back to the staged previous-password wrap: mid-password-change, the auth
+ * password and the primary wrap can briefly disagree, and the KEK that signed
+ * in must still open one of the two.
+ */
 export const unlockWithKek = async (
   kek: Uint8Array,
   material: KeyMaterial,
-): Promise<Uint8Array> => unwrapKey(passwordBox(material), kek);
+): Promise<Uint8Array> => {
+  try {
+    return await unwrapKey(passwordBox(material), kek);
+  } catch (primaryError) {
+    const prev = prevPasswordBox(material);
+    if (!prev) throw primaryError;
+    return unwrapKey(prev, kek);
+  }
+};
 
 export const unlockWithPassword = async (
   password: string,
@@ -214,21 +236,54 @@ export const requestReauthentication = async (): Promise<void> => {
   if (error) throw new AccountError("PASSWORD_CHANGE_FAILED", error);
 };
 
-/** Replace only the password-wrapped DEK columns, leaving recovery columns. */
-export const updatePasswordColumns = async (
-  rewrapped: RewrappedKeys,
-): Promise<void> => {
-  const c = client();
+const currentUserId = async (): Promise<string> => {
   const {
     data: { user },
-  } = await c.auth.getUser();
+  } = await client().auth.getUser();
   if (!user) throw new AccountError("PASSWORD_CHANGE_FAILED");
-  const { error } = await c
+  return user.id;
+};
+
+/**
+ * Stage a password rewrap: install the new password's wrap as primary while
+ * keeping a wrap for the still-active auth password in the prev columns. Runs
+ * BEFORE the auth password flips, so whichever password the account ends up
+ * accepting, one of the two wraps opens under it — a failure between the two
+ * steps can never lock every device out (the recovery columns are untouched
+ * either way). If a previous change already staged a prev wrap (auth never
+ * flipped), that wrap still matches the active auth password and is kept.
+ * clearPreviousPasswordWrap() retires it once the auth change succeeds.
+ */
+export const stagePasswordRewrap = async (
+  rewrapped: RewrappedKeys,
+): Promise<void> => {
+  const userId = await currentUserId();
+  const current = await fetchKeyMaterial();
+  const keepStagedPrev = Boolean(
+    current.wrapped_dek_prev && current.wrapped_dek_prev_nonce,
+  );
+  const { error } = await client()
     .from("key_material")
     .update({
       wrapped_dek: rewrapped.wrapped_dek,
       wrapped_dek_nonce: rewrapped.wrapped_dek_nonce,
+      ...(keepStagedPrev
+        ? {}
+        : {
+            wrapped_dek_prev: current.wrapped_dek,
+            wrapped_dek_prev_nonce: current.wrapped_dek_nonce,
+          }),
     })
-    .eq("user_id", user.id);
+    .eq("user_id", userId);
+  if (error) throw new AccountError("KEY_MATERIAL_FAILED", error);
+};
+
+/** Drop the staged previous-password wrap after a successful auth flip. */
+export const clearPreviousPasswordWrap = async (): Promise<void> => {
+  const userId = await currentUserId();
+  const { error } = await client()
+    .from("key_material")
+    .update({ wrapped_dek_prev: null, wrapped_dek_prev_nonce: null })
+    .eq("user_id", userId);
   if (error) throw new AccountError("KEY_MATERIAL_FAILED", error);
 };

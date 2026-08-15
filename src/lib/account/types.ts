@@ -7,7 +7,17 @@ export interface KeyMaterial {
   recovery_wrapped_dek: string;
   recovery_nonce: string;
   kdf_version: number;
+  /**
+   * The previous password's wrap, staged during a password change (see
+   * stagePasswordRewrap) and cleared once the auth password has flipped.
+   * Null/absent outside that window.
+   */
+  wrapped_dek_prev?: string | null;
+  wrapped_dek_prev_nonce?: string | null;
 }
+
+const isOptionalString = (value: unknown): value is string | null | undefined =>
+  value === undefined || value === null || isString(value);
 
 export const isKeyMaterial = (value: unknown): value is KeyMaterial =>
   isPlainObject(value) &&
@@ -15,7 +25,9 @@ export const isKeyMaterial = (value: unknown): value is KeyMaterial =>
   isString(value.wrapped_dek_nonce) &&
   isString(value.recovery_wrapped_dek) &&
   isString(value.recovery_nonce) &&
-  isNumber(value.kdf_version);
+  isNumber(value.kdf_version) &&
+  isOptionalString(value.wrapped_dek_prev) &&
+  isOptionalString(value.wrapped_dek_prev_nonce);
 
 /** Everything produced when a brand-new account's keys are provisioned. */
 export interface ProvisionedKeys {
