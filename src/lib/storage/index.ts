@@ -9,6 +9,7 @@ import {
   DB_NAME,
   DB_VERSION,
   DEK_KEY,
+  DELETE_BLOCKED_TIMEOUT_MS,
   STORE,
   SYNC_CURSOR_KEY,
   SYNC_META_STORE,
@@ -38,14 +39,22 @@ const getDb = (): Promise<IDBPDatabase> => {
     return Promise.reject(new StorageError("UNAVAILABLE"));
   }
   if (!dbPromise) {
-    dbPromise = openDB(DB_NAME, DB_VERSION, {
+    const opening = openDB(DB_NAME, DB_VERSION, {
       upgrade(db) {
         db.createObjectStore(STORE, { keyPath: "id" });
         db.createObjectStore(CATEGORY_STORE, { keyPath: "id" });
         db.createObjectStore(TOMBSTONE_STORE, { keyPath: "id" });
         db.createObjectStore(SYNC_META_STORE);
       },
-    }).catch((cause) => {
+      // Another tab is upgrading or deleting the database; close this tab's
+      // connection so it can proceed (holding it open would block the other
+      // tab forever). The next access reopens fresh.
+      blocking() {
+        void opening.then((db) => db.close()).catch(() => undefined);
+        resetDbCache();
+      },
+    });
+    dbPromise = opening.catch((cause) => {
       dbPromise = null;
       // The database exists but could not be opened — most often a version
       // mismatch (it was written by a newer, incompatible build) or corruption.
@@ -506,7 +515,29 @@ export const deleteDatabase = async (): Promise<void> => {
   // later open starts fresh.
   resetDbCache();
   try {
-    await deleteDB(DB_NAME);
+    // Other tabs get a moment to close their connections (their `blocking`
+    // handler does so on versionchange); if the delete is still blocked after
+    // the grace period, fail with BLOCKED instead of hanging forever.
+    await new Promise<void>((resolve, reject) => {
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      deleteDB(DB_NAME, {
+        blocked: () => {
+          timer = setTimeout(
+            () => reject(new StorageError("BLOCKED")),
+            DELETE_BLOCKED_TIMEOUT_MS,
+          );
+        },
+      }).then(
+        () => {
+          clearTimeout(timer);
+          resolve();
+        },
+        (cause) => {
+          clearTimeout(timer);
+          reject(cause);
+        },
+      );
+    });
   } catch (error) {
     throw toStorageError(error, "WRITE_FAILED");
   }

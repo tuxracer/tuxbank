@@ -16,6 +16,12 @@ export const SYNC_CURSOR_KEY = "cursor";
  */
 export const DEK_KEY = "dek";
 
+/**
+ * How long deleteDatabase waits for other tabs to release their connections
+ * before giving up with BLOCKED instead of hanging on a pending deleteDB.
+ */
+export const DELETE_BLOCKED_TIMEOUT_MS = 3_000;
+
 /** JSON backup file identity + schema version. */
 export const BACKUP_APP = "tuxbank";
 export const BACKUP_SCHEMA_VERSION = 1;
