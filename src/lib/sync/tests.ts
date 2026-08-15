@@ -146,9 +146,16 @@ const makeFakeRemote = () => {
     SYNC_TABLES.map(({ table }) => [table, new Map<string, RemoteRow>()]),
   );
   let tick = 0;
+  // Spaced a minute apart (comfortably clear of the pull lookback) with an
+  // uneven sub-second part, so consecutive stamps differ in rendered width
+  // once Postgres trims their trailing zeros: `...:00.25`, `...:00.5`,
+  // `...:01`. Uniform `.000` stamps would let a cursor compare that only
+  // works on equal-width strings look fine.
   const nextServerStamp = () =>
     new Date(
-      Date.parse("2026-06-09T12:00:00.000Z") + ++tick * 60_000,
+      Date.parse("2026-06-09T12:00:00.000Z") +
+        ++tick * 60_000 +
+        (tick % 4) * 250,
     ).toISOString();
   const seed = (table: string, row: PushRow): RemoteRow => {
     const stored: RemoteRow = {

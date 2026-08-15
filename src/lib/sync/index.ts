@@ -97,6 +97,19 @@ const canonicalStamp = (stamp: string): string => {
 };
 
 /**
+ * Whether one server stamp is strictly later than another, compared as
+ * instants. Comparing them as strings happens to order correctly today, but
+ * only because every stamp renders in UTC and `+` sorts below every digit, so
+ * a trimmed fraction lands where it should. Both halves of that are the
+ * database's rendering choices rather than anything this code controls: a
+ * session timezone that stops being UTC mixes `-07:00` into the same column
+ * and the ordering silently inverts. Unparseable input compares as not-later,
+ * which holds the cursor back and re-pulls rather than skipping ahead.
+ */
+const isLaterStamp = (stamp: string, other: string): boolean =>
+  Date.parse(stamp) > Date.parse(other);
+
+/**
  * The AEAD additional data binding a row's plaintext metadata to its
  * ciphertext. The server stores this metadata in the clear (it routes sync),
  * so without the binding a malicious or compromised backend could replay an
@@ -236,7 +249,12 @@ export const runSync = async (
     const deleteIds: string[] = [];
     const pulledIds = new Set<string>();
     for (const row of remoteRows) {
-      if (cursor === undefined || row.server_updated_at > cursor) {
+      // The stamp is stored as the server sent it (full microsecond
+      // precision), and only the ordering decision drops to millisecond
+      // resolution. Two stamps inside one millisecond therefore keep the
+      // earlier as the cursor, which re-pulls the other next time and applies
+      // it as an idempotent no-op.
+      if (cursor === undefined || isLaterStamp(row.server_updated_at, cursor)) {
         cursor = row.server_updated_at;
       }
       try {
