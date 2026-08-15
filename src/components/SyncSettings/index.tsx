@@ -14,6 +14,17 @@ type Mode = "choose" | "create" | "signin";
 const CONFIRM_WORD = "delete";
 
 /**
+ * What account deletion asks the user to type. The email is in it on purpose:
+ * the phrase cannot be muscle-memoried from the other confirmations, and it
+ * names the account that is about to go.
+ */
+const deletePhrase = (email: string | null): string =>
+  `${CONFIRM_WORD} ${email ?? ""}`;
+
+/** How many digits a TOTP code carries. */
+const TOTP_CODE_LENGTH = 6;
+
+/**
  * Signup email sanity check: at least this many characters, with an "@" and a
  * ".". Deliberately loose; the required confirmation email is the real
  * validation, this only catches obvious typos before that round trip.
@@ -43,6 +54,9 @@ const ERROR_TEXT: Record<string, string> = {
   PASSWORD_CHANGE_FAILED: "Could not change your password. Please try again.",
   RECOVERY_FAILED: "Could not recover. Check your recovery key and try again.",
   LINK_CREATE_FAILED: "Could not generate a link code. Check your password.",
+  WRONG_PASSWORD: "That password did not match.",
+  ACCOUNT_DELETE_FAILED:
+    "Your synced data was deleted, but the account itself could not be removed. Try again.",
 };
 
 const errorText = (code: string): string => ERROR_TEXT[code] ?? code;
@@ -94,11 +108,17 @@ export const SyncSettings = () => {
   const [awaitingReauth, setAwaitingReauth] = useState(false);
   const [reauthCode, setReauthCode] = useState("");
   const [confirmingSignOut, setConfirmingSignOut] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteText, setDeleteText] = useState("");
   const [choiceStage, setChoiceStage] = useState<ChoiceStage>({
     kind: "choose",
   });
   const [choiceText, setChoiceText] = useState("");
   const choiceConfirmed = choiceText.trim().toLowerCase() === CONFIRM_WORD;
+  // Null email means there is no phrase to match, so nothing can confirm.
+  const deleteConfirmed =
+    sync.email !== null &&
+    deleteText.trim().toLowerCase() === deletePhrase(sync.email).toLowerCase();
 
   const reset = () => {
     setMode("choose");
@@ -115,6 +135,8 @@ export const SyncSettings = () => {
     setAwaitingReauth(false);
     setReauthCode("");
     setConfirmingSignOut(false);
+    setDeleting(false);
+    setDeleteText("");
     setChoiceStage({ kind: "choose" });
     setChoiceText("");
   };
@@ -273,6 +295,7 @@ export const SyncSettings = () => {
         sync.step === "idle" &&
         !changingPw &&
         !confirmingSignOut &&
+        !deleting &&
         !linking && (
           <section className="flex flex-col gap-3">
             <p className="cy-mono text-xs">
@@ -310,8 +333,99 @@ export const SyncSettings = () => {
             <Button variant="ghost" onClick={() => setConfirmingSignOut(true)}>
               Sign out
             </Button>
+            <Button
+              variant="ghost"
+              className="text-[color:var(--cy-magenta)]"
+              onClick={() => {
+                setPassword("");
+                setCode("");
+                setDeleteText("");
+                setDeleting(true);
+              }}
+            >
+              Delete account
+            </Button>
           </section>
         )}
+
+      {/* DELETE ACCOUNT: password + 2FA code + the typed confirmation phrase */}
+      {sync.unlocked && sync.step === "idle" && deleting && (
+        <section className="flex flex-col gap-3">
+          <p className="cy-mono text-xs text-[color:var(--cy-magenta)]">
+            Deleting <span className="cy-hud on">{sync.email}</span> erases
+            everything it holds, on the server and on every other device signed
+            into it. This cannot be undone.
+          </p>
+          <p className="cy-mono text-xs text-[color:var(--cy-muted)]">
+            This device keeps its calendar. Your events, categories, and
+            settings stay here and go back to being local-only.
+          </p>
+          <Label htmlFor="del-pw">Password</Label>
+          <Input
+            id="del-pw"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+          <Label htmlFor="del-code">Two-factor code</Label>
+          <Input
+            id="del-code"
+            inputMode="numeric"
+            placeholder="123456"
+            value={code}
+            onChange={(e) => setCode(e.target.value)}
+          />
+          <Label htmlFor="del-confirm">
+            Type{" "}
+            <span className="text-[color:var(--cy-magenta)]">
+              {deletePhrase(sync.email)}
+            </span>{" "}
+            to confirm
+          </Label>
+          <Input
+            id="del-confirm"
+            data-testid="delete-account-confirm"
+            type="text"
+            autoComplete="off"
+            autoCapitalize="off"
+            spellCheck={false}
+            value={deleteText}
+            onChange={(e) => setDeleteText(e.target.value)}
+          />
+          <Button
+            data-testid="delete-account-button"
+            className="cy-btn justify-start text-[color:var(--cy-magenta)]"
+            disabled={
+              busy ||
+              !password ||
+              code.trim().length < TOTP_CODE_LENGTH ||
+              !deleteConfirmed
+            }
+            onClick={async () => {
+              setBusy(true);
+              const deleted = await sync.deleteAccount(password, code.trim());
+              setBusy(false);
+              if (deleted) {
+                toast.success("Account deleted. Your calendar stays here.");
+                reset();
+              }
+            }}
+          >
+            {busy ? "Deleting…" : "Delete account"}
+          </Button>
+          <Button
+            variant="ghost"
+            onClick={() => {
+              setDeleting(false);
+              setDeleteText("");
+              setPassword("");
+              setCode("");
+            }}
+          >
+            Cancel
+          </Button>
+        </section>
+      )}
 
       {/* CHANGE PASSWORD (from the synced state) */}
       {sync.unlocked &&
@@ -585,7 +699,7 @@ export const SyncSettings = () => {
           />
           <Button
             className="cy-btn justify-start"
-            disabled={busy || code.length < 6}
+            disabled={busy || code.length < TOTP_CODE_LENGTH}
             onClick={() => void run(() => sync.confirmTotp(code))}
           >
             Verify and continue
@@ -738,7 +852,7 @@ export const SyncSettings = () => {
           />
           <Button
             className="cy-btn justify-start"
-            disabled={busy || code.length < 6}
+            disabled={busy || code.length < TOTP_CODE_LENGTH}
             onClick={() => void run(() => sync.confirmTotp(code))}
           >
             Verify

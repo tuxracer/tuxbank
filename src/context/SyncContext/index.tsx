@@ -13,6 +13,9 @@ import { useDisplayPreferences } from "@/hooks/useDisplayPreferences";
 import { deriveKeys } from "@/lib/crypto";
 import { trackEvent } from "@/lib/analytics";
 import {
+  AccountError,
+  deleteAuthUser,
+  deleteKeyMaterial,
   enrollTotp,
   fetchKeyMaterial,
   getActiveSession,
@@ -44,6 +47,7 @@ import {
 import {
   clearLocalData,
   clearStoredDek,
+  clearSyncState,
   commitImportLocal,
   commitImportSynced,
   exportDatabase,
@@ -55,6 +59,7 @@ import {
   countPendingChanges,
   createSupabaseRemote,
   detectSignInConflict,
+  purgeAccountData,
   runSync,
 } from "@/lib/sync";
 import type { SignInConflict } from "@/lib/sync";
@@ -97,7 +102,8 @@ type AccountAction =
   | "device-link"
   | "create-link"
   | "change-password"
-  | "recovery";
+  | "recovery"
+  | "delete-account";
 
 const trackAccountError = (action: AccountAction, error: unknown): void => {
   trackEvent("account-error", { action, code: errorCode(error) });
@@ -766,6 +772,58 @@ export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
     [refreshFromStorage],
   );
 
+  /**
+   * Delete the account: erase every synced row and the login itself, and leave
+   * this device's calendar exactly where it is. The exit for someone who wants
+   * to keep their data but stop syncing it anywhere.
+   *
+   * Both factors are re-checked here rather than trusted from the live session:
+   * the password must unwrap the account's DEK, and a fresh TOTP code must
+   * verify. Nothing is destroyed until both pass. The order that follows is
+   * deliberate — data rows, then key material, then the login — so an
+   * interrupted deletion always leaves less readable than it started with, and
+   * whatever the cascade would have swept up is already gone by the time the
+   * privileged step runs.
+   */
+  const deleteAccount = useCallback(
+    async (password: string, code: string): Promise<boolean> => {
+      if (!remote || !email || !dekRef.current) {
+        setError("NOT_CONFIGURED");
+        return false;
+      }
+      try {
+        const material = await fetchKeyMaterial();
+        const { kek } = await deriveKeys(password, email);
+        try {
+          await unlockWithKek(kek, material);
+        } catch (caught) {
+          throw new AccountError("WRONG_PASSWORD", caught);
+        }
+        const factorId = await getTotpFactorId();
+        if (!factorId) throw new AccountError("MFA_VERIFY_FAILED");
+        await verifyTotp(factorId, code);
+
+        await purgeAccountData(remote);
+        await deleteKeyMaterial();
+        await deleteAuthUser();
+        trackEvent("account-deleted");
+
+        // The account is gone; this device keeps its rows and goes back to
+        // local-only. Dropping the cursor, outbox, and tombstones is what makes
+        // that clean: a later sign-in to a new account runs a first sync
+        // instead of resuming a dead one's watermark.
+        await clearSyncState();
+        await signOut();
+        return true;
+      } catch (caught) {
+        trackAccountError("delete-account", caught);
+        setError(describeError(caught));
+        return false;
+      }
+    },
+    [remote, email, signOut],
+  );
+
   // The guarded "Clear all data" reset, routed by sign-in state. Only an
   // unlocked session may destroy cloud data: it tombstones every row and
   // pushes. Signed out or locked signs out and wipes all local stores
@@ -896,6 +954,7 @@ export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
       changePassword,
       recoverWithKey,
       signOut,
+      deleteAccount,
       resetAllData,
       importData,
       unlocked,
@@ -923,6 +982,7 @@ export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
       changePassword,
       recoverWithKey,
       signOut,
+      deleteAccount,
       resetAllData,
       importData,
       unlocked,

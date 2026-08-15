@@ -13,6 +13,7 @@ import { supabase } from "@/lib/supabase";
 import {
   AccountError,
   isKeyMaterial,
+  type AccountErrorCode,
   type ActiveSession,
   type KeyMaterial,
   type ProvisionedKeys,
@@ -236,11 +237,16 @@ export const requestReauthentication = async (): Promise<void> => {
   if (error) throw new AccountError("PASSWORD_CHANGE_FAILED", error);
 };
 
-const currentUserId = async (): Promise<string> => {
+// The signed-in user's id. Takes the code to throw with, so a missing session
+// is reported in terms of the flow that hit it rather than always as a failed
+// password change.
+const currentUserId = async (
+  onMissing: AccountErrorCode = "PASSWORD_CHANGE_FAILED",
+): Promise<string> => {
   const {
     data: { user },
   } = await client().auth.getUser();
-  if (!user) throw new AccountError("PASSWORD_CHANGE_FAILED");
+  if (!user) throw new AccountError(onMissing);
   return user.id;
 };
 
@@ -276,6 +282,31 @@ export const stagePasswordRewrap = async (
     })
     .eq("user_id", userId);
   if (error) throw new AccountError("KEY_MATERIAL_FAILED", error);
+};
+
+/**
+ * Delete the account's wrapped keys. Part of account deletion, and ordered
+ * before it: with the key material gone the ciphertext left behind by any
+ * failure is unreadable by anyone, us included.
+ */
+export const deleteKeyMaterial = async (): Promise<void> => {
+  const userId = await currentUserId("ACCOUNT_DELETE_FAILED");
+  const { error } = await client()
+    .from("key_material")
+    .delete()
+    .eq("user_id", userId);
+  if (error) throw new AccountError("KEY_MATERIAL_FAILED", error);
+};
+
+/**
+ * Delete the login itself, through the `delete_account` RPC (migration 0005).
+ * auth.users is not writable with the publishable key, so this is the only way
+ * to free the email address; the row's cascade also sweeps up any data row a
+ * preceding purge missed.
+ */
+export const deleteAuthUser = async (): Promise<void> => {
+  const { error } = await client().rpc("delete_account");
+  if (error) throw new AccountError("ACCOUNT_DELETE_FAILED", error);
 };
 
 /** Drop the staged previous-password wrap after a successful auth flip. */

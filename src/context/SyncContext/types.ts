@@ -68,6 +68,14 @@ export interface SyncContextValue {
   /** Sign out; when `clearLocal` is true, also wipe local browser data. */
   signOut: (clearLocal?: boolean) => Promise<void>;
   /**
+   * Delete the account: erase every synced row and the login itself, then sign
+   * out. This device keeps its events, categories, and settings and returns to
+   * local-only. Re-checks the password and a fresh TOTP code before destroying
+   * anything. Returns false and sets `error` on failure, leaving the session
+   * signed in so the user can retry.
+   */
+  deleteAccount: (password: string, code: string) => Promise<boolean>;
+  /**
    * The guarded "Clear all data" reset. Signed in and unlocked it tombstones
    * every row and pushes, clearing the account on the server and every device.
    * Signed out or locked it wipes this device only (no tombstones, cursor and

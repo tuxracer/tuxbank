@@ -581,7 +581,7 @@ so there is no server code of ours. Config lives in `VITE_SUPABASE_URL` and
 gitignored `.env.local`, template in `.env.example`). The applied schema is
 recorded in `supabase/migrations/` (`0001_e2ee_sync.sql`,
 `0002_server_updated_at.sql`, `0003_password_rewrap_staging.sql`,
-`0004_settings_sync.sql`). Step-by-step
+`0004_settings_sync.sql`, `0005_delete_account.sql`). Step-by-step
 setup instructions (create the project, apply the schema, configure auth, set
 the env vars) live in [docs/sync.md](sync.md).
 
@@ -610,6 +610,13 @@ Four tables, all keyed by `user_id` (= `auth.users.id`):
 (`user_id = auth.uid()`) with a restrictive `aal2` policy
 (`auth.jwt() ->> 'aal' = 'aal2'`). The `aal2` clause is what makes TOTP
 mandatory at the database, not just in the UI.
+
+The one piece of privileged SQL is `public.delete_account()` (0005), a
+`security definer` function that deletes the caller's own `auth.users` row.
+`auth.users` is not writable with the publishable key, so without it a deleted
+account would keep its email address reserved forever. The function re-checks
+what RLS would have (an authenticated caller, `aal2`) and touches nothing but
+`auth.uid()`'s own row; every table's `user_id` cascades from it.
 
 ### Encryption and keys (`src/lib/crypto`, `src/lib/account`)
 
@@ -880,6 +887,21 @@ to a **locked** state until the user re-enters their password.
   state, or recover from the locked state with the recovery key (which unlocks
   the DEK and sets a new password). Both support Supabase "Secure password
   change" by prompting for an emailed reauthentication code when required.
+- **Delete account:** the exit for someone who wants to keep their calendar and
+  stop syncing it anywhere. Offered from the synced state, behind three gates
+  typed together: the password (which must unwrap the account's DEK), a fresh
+  TOTP code, and the phrase `delete <email>`. Nothing is destroyed until all
+  three pass. The order that follows is deliberate — every synced table
+  (`purgeAccountData`, which deletes rows outright rather than tombstoning
+  them), then `key_material`, then the login via the `delete_account` RPC — so
+  an interrupted deletion always leaves less readable behind than it started
+  with, and the cascade has nothing left to sweep by the time the privileged
+  step runs. Locally it then calls `clearSyncState()`, which drops the cursor,
+  outbox, tombstones, and cached key while keeping every event, category, and
+  setting: the device goes back to local-only exactly as it was before signing
+  in, and a later sign-in to a new account runs a clean first sync instead of
+  resuming a dead account's watermark. A failure at any step leaves the session
+  signed in so the user can retry; only a total success signs out.
 
 ### Device linking (QR sign-in)
 

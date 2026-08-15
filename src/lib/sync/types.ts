@@ -34,6 +34,12 @@ export interface SyncRemote {
   push(table: string, rows: PushRow[]): Promise<void>;
   /** How many live (non-deleted) rows the table holds. Transfers no ciphertext. */
   count(table: string): Promise<number>;
+  /**
+   * Erase every row the account holds in the table, tombstones included. Not
+   * part of syncing: this is the account-deletion path, where rows are removed
+   * outright rather than marked deleted for other devices to pull.
+   */
+  purge(table: string): Promise<void>;
 }
 
 /** How many events each side holds when a first sync finds data on both. */

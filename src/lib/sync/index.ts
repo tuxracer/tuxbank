@@ -68,6 +68,19 @@ export const detectSignInConflict = async (
 };
 
 /**
+ * Erase every synced collection the account holds. Used by account deletion,
+ * where the rows are going away for good, so nothing is tombstoned and no
+ * cursor moves. Runs table by table and stops at the first failure: a caller
+ * reporting a partial deletion is better than one reporting a clean sweep it
+ * did not make.
+ */
+export const purgeAccountData = async (remote: SyncRemote): Promise<void> => {
+  for (const { table } of SYNC_TABLES) {
+    await remote.purge(table);
+  }
+};
+
+/**
  * The AEAD additional data binding a row's plaintext metadata to its
  * ciphertext. The server stores this metadata in the clear (it routes sync),
  * so without the binding a malicious or compromised backend could replay an
@@ -331,6 +344,22 @@ export const createSupabaseRemote = (): SyncRemote | null => {
       const { error } = await client
         .from(table)
         .upsert(rows)
+        .abortSignal(AbortSignal.timeout(SYNC_REQUEST_TIMEOUT_MS));
+      if (error) throw new SyncError("REMOTE_FAILED", error);
+    },
+    // Scoped to the caller's own id as well as by RLS: PostgREST refuses an
+    // unfiltered delete, and an explicit owner filter is the right one to give
+    // it rather than a filter that merely matches every row.
+    purge: async (table) => {
+      const {
+        data: { session },
+      } = await client.auth.getSession();
+      const userId = session?.user.id;
+      if (!userId) throw new SyncError("NOT_CONFIGURED");
+      const { error } = await client
+        .from(table)
+        .delete()
+        .eq("user_id", userId)
         .abortSignal(AbortSignal.timeout(SYNC_REQUEST_TIMEOUT_MS));
       if (error) throw new SyncError("REMOTE_FAILED", error);
     },

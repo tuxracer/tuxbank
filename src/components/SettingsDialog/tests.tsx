@@ -31,6 +31,7 @@ const syncValue: SyncContextValue = {
   changePassword: vi.fn(),
   recoverWithKey: vi.fn(),
   signOut: vi.fn(),
+  deleteAccount: vi.fn(),
   resetAllData: vi.fn(),
   importData: vi.fn(),
   unlocked: true,

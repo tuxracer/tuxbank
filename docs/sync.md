@@ -28,6 +28,10 @@ Run every file in [`supabase/migrations/`](../supabase/migrations/), in order:
   password change uses.
 - `0004_settings_sync.sql` creates the `settings` table (same shape and
   policies as the others) so display preferences sync with the account.
+- `0005_delete_account.sql` adds the `delete_account()` function that lets a
+  signed-in user delete their own login. Run it as the project owner (the
+  dashboard SQL Editor and `supabase db push` both do), since it writes to
+  `auth.users`.
 
 An existing project that already ran an earlier migration only needs the ones
 added since.
@@ -95,6 +99,19 @@ account, you are asked which set to keep before anything syncs:
 
 The two deleting options ask you to type `delete` first. Until you choose,
 nothing syncs in either direction, and the SYNC button shows an ACTION badge.
+
+## Deleting your account
+
+Delete account, in the SYNC pane, ends the account for good: every event,
+category, and setting it holds is erased from the database, the encrypted keys
+go with them, and the login is removed so the email is free again. It asks for
+your password, a current two-factor code, and the phrase `delete YOUR-EMAIL`
+before anything is touched.
+
+The calendar on the device you delete from is kept. It goes back to local-only,
+exactly as it was before you signed in, which is the point of the flow: keep the
+data, stop syncing it. Other devices that were signed into the account keep
+their local copies too, but they cannot sync again and should be signed out.
 
 ## Verify it worked
 

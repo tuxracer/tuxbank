@@ -6,6 +6,7 @@ import type { SyncContextValue } from "@/context/SyncContext";
 
 const mocks = vi.hoisted(() => ({
   createDeviceLink: vi.fn(),
+  deleteAccount: vi.fn(),
 }));
 
 const syncValue: SyncContextValue = {
@@ -27,6 +28,7 @@ const syncValue: SyncContextValue = {
   changePassword: vi.fn(),
   recoverWithKey: vi.fn(),
   signOut: vi.fn(),
+  deleteAccount: mocks.deleteAccount,
   resetAllData: vi.fn(),
   importData: vi.fn(),
   unlocked: true,
@@ -206,6 +208,57 @@ describe("SyncSettings sign-in conflict", () => {
       screen.getByRole("button", { name: /merge both/i }),
     ).toBeInTheDocument();
     expect(syncValue.resolveSignInChoice).not.toHaveBeenCalled();
+  });
+});
+
+describe("SyncSettings delete account", () => {
+  beforeEach(() => {
+    mocks.deleteAccount.mockReset();
+    mocks.deleteAccount.mockResolvedValue(true);
+    syncValue.status = "synced";
+    syncValue.step = "idle";
+  });
+
+  // All three gates satisfied, so a test can relax exactly one of them.
+  const openDeletePanel = (
+    fields: { password?: string; code?: string; confirm?: string } = {},
+  ) => {
+    render(<SyncSettings />);
+    fireEvent.click(screen.getByRole("button", { name: /delete account/i }));
+    fireEvent.change(screen.getByLabelText(/^password$/i), {
+      target: { value: fields.password ?? "pw-123456" },
+    });
+    fireEvent.change(screen.getByLabelText(/two-factor code/i), {
+      target: { value: fields.code ?? "123456" },
+    });
+    fireEvent.change(screen.getByTestId("delete-account-confirm"), {
+      target: { value: fields.confirm ?? "delete a@b.com" },
+    });
+    return screen.getByTestId("delete-account-button");
+  };
+
+  it("deletes once the password, code, and phrase are all in", async () => {
+    const button = openDeletePanel();
+    expect(button).toBeEnabled();
+
+    fireEvent.click(button);
+
+    await waitFor(() =>
+      expect(mocks.deleteAccount).toHaveBeenCalledWith("pw-123456", "123456"),
+    );
+  });
+
+  it.each([
+    ["the password is missing", { password: "" }],
+    ["the code is short", { code: "12345" }],
+    ["the phrase omits the email", { confirm: "delete" }],
+    ["the phrase names another account", { confirm: "delete other@b.com" }],
+  ])("stays disabled when %s", (_label, fields) => {
+    expect(openDeletePanel(fields)).toBeDisabled();
+  });
+
+  it("accepts the phrase with stray case and whitespace", () => {
+    expect(openDeletePanel({ confirm: "  Delete A@B.com " })).toBeEnabled();
   });
 });
 

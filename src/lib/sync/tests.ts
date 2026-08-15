@@ -152,6 +152,9 @@ const makeFakeRemote = () => {
     },
     count: async (table) =>
       [...tables[table].values()].filter((r) => !r.deleted).length,
+    purge: async (table) => {
+      tables[table].clear();
+    },
   };
   return { tables, remote, seed };
 };

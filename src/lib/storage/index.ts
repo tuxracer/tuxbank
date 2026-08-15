@@ -740,6 +740,33 @@ export const clearLocalData = async (): Promise<void> => {
 };
 
 /**
+ * Drop everything that ties this device to an account — the pull cursor, the
+ * pending outbox, tombstones, and the cached data key — and keep every event,
+ * category, and setting. The inverse of clearLocalData: that one keeps the
+ * account and wipes the device, this one keeps the device and lets the account
+ * go. Used after deleting an account, so the calendar carries on exactly as it
+ * did before signing in, and a later sign-in starts a clean first sync instead
+ * of resuming a dead account's cursor.
+ */
+export const clearSyncState = async (): Promise<void> => {
+  try {
+    const db = await getDb();
+    const tx = db.transaction(
+      [TOMBSTONE_STORE, SYNC_META_STORE, OUTBOX_STORE],
+      "readwrite",
+    );
+    await Promise.all([
+      tx.objectStore(TOMBSTONE_STORE).clear(),
+      tx.objectStore(SYNC_META_STORE).clear(),
+      tx.objectStore(OUTBOX_STORE).clear(),
+    ]);
+    await tx.done;
+  } catch (error) {
+    throw toWriteError(error);
+  }
+};
+
+/**
  * Delete the entire local database. Recovery path for an OPEN_FAILED database
  * (e.g. one written by a newer, incompatible build) that cannot be opened to
  * clear normally; the next access recreates an empty one. Destroys all local

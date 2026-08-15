@@ -16,6 +16,7 @@ export type AnalyticsEventName =
   | "data-imported"
   | "data-cleared"
   | "account-created"
+  | "account-deleted"
   | "signed-in"
   | "sign-in-choice"
   | "sync-error"

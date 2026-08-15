@@ -33,12 +33,21 @@ const mocks = vi.hoisted(() => ({
   unlockWithKek: vi.fn(),
   deriveKeys: vi.fn(),
   toastError: vi.fn(),
+  purge: vi.fn(),
+  deleteKeyMaterial: vi.fn(),
+  deleteAuthUser: vi.fn(),
 }));
 
-vi.mock("@/lib/account", () => ({
+vi.mock("@/lib/account", async (importOriginal) => ({
+  // AccountError is a real class the provider throws; only the network-facing
+  // functions are replaced.
+  AccountError: (await importOriginal<typeof import("@/lib/account")>())
+    .AccountError,
   getActiveSession: mocks.getActiveSession,
   signOut: mocks.signOut,
   isAccountError: () => false,
+  deleteKeyMaterial: mocks.deleteKeyMaterial,
+  deleteAuthUser: mocks.deleteAuthUser,
   enrollTotp: vi.fn(),
   fetchKeyMaterial: mocks.fetchKeyMaterial,
   getTotpFactorId: mocks.getTotpFactorId,
@@ -61,7 +70,7 @@ vi.mock("@/lib/sync", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/sync")>();
   return {
     ...actual,
-    createSupabaseRemote: () => ({ count: mocks.count }),
+    createSupabaseRemote: () => ({ count: mocks.count, purge: mocks.purge }),
     runSync: mocks.runSync,
   };
 });
@@ -324,6 +333,113 @@ describe("SyncContext resetAllData", () => {
     // The cursor survives so the follow-up sync is incremental.
     expect(await getSyncCursor()).toBe("2026-06-01T00:00:00.000Z");
     expect(mocks.runSync).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("SyncContext deleteAccount", () => {
+  beforeEach(async () => {
+    await resetDbForTests();
+    for (const mock of [
+      mocks.signOut,
+      mocks.runSync,
+      mocks.purge,
+      mocks.deleteKeyMaterial,
+      mocks.deleteAuthUser,
+      mocks.verifyTotp,
+      mocks.getTotpFactorId,
+      mocks.unlockWithKek,
+      mocks.deriveKeys,
+      mocks.fetchKeyMaterial,
+    ]) {
+      mock.mockReset();
+    }
+    mocks.signOut.mockResolvedValue(undefined);
+    mocks.runSync.mockResolvedValue({ pushed: 0, pulled: 0 });
+    mocks.getActiveSession.mockResolvedValue({
+      email: "user@example.com",
+      aal2: true,
+    });
+    mocks.fetchKeyMaterial.mockResolvedValue({ wrapped_dek: "x" });
+    mocks.deriveKeys.mockResolvedValue({ kek: new Uint8Array([9]) });
+    mocks.unlockWithKek.mockResolvedValue(new Uint8Array([1, 2, 3]));
+    mocks.getTotpFactorId.mockResolvedValue("factor-1");
+    mocks.verifyTotp.mockResolvedValue(undefined);
+    mocks.purge.mockResolvedValue(undefined);
+    mocks.deleteKeyMaterial.mockResolvedValue(undefined);
+    mocks.deleteAuthUser.mockResolvedValue(undefined);
+  });
+
+  const renderUnlocked = async () => {
+    await setStoredDek(new Uint8Array([1, 2, 3, 4, 5]));
+    await seedLocalData();
+    const { result } = renderHook(() => useSync(), { wrapper });
+    await waitFor(() => expect(result.current.status).toBe("synced"));
+    return result;
+  };
+
+  it("erases the account and keeps this device's data", async () => {
+    const result = await renderUnlocked();
+
+    await act(async () => {
+      expect(await result.current.deleteAccount("pw", "123456")).toBe(true);
+    });
+
+    // Every synced collection is purged, then the login itself.
+    expect(mocks.purge.mock.calls.map(([table]) => table)).toEqual([
+      "events",
+      "categories",
+      "settings",
+    ]);
+    expect(mocks.deleteKeyMaterial).toHaveBeenCalled();
+    expect(mocks.deleteAuthUser).toHaveBeenCalled();
+    await waitFor(() => expect(result.current.status).toBe("off"));
+    // The point of the flow: the calendar survives, minus everything that tied
+    // it to the deleted account.
+    expect((await getAllEvents()).map((e) => e.id)).toEqual(["e1"]);
+    expect(await getTombstones()).toEqual([]);
+    expect(await getSyncCursor()).toBeUndefined();
+    expect(await getStoredDek()).toBeUndefined();
+  });
+
+  it("destroys nothing when the two-factor code is rejected", async () => {
+    mocks.verifyTotp.mockRejectedValue(new Error("MFA_VERIFY_FAILED"));
+    const result = await renderUnlocked();
+
+    await act(async () => {
+      expect(await result.current.deleteAccount("pw", "000000")).toBe(false);
+    });
+
+    expect(mocks.purge).not.toHaveBeenCalled();
+    expect(mocks.deleteAuthUser).not.toHaveBeenCalled();
+    expect(result.current.status).not.toBe("off");
+    expect(await getSyncCursor()).toBe("2026-06-01T00:00:00.000Z");
+  });
+
+  it("destroys nothing when the password does not unwrap the data key", async () => {
+    mocks.unlockWithKek.mockRejectedValue(new Error("bad key"));
+    const result = await renderUnlocked();
+
+    await act(async () => {
+      expect(await result.current.deleteAccount("wrong", "123456")).toBe(false);
+    });
+
+    expect(mocks.verifyTotp).not.toHaveBeenCalled();
+    expect(mocks.purge).not.toHaveBeenCalled();
+    await waitFor(() => expect(result.current.error).toBe("WRONG_PASSWORD"));
+  });
+
+  it("stays signed in when the account itself could not be removed", async () => {
+    mocks.deleteAuthUser.mockRejectedValue(new Error("ACCOUNT_DELETE_FAILED"));
+    const result = await renderUnlocked();
+
+    await act(async () => {
+      expect(await result.current.deleteAccount("pw", "123456")).toBe(false);
+    });
+
+    // The session survives so the user can retry, and so does their calendar.
+    expect(mocks.signOut).not.toHaveBeenCalled();
+    expect(result.current.status).not.toBe("off");
+    expect((await getAllEvents()).map((e) => e.id)).toEqual(["e1"]);
   });
 });
 

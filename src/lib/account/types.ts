@@ -58,7 +58,9 @@ export type AccountErrorCode =
   | "NO_KEY_MATERIAL"
   | "KEY_MATERIAL_FAILED"
   | "PASSWORD_CHANGE_FAILED"
-  | "REAUTH_REQUIRED";
+  | "REAUTH_REQUIRED"
+  | "WRONG_PASSWORD"
+  | "ACCOUNT_DELETE_FAILED";
 
 export class AccountError extends Error {
   readonly code: AccountErrorCode;
