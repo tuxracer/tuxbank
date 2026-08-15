@@ -463,13 +463,25 @@ describe("SyncContext offline awareness", () => {
     expect(result.current.status).toBe("locked");
   });
 
-  it("exposes the number of unpushed local changes", async () => {
-    mocks.getActiveSession.mockResolvedValue(null); // signed out: still counted
+  it("exposes the number of unpushed local changes while unlocked", async () => {
+    await setStoredDek(new Uint8Array([1, 2, 3, 4, 5])); // resumes unlocked
     await seedLocalData(); // e1 (2026-06-09) + e2 tombstone (now), cursor 2026-06-01
 
     const { result } = renderHook(() => useSync(), { wrapper });
 
     await waitFor(() => expect(result.current.pendingCount).toBe(2));
+  });
+
+  it("skips the passive count when signed out, but readPendingCount still counts", async () => {
+    mocks.getActiveSession.mockResolvedValue(null);
+    await seedLocalData();
+
+    const { result } = renderHook(() => useSync(), { wrapper });
+    await waitFor(() => expect(result.current.status).toBe("off"));
+
+    expect(result.current.pendingCount).toBe(0);
+    // The sign-out warning reads the count on demand regardless of state.
+    await expect(result.current.readPendingCount()).resolves.toBe(2);
   });
 
   it(

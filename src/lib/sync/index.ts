@@ -43,9 +43,11 @@ export * from "./types";
  */
 export const countPendingChanges = async (): Promise<number> => {
   if (!(await hasEverSynced())) {
-    const events = await getAllEvents();
-    const categories = await getAllCategories();
-    const tombstones = await getTombstones();
+    const [events, categories, tombstones] = await Promise.all([
+      getAllEvents(),
+      getAllCategories(),
+      getTombstones(),
+    ]);
     return events.length + categories.length + tombstones.length;
   }
   return (await getOutboxEntries()).length;

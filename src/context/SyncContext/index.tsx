@@ -188,12 +188,15 @@ export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   // Best effort: a failed storage read keeps the previous count rather than
-  // surfacing an error for a purely informational number.
+  // surfacing an error for a purely informational number. Skipped entirely
+  // when sync is unconfigured or the vault is locked — no UI shows the count
+  // then, and a local-only user should not pay storage reads on every edit.
   const refreshPendingCount = useCallback(() => {
+    if (!remote || !dekRef.current) return;
     void countPendingChanges()
       .then(setPendingCount)
       .catch(() => undefined);
-  }, []);
+  }, [remote]);
 
   // The awaitable form, for callers that need the count immediately after a
   // sync rather than on the next render (the sign-out warning). Rejects on a
@@ -289,8 +292,7 @@ export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
   }, [doSync]);
 
   // Keep the pending count fresh after local edits (it also refreshes after
-  // every sync attempt). Runs even when locked or signed out; the dialog only
-  // shows it in unlocked states.
+  // every sync attempt). refreshPendingCount self-gates on an unlocked DEK.
   useEffect(() => {
     refreshPendingCount();
   }, [events, categories, refreshPendingCount]);
@@ -809,34 +811,67 @@ export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
 
   const unlocked = !isPreSync(status);
 
-  const value: SyncContextValue = {
-    status,
-    step,
-    email,
-    enrollment,
-    recoveryKey,
-    lastSyncedAt,
-    pendingCount,
-    readPendingCount,
-    error,
-    configured: remote !== null,
-    createAccount,
-    confirmTotp,
-    finishCreate,
-    signIn,
-    unlock,
-    signInWithLink,
-    createDeviceLink,
-    changePassword,
-    recoverWithKey,
-    signOut,
-    resetAllData,
-    importData,
-    unlocked,
-    syncNow,
-    signInChoice,
-    resolveSignInChoice,
-  };
+  // Memoized: the provider re-renders on every calendar change (it consumes
+  // useCalendar), and without a stable identity every useSync consumer would
+  // re-render with it even when no sync state moved.
+  const value: SyncContextValue = useMemo(
+    () => ({
+      status,
+      step,
+      email,
+      enrollment,
+      recoveryKey,
+      lastSyncedAt,
+      pendingCount,
+      readPendingCount,
+      error,
+      configured: remote !== null,
+      createAccount,
+      confirmTotp,
+      finishCreate,
+      signIn,
+      unlock,
+      signInWithLink,
+      createDeviceLink,
+      changePassword,
+      recoverWithKey,
+      signOut,
+      resetAllData,
+      importData,
+      unlocked,
+      syncNow,
+      signInChoice,
+      resolveSignInChoice,
+    }),
+    [
+      status,
+      step,
+      email,
+      enrollment,
+      recoveryKey,
+      lastSyncedAt,
+      pendingCount,
+      readPendingCount,
+      error,
+      remote,
+      createAccount,
+      confirmTotp,
+      finishCreate,
+      signIn,
+      unlock,
+      signInWithLink,
+      createDeviceLink,
+      changePassword,
+      recoverWithKey,
+      signOut,
+      resetAllData,
+      importData,
+      unlocked,
+      syncNow,
+      signInChoice,
+      resolveSignInChoice,
+    ],
+  );
 
   return <SyncContext.Provider value={value}>{children}</SyncContext.Provider>;
 };
