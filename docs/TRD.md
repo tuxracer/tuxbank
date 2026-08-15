@@ -772,7 +772,11 @@ device that is already signed in ignores scanned links.
   still unpushed afterwards (offline, or a failing account) gets a second
   confirm naming how many changes are about to be lost. The count is read from
   storage after the sync, not from the pre-sync render.
-- Security is bounded by **password strength**; a minimum length is enforced.
+- Security is bounded by **password strength**. The app imposes no length or
+  complexity rule beyond a non-empty value: TOTP is mandatory on every account,
+  and composition rules mostly produce passwords people cannot remember. The
+  create-account form says the password protects the encryption key and asks for
+  a strong one, then trusts the user.
 - A **lost authenticator** (no 2FA recovery factor exists) locks the user out of
   the cloud copy. Local data is unaffected; the path forward is a fresh account.
 - A **forgotten password plus a lost recovery key** makes the cloud data

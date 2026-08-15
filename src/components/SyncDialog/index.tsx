@@ -13,7 +13,6 @@ import { renderSVG } from "uqr";
 import { useSync } from "@/context/SyncContext";
 import type { SyncContextValue, SyncStatus } from "@/context/SyncContext";
 import { markLandingDismissed } from "@/lib/landingGate";
-import { MIN_PASSWORD_LENGTH } from "./consts";
 
 /** Statuses where the account is active (signed in and unlocked). */
 const ACCOUNT_ACTIVE_STATUSES: readonly SyncStatus[] = [
@@ -180,7 +179,9 @@ export const SyncDialog = ({ open, onOpenChange }: SyncDialogProps) => {
     window.location.reload();
   };
 
-  const passwordTooShort = password.length < MIN_PASSWORD_LENGTH;
+  // Any non-empty password is accepted: TOTP is mandatory, so length and
+  // complexity rules only push people toward passwords they cannot remember.
+  const passwordMissing = password.length === 0;
 
   return (
     <Dialog
@@ -366,11 +367,6 @@ export const SyncDialog = ({ open, onOpenChange }: SyncDialogProps) => {
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                   />
-                  {passwordTooShort && (
-                    <p className="cy-mono text-[10px] text-[color:var(--cy-muted)]">
-                      At least {MIN_PASSWORD_LENGTH} characters.
-                    </p>
-                  )}
                   {confirmPassword.length > 0 &&
                     password !== confirmPassword && (
                       <p className="cy-mono text-[10px] text-[color:var(--cy-magenta)]">
@@ -380,7 +376,7 @@ export const SyncDialog = ({ open, onOpenChange }: SyncDialogProps) => {
                   <Button
                     className="cy-btn justify-start"
                     disabled={
-                      busy || passwordTooShort || password !== confirmPassword
+                      busy || passwordMissing || password !== confirmPassword
                     }
                     onClick={async () => {
                       setBusy(true);
@@ -551,7 +547,7 @@ export const SyncDialog = ({ open, onOpenChange }: SyncDialogProps) => {
                   disabled={
                     busy ||
                     !recoveryKeyInput ||
-                    passwordTooShort ||
+                    passwordMissing ||
                     password !== confirmPassword
                   }
                   onClick={async () => {
@@ -845,10 +841,10 @@ export const SyncDialog = ({ open, onOpenChange }: SyncDialogProps) => {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                     />
-                    {mode === "create" && passwordTooShort && (
+                    {mode === "create" && (
                       <p className="cy-mono text-[10px] text-[color:var(--cy-muted)]">
-                        At least {MIN_PASSWORD_LENGTH} characters. This password
-                        protects your encryption key; choose a strong one.
+                        This password protects your encryption key; choose a
+                        strong one.
                       </p>
                     )}
                     {mode === "create" && (
@@ -874,8 +870,7 @@ export const SyncDialog = ({ open, onOpenChange }: SyncDialogProps) => {
                         busy ||
                         !email ||
                         !password ||
-                        (mode === "create" &&
-                          (passwordTooShort || password !== confirmPassword))
+                        (mode === "create" && password !== confirmPassword)
                       }
                       onClick={() =>
                         void run(() =>
