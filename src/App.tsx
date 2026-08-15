@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { parseISO } from "date-fns";
 import {
   DndContext,
@@ -145,7 +145,13 @@ const CalendarScreen = ({ entrance = false }: { entrance?: boolean }) => {
     [cal.occurrencesByDate],
   );
 
-  const openCreate = (date: string) => setEditor({ mode: "create", date });
+  // openCreate and openEdit reach every DayCell through MonthGrid, and
+  // DayCell is memoized: a fresh identity per render would re-render all 42
+  // cells on every screen-level state change (drag start/end, dialogs).
+  const openCreate = useCallback(
+    (date: string) => setEditor({ mode: "create", date }),
+    [],
+  );
 
   // Which layout the action came from; the compact layout swaps the New Event
   // button for the day panel's + Add. (SettingsDialog reports its own
@@ -182,10 +188,13 @@ const CalendarScreen = ({ entrance = false }: { entrance?: boolean }) => {
     if (e.key.toLowerCase() === "n" && !editor && !scope)
       openCreate(cal.todayISO);
   };
-  const openEdit = (occurrence: Occurrence) => {
-    const event = cal.events.find((e) => e.id === occurrence.eventId);
-    if (event) setEditor({ mode: "edit", occurrence, event });
-  };
+  const openEdit = useCallback(
+    (occurrence: Occurrence) => {
+      const event = cal.events.find((e) => e.id === occurrence.eventId);
+      if (event) setEditor({ mode: "edit", occurrence, event });
+    },
+    [cal.events],
+  );
 
   const handleSubmit = (input: EventInput) => {
     if (!editor) return;
