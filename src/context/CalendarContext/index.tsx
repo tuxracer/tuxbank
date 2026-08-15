@@ -239,8 +239,8 @@ export const CalendarProvider = ({
   }, [events, cells, hiddenCategoryIds, getCategory]);
 
   const balancesByDate = useMemo(
-    () => computeRunningBalances(events, cells, getCategory),
-    [events, cells, getCategory],
+    () => computeRunningBalances(events, cells, getCategory, hiddenCategoryIds),
+    [events, cells, getCategory, hiddenCategoryIds],
   );
 
   const createEvent = useCallback(

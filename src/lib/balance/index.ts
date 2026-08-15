@@ -18,26 +18,34 @@ const sumSigned = (occurrences: Occurrence[]): number =>
     0,
   );
 
-/** Running account balance for each visible day: starts at 0, cumulative across all transactions up to & including that day. */
+/**
+ * Running account balance for each visible day: starts at 0, cumulative across
+ * all transactions up to & including that day. Occurrences whose (resolved)
+ * category is hidden are excluded, so the balances always sum exactly the
+ * events the calendar is showing.
+ */
 export const computeRunningBalances = (
   events: CalendarEvent[],
   cells: DateCell[],
   getCategory: CategoryResolver,
+  hiddenCategoryIds: ReadonlySet<string> = new Set(),
 ): Record<string, number> => {
   const windowStart = cells[0].iso;
   const windowEnd = cells[cells.length - 1].iso;
   const beforeWindow = dayBeforeISO(windowStart);
+  const visible = (o: Occurrence) => !hiddenCategoryIds.has(o.category.id);
 
   let carryIn = 0;
   for (const event of events) {
     if (event.date > beforeWindow) continue;
     carryIn += sumSigned(
-      expandEvent(event, event.date, beforeWindow, getCategory),
+      expandEvent(event, event.date, beforeWindow, getCategory).filter(visible),
     );
   }
 
   const netByDate: Record<string, number> = {};
   for (const o of expandEvents(events, windowStart, windowEnd, getCategory)) {
+    if (!visible(o)) continue;
     netByDate[o.date] =
       (netByDate[o.date] ?? 0) + signedAmount(o.direction, o.amount);
   }

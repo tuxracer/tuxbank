@@ -42,6 +42,35 @@ describe("computeRunningBalances", () => {
     expect(b["2026-05-11"]).toBe(100);
   });
 
+  it("excludes hidden categories from both the carry-in and the window", () => {
+    const events = [
+      // Hidden withdrawal before the window (carry-in) and inside it.
+      evt({
+        id: "a",
+        date: "2026-04-01",
+        categoryId: "finance",
+        amount: 500,
+        direction: "withdrawal",
+      }),
+      evt({
+        id: "b",
+        date: "2026-05-05",
+        categoryId: "finance",
+        amount: 40,
+        direction: "withdrawal",
+      }),
+      evt({ id: "c", date: "2026-05-10", amount: 100, direction: "deposit" }),
+    ];
+    const b = computeRunningBalances(
+      events,
+      may,
+      getCategory,
+      new Set(["finance"]),
+    );
+    expect(b["2026-05-05"]).toBe(0);
+    expect(b["2026-05-10"]).toBe(100);
+  });
+
   it("nets deposits and withdrawals cumulatively, can go negative", () => {
     const events = [
       evt({
