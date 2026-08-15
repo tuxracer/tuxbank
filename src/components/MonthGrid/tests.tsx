@@ -459,6 +459,53 @@ describe("MonthGrid wheel navigation", () => {
     expect(onNextMonth).toHaveBeenCalledOnce();
   });
 
+  it("navigates again on a fresh flick inside the decaying momentum tail", () => {
+    const { onNextMonth } = renderWheelGrid();
+    const grid = screen.getByRole("grid");
+    fireEvent.wheel(grid, { deltaY: 100 });
+    // Momentum decays after the fingers lift...
+    for (const deltaY of [60, 40, 20]) {
+      vi.advanceTimersByTime(16);
+      fireEvent.wheel(grid, { deltaY });
+    }
+    expect(onNextMonth).toHaveBeenCalledOnce();
+    // ...then a second flick jumps well past the tail and lands right away.
+    vi.advanceTimersByTime(16);
+    fireEvent.wheel(grid, { deltaY: 80 });
+    expect(onNextMonth).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps swallowing the same flick's still-rising finger travel", () => {
+    const { onNextMonth } = renderWheelGrid();
+    const grid = screen.getByRole("grid");
+    // One vigorous flick: the threshold trips mid-gesture while the finger
+    // deltas are still growing; the rest of the ramp must not fire again.
+    for (const deltaY of [30, 40, 80, 120, 160]) {
+      fireEvent.wheel(grid, { deltaY });
+      vi.advanceTimersByTime(16);
+    }
+    expect(onNextMonth).toHaveBeenCalledOnce();
+  });
+
+  it("navigates the other way on a direction reversal inside the tail", () => {
+    const { onPrevMonth, onNextMonth } = renderWheelGrid();
+    const grid = screen.getByRole("grid");
+    fireEvent.wheel(grid, { deltaY: 100 });
+    vi.advanceTimersByTime(16);
+    fireEvent.wheel(grid, { deltaY: 40 });
+    vi.advanceTimersByTime(16);
+    fireEvent.wheel(grid, { deltaY: -80 });
+    expect(onNextMonth).toHaveBeenCalledOnce();
+    expect(onPrevMonth).toHaveBeenCalledOnce();
+  });
+
+  it("ignores horizontally dominated scrolls", () => {
+    const { onPrevMonth, onNextMonth } = renderWheelGrid();
+    fireEvent.wheel(screen.getByRole("grid"), { deltaX: 200, deltaY: 30 });
+    expect(onNextMonth).not.toHaveBeenCalled();
+    expect(onPrevMonth).not.toHaveBeenCalled();
+  });
+
   it("treats a scroll after a quiet gap as a new gesture", () => {
     const { onNextMonth } = renderWheelGrid();
     const grid = screen.getByRole("grid");
