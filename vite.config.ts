@@ -93,6 +93,11 @@ const pwa = () =>
 export default defineConfig({
   plugins: [react(), tailwindcss(), commitShaMeta(), pwa()],
   resolve: { tsconfigPaths: true },
+  // Ship the syntax we write. Vite's default target downlevels to the
+  // baseline-widely-available browsers; this app only supports evergreen
+  // engines (see the modern-Intl-baseline rule in CLAUDE.md), so nothing is
+  // transpiled down and no helper code is emitted.
+  build: { target: "esnext" },
   test: {
     environment: "jsdom",
     globals: true,
