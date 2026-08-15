@@ -32,6 +32,12 @@ export const SETTINGS_TABS: readonly {
     title: "Categories",
     description: "Create, rename, recolor, delete",
   },
+  {
+    id: "display",
+    label: "Display",
+    title: "Display",
+    description: "Currency and week start",
+  },
 ];
 
 /**
@@ -42,4 +48,5 @@ export const TAB_OPENED_EVENT: Record<SettingsTab, AnalyticsEventName> = {
   sync: "sync-opened",
   data: "data-opened",
   categories: "categories-opened",
+  display: "display-opened",
 };

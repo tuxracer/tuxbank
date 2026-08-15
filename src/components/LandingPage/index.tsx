@@ -1,5 +1,6 @@
 import { useLayoutEffect, useRef } from "react";
-import { COLS, WEEKDAYS } from "@/components/MonthGrid";
+import { COLS, weekdayLabels } from "@/components/MonthGrid";
+import { WEEK_STARTS_ON } from "@/lib/dateGrid";
 import { RUNTIME_LOCALE } from "@/utils/runtimeLocale";
 import { catColorVar } from "@/utils/categoryColor";
 import { formatCurrency, formatSignedCompact } from "@/utils/formatCurrency";
@@ -168,10 +169,14 @@ const chipStyle = (day: LandingPreviewDay) => ({
   borderLeftColor: day.event ? catColorVar(day.event.color) : undefined,
 });
 
+// The landing shows before any preference can exist, so its previews follow
+// the locale's week start rather than reading the display preferences.
+const PREVIEW_WEEKDAYS = weekdayLabels(WEEK_STARTS_ON);
+
 /** The weekday header row, identical in both previews and in the real grid. */
 const PreviewWeekHead = () => (
   <div className="grid grid-cols-7 gap-1.5" lang={RUNTIME_LOCALE}>
-    {WEEKDAYS.map((day) => (
+    {PREVIEW_WEEKDAYS.map((day) => (
       <div key={day} className="cy-weekhead px-1">
         {day}
       </div>

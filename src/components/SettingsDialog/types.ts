@@ -1,7 +1,7 @@
 import type { CategoriesSettingsProps } from "@/components/CategoriesSettings";
 import type { DataSettingsProps } from "@/components/DataSettings";
 
-export type SettingsTab = "sync" | "data" | "categories";
+export type SettingsTab = "sync" | "data" | "categories" | "display";
 
 export type SettingsDialogProps = {
   open: boolean;

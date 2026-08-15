@@ -19,18 +19,29 @@ export const resolveLocalCurrency = (locale: string): string => {
   }
 };
 
-const LOCAL_CURRENCY = resolveLocalCurrency(RUNTIME_LOCALE);
+/** What "automatic" resolves to: the currency the viewer's region transacts in. */
+export const LOCAL_CURRENCY = resolveLocalCurrency(RUNTIME_LOCALE);
 
-const CURRENCY_FORMAT = new Intl.NumberFormat(undefined, {
-  style: "currency",
-  currency: LOCAL_CURRENCY,
-});
+// One cached formatter per currency: the default plus whatever override the
+// display preferences select, without rebuilding Intl.NumberFormat per call.
+const currencyFormats = new Map<string, Intl.NumberFormat>();
+const currencyFormat = (currency: string): Intl.NumberFormat => {
+  let format = currencyFormats.get(currency);
+  if (!format) {
+    format = new Intl.NumberFormat(undefined, { style: "currency", currency });
+    currencyFormats.set(currency, format);
+  }
+  return format;
+};
+
 const COMPACT = new Intl.NumberFormat(undefined, {
   maximumFractionDigits: 0,
   signDisplay: "always",
 });
 
-export const formatCurrency = (amount: number): string =>
-  CURRENCY_FORMAT.format(amount);
+export const formatCurrency = (
+  amount: number,
+  currency: string = LOCAL_CURRENCY,
+): string => currencyFormat(currency).format(amount);
 export const formatSignedCompact = (amount: number): string =>
   COMPACT.format(amount);

@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { SyncSettings } from "@/components/SyncSettings";
 import DataSettings from "@/components/DataSettings";
 import CategoriesSettings from "@/components/CategoriesSettings";
+import DisplaySettings from "@/components/DisplaySettings";
 import { SyncAttentionDot } from "@/components/SyncAttentionBadge";
 import { useIsCompact } from "@/hooks/useIsCompact";
 import { trackEvent } from "@/lib/analytics";
@@ -45,6 +46,7 @@ const SettingsDialog = ({
     if (t === "sync") return <SyncSettings />;
     if (t === "data")
       return <DataSettings {...data} onClose={() => onOpenChange(false)} />;
+    if (t === "display") return <DisplaySettings />;
     return <CategoriesSettings {...categories} />;
   };
 

@@ -43,6 +43,7 @@ import {
   deleteDatabase,
 } from "@/lib/storage";
 import { subscribeToDataChanges } from "@/lib/tabSync";
+import { useDisplayPreferences } from "@/hooks/useDisplayPreferences";
 import { downloadBlob } from "@/utils/downloadBlob";
 import { computeRunningBalances } from "@/lib/balance";
 
@@ -201,7 +202,11 @@ export const CalendarProvider = ({
     await reloadData();
   }, [reloadData]);
 
-  const cells = useMemo(() => buildMonthGrid(visibleMonth), [visibleMonth]);
+  const { weekStartsOn } = useDisplayPreferences();
+  const cells = useMemo(
+    () => buildMonthGrid(visibleMonth, weekStartsOn),
+    [visibleMonth, weekStartsOn],
+  );
   const todayISO = format(new Date(), "yyyy-MM-dd");
 
   const yearRange = useMemo(() => {

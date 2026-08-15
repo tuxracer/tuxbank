@@ -1,12 +1,13 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { inMonthWeekCount, type DateCell } from "@/lib/dateGrid";
 import DayCell from "@/components/DayCell";
+import { useDisplayPreferences } from "@/hooks/useDisplayPreferences";
 import { useSwipeNavigation } from "@/hooks/useSwipeNavigation";
 import { RUNTIME_LOCALE } from "@/utils/runtimeLocale";
 import { useWheelNavigation } from "@/hooks/useWheelNavigation";
 
 import {
-  WEEKDAYS,
+  weekdayLabels,
   COLS,
   ROW_GAP_PX,
   CHIP_AREA_OVERHEAD_PX,
@@ -68,6 +69,8 @@ const MonthGrid = ({
   onSelectDate,
   onSelectOccurrence,
 }: MonthGridProps) => {
+  const { weekStartsOn } = useDisplayPreferences();
+  const weekdays = useMemo(() => weekdayLabels(weekStartsOn), [weekStartsOn]);
   // Compact (mobile) always fills the full 6-week grid; desktop renders only
   // the weeks the month spans (4-6) so day cells get more height. cells is the
   // full 6-week window from buildMonthGrid either way.
@@ -192,7 +195,7 @@ const MonthGrid = ({
         role="row"
         lang={RUNTIME_LOCALE}
       >
-        {WEEKDAYS.map((d) => (
+        {weekdays.map((d) => (
           <div key={d} className="cy-weekhead px-1" role="columnheader">
             {d}
           </div>

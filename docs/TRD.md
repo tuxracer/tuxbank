@@ -62,7 +62,7 @@ A single person managing their own schedule of **all-day, date-based events**: m
 
 ### 4.1 Month view & navigation
 - On load, the calendar shows the **current month** in the viewer's local time zone, filling the viewport (`100dvh`).
-- A **7-column grid** (week start follows the locale via Intl week info; Sunday where unavailable) renders a fixed **6-week (6×7) matrix** so layout height is stable; leading/trailing days from adjacent months are shown **dimmed**.
+- A **7-column grid** (week start follows the locale via Intl week info, Sunday where unavailable; overridable per device in the Display settings pane) renders a fixed **6-week (6×7) matrix** so layout height is stable; leading/trailing days from adjacent months are shown **dimmed**.
 - The **today** cell is visually emphasized (a yellow inset left edge).
 - **Toolbar** provides: previous month (‹), next month (›), current **month/year label**, **Today** (jump to current month), a **category filter**, and **+ New Event**.
 - A **HUD status line** shows decorative/real system context (e.g., app name, `LOCAL_DB::INDEXEDDB`, record count).
@@ -337,7 +337,7 @@ src/
     DayPanel/               # compact-mode selected-day detail: event chips, running balance, Add button
     DayEventsPopover/       # overflow list (shadcn Popover)
     CategoryCombobox/       # creatable combobox (shadcn Command + Popover); uses useCategorySearch + CategoryCreateRow
-    SettingsDialog/         # one dialog for the three settings panes: tab rail on desktop, full-screen drill-down menu on compact
+    SettingsDialog/         # one dialog for the four settings panes: tab rail on desktop, full-screen drill-down menu on compact
     CategoriesSettings/     # settings pane: rename / recolor / delete categories; search field + CategoryCreateRow for in-pane creation
     CategoryCreateRow/      # "Create <name>" row with CategoryColorPicker; exports useCategorySearch hook
     CategoryColorPicker/    # row of selectable color swatches (used by CategoryCreateRow and CategoriesSettings)
@@ -345,6 +345,7 @@ src/
     EventDialog/            # create/edit form (shadcn Form + react-hook-form/zod, Dialog/Select/Textarea + date picker)
     RecurrenceScopeDialog/  # This / This & following / All (shadcn Dialog + RadioGroup)
     DataSettings/           # settings pane: JSON backup export/import (validate -> confirm -> swap) + guarded clear-all
+    DisplaySettings/        # settings pane: per-device currency + week-start overrides (automatic = follow the locale)
     StorageUnavailableBanner/ # shown when storage fails; offers a reset when the DB is unopenable
     SyncSettings/           # settings pane: optional account sync: create / sign-in / TOTP / recovery-key / change-password
     LandingPage/            # first-visit entry screen; Try Now CTA dismisses it via landingGate
@@ -352,6 +353,7 @@ src/
     CalendarContext/        # visible month, events, CRUD actions (including moveEvent), filter state
     SyncContext/            # optional account-sync state machine; consume via useSync()
   hooks/
+    useDisplayPreferences/  # useSyncExternalStore over lib/displayPreferences; resolved currency + weekStartsOn and setters
     useIsCompact/           # matchMedia hook; true below 640px (Tailwind sm breakpoint)
     useSwipeNavigation/     # compact-mode swipe left/right on the grid changes months
     useWheelNavigation/     # wheel/trackpad scroll on the grid changes months (down = next)
@@ -361,11 +363,13 @@ src/
     recurrence/             # expand(window) + recurrence override/split/move helpers (pure)
     dateGrid/               # month -> 6x7 date matrix; inMonthWeekCount() for the weeks a month spans
     balance/                # running balance from deposits/withdrawals
+    displayPreferences/     # localStorage-backed per-device display overrides (currency, week start); null = automatic
     landingGate/            # localStorage flag for skipping the landing page on return visits
   types/                    # CalendarEvent, Category, Recurrence + type guards
   utils/
     categoryColor/          # PALETTE, DEFAULT_CATEGORY_COLOR, catColorVar
-    formatCurrency/         # Intl.NumberFormat in the viewer's locale and local currency (region -> currency lookup, USD fallback)
+    formatCurrency/         # Intl.NumberFormat in the viewer's locale; currency param defaults to the local currency (region -> currency lookup, USD fallback)
+    weekdayLabel/           # weekday name in the viewer's language (short/long), from a fixed Sunday anchor date
     base64/                 # base64 encode/decode helpers (used by the sync layer)
     runtimeLocale/          # RUNTIME_LOCALE: the resolved default locale; lang attribute for Intl-generated text (document stays lang="en" until the copy is translated)
   components/
@@ -461,7 +465,7 @@ Vitest, **behavior-focused** (verify behavior, not implementation constants, per
   end-to-end-encrypted account feature (see Optional account sync).
 - Personal-scale data volume (hundreds to low thousands of events); in-memory expansion is acceptable.
 - Modern evergreen browser with IndexedDB support and current Intl APIs; no polyfills or fallback data for legacy engines.
-- The week starts on the locale's first weekday (Intl.Locale week info); engines without that API (Firefox, as of 2026) get a Sunday-first week.
+- The week starts on the locale's first weekday (Intl.Locale week info); engines without that API (Firefox, as of 2026) get a Sunday-first week. The Display settings pane can override both the week start and the currency per device (stored in localStorage, deliberately outside the synced dataset).
 
 ## Persistence: IndexedDB
 
@@ -815,7 +819,8 @@ carry no user content (no titles, amounts, dates, categories, or emails).
 | `try-now-clicked` | The landing page's Try Now CTA enters the app | |
 | `new-event-clicked` | The New Event button (full toolbar) or + Add (compact day panel) opens the editor | `layout` |
 | `settings-opened` | The toolbar's Settings button opens the settings dialog | `layout` |
-| `sync-opened` / `data-opened` / `categories-opened` | The matching settings pane becomes visible (a rail tab on desktop, a drilled-in section on compact) | `layout` |
+| `sync-opened` / `data-opened` / `categories-opened` / `display-opened` | The matching settings pane becomes visible (a rail tab on desktop, a drilled-in section on compact) | `layout` |
+| `display-changed` | A display preference is changed in the Display pane | `setting`, `automatic` |
 | `data-exported` | A backup download finishes | |
 | `data-imported` | A backup replaces the current data | `synced` |
 | `data-cleared` | A confirmed "clear all data" finishes | `synced` |
@@ -823,10 +828,13 @@ carry no user content (no titles, amounts, dates, categories, or emails).
 | `signed-in` | The password or device link is accepted, before the 2FA challenge | `method` |
 
 `layout` is `compact` or `full`; `synced` says whether the action also rewrote
-the account's data on every device; `method` is `password` or `device-link`.
+the account's data on every device; `method` is `password` or `device-link`;
+`setting` is `currency` or `week-start` and `automatic` says whether the change
+went back to following the locale.
 `settings-opened` is tracked in `src/App.tsx` where the toolbar button opens
-the dialog; pane opens in `SettingsDialog` (the same event names its three
-standalone predecessor dialogs sent, so the funnels stay comparable), data
+the dialog; pane opens in `SettingsDialog` (the first three panes keep the
+event names their standalone predecessor dialogs sent, so the funnels stay
+comparable), data
 actions in `DataSettings` (on success, not on click), and the account events in
 `SyncContext`, which is the only place the outcome is observable
 (`createAccount` / `signIn` record errors in state rather than throwing).

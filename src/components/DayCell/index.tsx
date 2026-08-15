@@ -3,6 +3,7 @@ import DraggableEventChip from "@/components/DraggableEventChip";
 import DayEventsPopover from "@/components/DayEventsPopover";
 import { formatCurrency } from "@/utils/formatCurrency";
 import { catColorVar } from "@/utils/categoryColor";
+import { useDisplayPreferences } from "@/hooks/useDisplayPreferences";
 
 import { MAX_COMPACT_DOTS } from "./consts";
 import type { DayCellProps } from "./types";
@@ -23,6 +24,7 @@ const DayCell = ({
   onSelectOccurrence,
   maxVisibleChips,
 }: DayCellProps) => {
+  const { currency } = useDisplayPreferences();
   // Compact cells are not drop targets: drag-and-drop is desktop-only.
   const { setNodeRef, isOver } = useDroppable({
     id: cell.iso,
@@ -100,7 +102,7 @@ const DayCell = ({
           <span
             className={`cy-balance mt-auto self-end ${balance < 0 ? "cy-balance-neg" : ""}`}
           >
-            {formatCurrency(balance)}
+            {formatCurrency(balance, currency)}
           </span>
         </>
       )}
