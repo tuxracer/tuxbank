@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import type { ImportPreview } from "@/lib/storage";
 import { isStorageError } from "@/lib/storage";
 import { trackEvent } from "@/lib/analytics";
+import { errorCode } from "@/utils/errorCode";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -20,6 +21,9 @@ type Stage =
   | { kind: "resetConfirm" }
   | { kind: "resetting" }
   | { kind: "error"; message: string };
+
+/** Which of the pane's actions failed, for the `data-error` event. */
+type DataAction = "export" | "preview-import" | "import" | "clear";
 
 const friendlyError = (error: unknown): string => {
   if (isStorageError(error) && error.code === "IMPORT_INVALID") {
@@ -58,12 +62,19 @@ const DataSettings = ({
     setResetText("");
   };
 
+  // Every failure here leaves the user without the backup, restore, or reset
+  // they asked for, so each one is reported with the action that produced it.
+  const fail = (action: DataAction, error: unknown) => {
+    trackEvent("data-error", { action, code: errorCode(error) });
+    setStage({ kind: "error", message: friendlyError(error) });
+  };
+
   const handleExport = async () => {
     try {
       await onExport();
       trackEvent("data-exported");
     } catch (error) {
-      setStage({ kind: "error", message: friendlyError(error) });
+      fail("export", error);
     }
   };
 
@@ -73,7 +84,7 @@ const DataSettings = ({
       const preview = await onPreviewImport(file);
       setStage({ kind: "confirm", file, preview });
     } catch (error) {
-      setStage({ kind: "error", message: friendlyError(error) });
+      fail("preview-import", error);
     }
   };
 
@@ -87,7 +98,7 @@ const DataSettings = ({
       reset();
       onClose();
     } catch (error) {
-      setStage({ kind: "error", message: friendlyError(error) });
+      fail("import", error);
     }
   };
 
@@ -104,7 +115,7 @@ const DataSettings = ({
       reset();
       onClose();
     } catch (error) {
-      setStage({ kind: "error", message: friendlyError(error) });
+      fail("clear", error);
     }
   };
 

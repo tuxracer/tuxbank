@@ -966,11 +966,13 @@ carry no user content (no titles, amounts, dates, categories, or emails).
 | `data-cleared` | A confirmed "clear all data" finishes | `synced` |
 | `account-created` | Signup succeeds, before 2FA setup or email confirmation | `confirmationRequired` |
 | `signed-in` | The password or device link is accepted, before the 2FA challenge | `method` |
+| `sign-in-choice` | The first-sync conflict prompt is answered | `choice` |
 
 `layout` is `compact` or `full`; `synced` says whether the action also rewrote
 the account's data on every device; `method` is `password` or `device-link`;
 `setting` is `currency` or `week-start` and `automatic` says whether the change
-went back to following the locale.
+went back to following the locale; `choice` is the answer to the first-sync
+conflict prompt.
 `settings-opened` is tracked in `src/App.tsx` where the toolbar button opens
 the dialog; pane opens in `SettingsDialog` (the first three panes keep the
 event names their standalone predecessor dialogs sent, so the funnels stay
@@ -978,3 +980,28 @@ comparable), data
 actions in `DataSettings` (on success, not on click), and the account events in
 `SyncContext`, which is the only place the outcome is observable
 (`createAccount` / `signIn` record errors in state rather than throwing).
+
+**Error events.** The failures above are the ones a user feels: their data
+does not sync, does not save, or does not come back. Each carries a code and
+the action that produced it, never a message.
+
+| Event | Fired when | Props |
+| --- | --- | --- |
+| `sync-error` | A sync attempt fails (the conflict check, the push/pull itself, or the branch that answers the conflict prompt) | `phase`, `code` |
+| `sync-rows-skipped` | A sync succeeds but left rows behind that this device could not decrypt or validate | `count` |
+| `account-error` | An account flow fails: create, sign-in, TOTP, unlock, device link (scan or mint), password change, recovery | `action`, `code` |
+| `storage-error` | IndexedDB fails while loading at startup, writing an edit, re-reading after a change, or clearing on sign-out | `action`, `code` |
+| `data-error` | An action in the Data pane fails: export, backup validation, import, or clear-all | `action`, `code` |
+
+`code` comes from `errorCode` (`src/utils/errorCode`), which maps the three
+typed error classes (`AccountError`, `StorageError`, `SyncError`) to their
+`code` and everything else to `UNKNOWN`. Messages never leave the device: they
+can quote user content, an email address, or a URL carrying a token.
+
+Two of these repeat on their own, so both are deduplicated rather than sent per
+retry. A failing sync retries on every edit, focus, and reconnect, so
+`SyncContext` sends a code once and re-arms only when the code changes or a
+sync succeeds. Storage failures are terminal for the session (nothing flips
+`storageAvailable` back), so `CalendarContext` reports the first one and stays
+quiet after. `sync-rows-skipped` rides the existing "count changed" gate that
+already decides when to toast.

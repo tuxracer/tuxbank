@@ -17,11 +17,17 @@ export type AnalyticsEventName =
   | "data-cleared"
   | "account-created"
   | "signed-in"
-  | "sign-in-choice";
+  | "sign-in-choice"
+  | "sync-error"
+  | "sync-rows-skipped"
+  | "account-error"
+  | "storage-error"
+  | "data-error";
 
 /**
  * Event properties. Values are limited to what Vercel Analytics accepts.
  * Never put user content here (event titles, amounts, emails, categories) —
- * these are the only fields that leave the device.
+ * these are the only fields that leave the device. Error events carry a code
+ * from `errorCode`, never an error message, for the same reason.
  */
 export type AnalyticsEventProps = Record<string, string | number | boolean>;

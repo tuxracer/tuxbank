@@ -59,6 +59,7 @@ import {
 } from "@/lib/sync";
 import type { SignInConflict } from "@/lib/sync";
 import { fromBase64, toBase64 } from "@/utils/base64";
+import { errorCode } from "@/utils/errorCode";
 import type {
   OnboardStep,
   PwResult,
@@ -85,6 +86,22 @@ const describeError = (error: unknown): string =>
     : error instanceof Error
       ? error.message
       : "Unknown error";
+
+// Which account flow failed. Every one of them leaves the user unable to
+// finish what they started, so the code alone is not enough to act on.
+type AccountAction =
+  | "create-account"
+  | "sign-in"
+  | "totp"
+  | "unlock"
+  | "device-link"
+  | "create-link"
+  | "change-password"
+  | "recovery";
+
+const trackAccountError = (action: AccountAction, error: unknown): void => {
+  trackEvent("account-error", { action, code: errorCode(error) });
+};
 
 /**
  * Statuses where the provider must not touch the account: signed out, locked,
@@ -160,6 +177,10 @@ export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
   // How many undecryptable rows the previous sync skipped, so the warning
   // toast fires when the number changes rather than on every debounced sync.
   const skippedRef = useRef(0);
+  // The last sync failure reported to analytics. A broken sync retries on every
+  // edit, focus, and reconnect, so a code is sent once until it clears or
+  // changes: one broken session is one event, not one per retry.
+  const reportedSyncErrorRef = useRef<string | null>(null);
 
   // Whether the first-sync conflict question has been settled for this session.
   // "unknown" means it has not been asked yet, "pending" means the user is
@@ -224,6 +245,16 @@ export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
     return count;
   }, []);
 
+  const reportSyncError = useCallback(
+    (phase: "conflict-check" | "sync" | "resolve-choice", error: unknown) => {
+      const code = errorCode(error);
+      if (reportedSyncErrorRef.current === code) return;
+      reportedSyncErrorRef.current = code;
+      trackEvent("sync-error", { phase, code });
+    },
+    [],
+  );
+
   const doSync = useCallback(async () => {
     if (!remote || !dekRef.current || syncingRef.current) return;
     if (!navigator.onLine) {
@@ -248,6 +279,7 @@ export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
       } catch (caught) {
         // Leave the ref "unknown" so the next attempt re-checks rather than
         // merging on the strength of a failed lookup.
+        reportSyncError("conflict-check", caught);
         setError(describeError(caught));
         setStatus("error");
         return;
@@ -267,6 +299,9 @@ export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
             ? "1 synced item could not be decrypted and was skipped."
             : `${result.skipped} synced items could not be decrypted and were skipped.`,
         );
+        // Data the account holds but this device cannot read: the sync itself
+        // succeeded, so nothing else would ever report it.
+        trackEvent("sync-rows-skipped", { count: result.skipped });
       }
       skippedRef.current = result.skipped;
       // Record when the sync finished (wall clock), not the data cursor, and as
@@ -274,14 +309,16 @@ export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
       setLastSyncedAt(new Date().toISOString());
       setStatus("synced");
       setError(null);
+      reportedSyncErrorRef.current = null; // a later failure is news again
     } catch (caught) {
+      reportSyncError("sync", caught);
       setError(describeError(caught));
       setStatus("error");
     } finally {
       syncingRef.current = false;
       refreshPendingCount();
     }
-  }, [remote, refreshFromStorage, refreshPendingCount]);
+  }, [remote, refreshFromStorage, refreshPendingCount, reportSyncError]);
 
   const syncNow = useCallback(async () => {
     await doSync();
@@ -362,6 +399,7 @@ export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
           setStep("confirm-email");
         }
       } catch (caught) {
+        trackAccountError("create-account", caught);
         setError(describeError(caught));
       }
     },
@@ -396,6 +434,7 @@ export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
           await beginEnrollment(emailInput, password);
         }
       } catch (caught) {
+        trackAccountError("sign-in", caught);
         setError(describeError(caught));
       }
     },
@@ -448,6 +487,10 @@ export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
         } else if (pending.kind === "link") {
           // A device link is only minted from a fully provisioned account, so
           // missing key material means this link cannot proceed.
+          trackEvent("account-error", {
+            action: "device-link",
+            code: "NO_KEY_MATERIAL",
+          });
           setError("NO_KEY_MATERIAL");
         } else {
           await provisionFirstTime(pending.password, pending.email);
@@ -455,6 +498,7 @@ export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
           setEnrollment(null);
         }
       } catch (caught) {
+        trackAccountError("totp", caught);
         setError(describeError(caught));
       }
     },
@@ -489,6 +533,7 @@ export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
           await provisionFirstTime(password, email);
         }
       } catch (caught) {
+        trackAccountError("unlock", caught);
         setError(describeError(caught));
       }
     },
@@ -509,6 +554,10 @@ export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
           // Links are minted from fully set-up accounts; without a 2FA factor
           // this flow cannot finish. Drop the half sign-in.
           await authSignOut();
+          trackEvent("account-error", {
+            action: "device-link",
+            code: "NO_TOTP_FACTOR",
+          });
           toast.error(
             "This link code did not work. Generate a new one on your signed-in device.",
           );
@@ -524,10 +573,11 @@ export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
           factorId,
         };
         setStep("signin-totp");
-      } catch {
+      } catch (caught) {
         // An unexpected throw (e.g. getTotpFactorId failing after a
         // successful sign-in) must not leave a live aal1 session behind
         // while the UI still shows "off".
+        trackAccountError("device-link", caught);
         await authSignOut().catch(() => undefined);
         toast.error(LINK_SIGNIN_FAILED_MESSAGE);
       }
@@ -594,6 +644,7 @@ export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
           window.location.origin,
         );
       } catch (caught) {
+        trackAccountError("create-link", caught);
         setError(isAccountError(caught) ? caught.code : "LINK_CREATE_FAILED");
         return null;
       }
@@ -627,6 +678,7 @@ export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
         setError(null);
         return "done";
       } catch (caught) {
+        trackAccountError("change-password", caught);
         setError(describeError(caught));
         return "error";
       }
@@ -662,6 +714,7 @@ export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
         void doSync();
         return "done";
       } catch (caught) {
+        trackAccountError("recovery", caught);
         setError(isAccountError(caught) ? caught.code : "RECOVERY_FAILED");
         return "error";
       }
@@ -700,6 +753,12 @@ export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
           await clearLocalData();
           await refreshFromStorage();
         } catch (caught) {
+          // The account is signed out but this device still holds the data the
+          // user asked to remove from it.
+          trackEvent("storage-error", {
+            action: "sign-out-clear",
+            code: errorCode(caught),
+          });
           setError(describeError(caught));
         }
       }
@@ -803,11 +862,12 @@ export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
         // re-running it would upload that merged set as truth. Recovery is the
         // Data dialog (import a backup, or clear all data).
         choiceRef.current = "resolved";
+        reportSyncError("resolve-choice", caught);
         setError(describeError(caught));
         setStatus("error");
       }
     },
-    [doSync, refreshFromStorage, storeDek],
+    [doSync, refreshFromStorage, storeDek, reportSyncError],
   );
 
   const unlocked = !isPreSync(status);

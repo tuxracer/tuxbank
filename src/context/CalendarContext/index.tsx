@@ -44,6 +44,7 @@ import {
   deleteDatabase,
 } from "@/lib/storage";
 import { subscribeToDataChanges } from "@/lib/tabSync";
+import { trackEvent } from "@/lib/analytics";
 import { useDisplayPreferences } from "@/hooks/useDisplayPreferences";
 import { hydrateDisplayPreferences } from "@/lib/displayPreferences";
 import { downloadBlob } from "@/utils/downloadBlob";
@@ -63,6 +64,10 @@ const monthFormatter = new Intl.DateTimeFormat(undefined, {
 });
 
 const CalendarContext = createContext<CalendarContextValue | null>(null);
+
+// What the app was doing when storage failed: reading it at startup, writing an
+// edit, or re-reading after another tab (or a sync pull) changed it.
+type StorageAction = "load" | "write" | "refresh";
 
 export const CalendarProvider = ({
   children,
@@ -90,15 +95,27 @@ export const CalendarProvider = ({
   const [storageResettable, setStorageResettable] = useState<boolean>(false);
   const [loaded, setLoaded] = useState<boolean>(false);
 
+  // Whether this session has already reported a storage failure. Once storage
+  // is down every later read and write fails the same way, so one broken
+  // session sends one event rather than one per edit.
+  const storageErrorReportedRef = useRef(false);
+
   // Record a storage failure: mark storage unavailable, and resettable when the
   // database exists but could not be opened (OPEN_FAILED) — deleting it can
   // recover. Returns whether the error was a StorageError (vs. a real bug).
-  const handleStorageError = useCallback((error: unknown): boolean => {
-    if (!isStorageError(error)) return false;
-    setStorageAvailable(false);
-    if (error.code === "OPEN_FAILED") setStorageResettable(true);
-    return true;
-  }, []);
+  const handleStorageError = useCallback(
+    (error: unknown, action: StorageAction): boolean => {
+      if (!isStorageError(error)) return false;
+      setStorageAvailable(false);
+      if (error.code === "OPEN_FAILED") setStorageResettable(true);
+      if (!storageErrorReportedRef.current) {
+        storageErrorReportedRef.current = true;
+        trackEvent("storage-error", { action, code: error.code });
+      }
+      return true;
+    },
+    [],
+  );
   const [hiddenCategoryIds, setHiddenCategoryIds] = useState<Set<string>>(
     () => new Set(),
   );
@@ -137,7 +154,7 @@ export const CalendarProvider = ({
       })
       .catch((error) => {
         if (!active) return;
-        handleStorageError(error);
+        handleStorageError(error, "load");
         setLoaded(true);
       });
     return () => {
@@ -150,7 +167,7 @@ export const CalendarProvider = ({
       try {
         await write();
       } catch (error) {
-        if (!handleStorageError(error)) throw error;
+        if (!handleStorageError(error, "write")) throw error;
       }
     },
     [handleStorageError],
@@ -178,7 +195,7 @@ export const CalendarProvider = ({
       setEvents(loadedEvents);
     } catch (error) {
       if (seq !== refreshSeqRef.current) return;
-      handleStorageError(error);
+      handleStorageError(error, "refresh");
       // Otherwise keep the current (stale) state; the next notification retries.
     }
   }, [handleStorageError, applyCategories]);
