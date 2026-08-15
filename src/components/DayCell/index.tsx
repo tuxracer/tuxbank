@@ -60,7 +60,11 @@ const DayCell = ({
       className={classes.join(" ")}
       onClick={() => onSelectDate(cell.iso)}
       onKeyDown={(e) => {
-        if (e.key === "Enter") onSelectDate(cell.iso);
+        // Enter on a focusable child (event chip, overflow trigger) bubbles
+        // here; only the cell's own focus should select the date.
+        if (e.key === "Enter" && e.target === e.currentTarget) {
+          onSelectDate(cell.iso);
+        }
       }}
     >
       <span className="cy-cell-num">{cell.dayOfMonth}</span>
