@@ -59,7 +59,9 @@ const CalendarToolbar = ({
       >
         {MONTH_NAMES.map((name, index) => (
           <option key={name} value={index}>
-            {name}
+            {/* Full month names overrun a phone-width nav row and flex-shrink
+                the year select into truncation, so compact abbreviates. */}
+            {compact ? name.slice(0, 3) : name}
           </option>
         ))}
       </NativeSelect>
@@ -129,21 +131,23 @@ const CalendarToolbar = ({
     return (
       <header className="flex flex-col gap-2">
         <div className="cy-toolbar flex flex-col gap-2 px-3 py-2.5">
+          <div className="flex items-center gap-2">{navControls}</div>
+          {/* The labeled settings button does not fit beside the nav row on a
+              phone, so it shares the legend row: the legend scrolls within the
+              space the button leaves over. */}
           <div className="flex items-center gap-2">
-            {navControls}
+            <div className="min-w-0 flex-1">{legend}</div>
             <Button
               type="button"
               variant="ghost"
-              title="Settings"
-              className="cy-btn ml-auto gap-1.5 px-2 text-xs"
+              className="cy-btn ml-auto shrink-0 gap-1.5 px-2 text-xs"
               onClick={onOpenSettings}
             >
               {/* U+FE0E keeps the gear a glyph, not an emoji, on mobile. */}
-              {"⚙︎"}
+              {"⚙︎ SETTINGS"}
               <SyncAttentionDot />
             </Button>
           </div>
-          {legend}
         </div>
       </header>
     );
@@ -162,7 +166,8 @@ const CalendarToolbar = ({
             className="cy-btn gap-2 px-3 text-xs"
             onClick={onOpenSettings}
           >
-            ◢ SETTINGS
+            {/* U+FE0E keeps the gear a glyph, not an emoji. */}
+            {"⚙︎ SETTINGS"}
             <SyncAttentionBadge />
           </Button>
           <Button
