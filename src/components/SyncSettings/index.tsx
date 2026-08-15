@@ -353,12 +353,14 @@ export const SyncSettings = () => {
         <section className="flex flex-col gap-3">
           <p className="cy-mono text-xs text-[color:var(--cy-magenta)]">
             Deleting <span className="cy-hud on">{sync.email}</span> erases
-            everything it holds, on the server and on every other device signed
-            into it. This cannot be undone.
+            everything it holds on the server, along with the login itself. This
+            cannot be undone.
           </p>
           <p className="cy-mono text-xs text-[color:var(--cy-muted)]">
             This device keeps its calendar. Your events, categories, and
-            settings stay here and go back to being local-only.
+            settings stay here and go back to being local-only. Other devices
+            signed into the account keep their copies too, but they stop syncing
+            and are signed out.
           </p>
           <Label htmlFor="del-pw">Password</Label>
           <Input
