@@ -21,8 +21,7 @@
         color-scheme: light dark;
       }
 
-      #boot-fallback {
-        visibility: hidden;
+      .boot-notice {
         position: fixed;
         inset: 0;
         display: flex;
@@ -36,6 +35,10 @@
         line-height: 1.6;
       }
 
+      #boot-fallback {
+        visibility: hidden;
+      }
+
       #root:empty ~ #boot-fallback {
         animation: boot-fallback-reveal 0s 5s forwards;
       }
@@ -46,57 +49,64 @@
         }
       }
 
-      #boot-fallback div {
+      .boot-notice div {
         max-width: 460px;
         border: 1px solid #d6dde6;
         background: #ffffff;
         padding: 16px;
       }
 
-      #boot-fallback p {
+      .boot-notice p {
         margin: 0 0 12px;
       }
 
-      #boot-fallback p:last-child {
+      .boot-notice p:last-child {
         margin-bottom: 0;
       }
 
-      #boot-fallback .boot-fallback-title {
+      .boot-notice-title {
         color: #0e7490;
         letter-spacing: 0.12em;
         text-transform: uppercase;
       }
 
-      #boot-fallback .boot-fallback-note {
+      .boot-notice-note {
         color: #5c6d7f;
       }
 
       @media (prefers-color-scheme: dark) {
-        #boot-fallback {
+        .boot-notice {
           background: #0a0c11;
           color: #c8d4e0;
         }
 
-        #boot-fallback div {
+        .boot-notice div {
           border-color: #1b2431;
           background: #0d1119;
         }
 
-        #boot-fallback .boot-fallback-title {
+        .boot-notice-title {
           color: #22d3ee;
         }
 
-        #boot-fallback .boot-fallback-note {
+        .boot-notice-note {
           color: #6b7c8f;
         }
       }
     </style>
+    <noscript>
+      <style>
+        #boot-fallback {
+          display: none;
+        }
+      </style>
+    </noscript>
   </head>
   <body>
     <div id="root"></div>
-    <div id="boot-fallback">
+    <div id="boot-fallback" class="boot-notice">
       <div>
-        <p class="boot-fallback-title">◢ TuxBank didn’t open</p>
+        <p class="boot-notice-title">◢ TuxBank didn’t open</p>
         <p>
           Something went wrong while loading this page. Refreshing usually fixes
           it.
@@ -105,9 +115,21 @@
           Press Ctrl + Shift + R (Cmd + Shift + R on a Mac), or hold Shift and
           click your browser’s reload button.
         </p>
-        <p class="boot-fallback-note">Your saved events are safe.</p>
+        <p class="boot-notice-note">Your saved events are safe.</p>
       </div>
     </div>
+    <noscript>
+      <div class="boot-notice">
+        <div>
+          <p class="boot-notice-title">◢ JavaScript is required</p>
+          <p>
+            TuxBank runs entirely in your browser. It needs JavaScript to draw
+            the calendar and to read the events saved on this device.
+          </p>
+          <p>Turn JavaScript on for this site, then reload the page.</p>
+        </div>
+      </div>
+    </noscript>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
