@@ -42,25 +42,23 @@ const indexOverrides = (
 ): Record<string, OccurrenceOverride> =>
   Object.fromEntries(overrides.map((o) => [o.occurrenceDate, o]));
 
-export const expandEvent = (
+/**
+ * Visit every non-cancelled occurrence of an event inside the window without
+ * materializing Occurrence objects. expandEvent builds on this; callers that
+ * only aggregate (the balance carry-in over a series' whole history) use it
+ * directly so a long-lived daily series does not allocate thousands of
+ * throwaway objects per recompute.
+ */
+export const forEachOccurrence = (
   event: CalendarEvent,
   windowStartISO: string,
   windowEndISO: string,
-  getCategory: CategoryResolver,
-): Occurrence[] => {
+  visit: (iso: string, patch: OccurrenceOverride["patch"] | undefined) => void,
+): void => {
   if (!event.recurrence) {
-    if (event.date < windowStartISO || event.date > windowEndISO) return [];
-    return [
-      {
-        eventId: event.id,
-        date: event.date,
-        title: event.title,
-        category: getCategory(event.categoryId),
-        amount: event.amount,
-        direction: event.direction,
-        isRecurring: false,
-      },
-    ];
+    if (event.date < windowStartISO || event.date > windowEndISO) return;
+    visit(event.date, undefined);
+    return;
   }
 
   const { freq, interval, endsOn } = event.recurrence;
@@ -72,7 +70,6 @@ export const expandEvent = (
   const approxUnits = UNITS_BETWEEN[freq](anchor, windowStart);
   let i = Math.max(0, Math.floor(approxUnits / interval) - 1);
 
-  const result: Occurrence[] = [];
   for (let guard = 0; guard < MAX_ITER; guard += 1, i += 1) {
     const candidate = STEP[freq](anchor, i * interval);
     const iso = format(candidate, "yyyy-MM-dd");
@@ -82,18 +79,28 @@ export const expandEvent = (
 
     const override = overrides[iso];
     if (override?.cancelled) continue;
+    visit(iso, override?.patch);
+  }
+};
 
-    const categoryId = override?.patch?.categoryId ?? event.categoryId;
+export const expandEvent = (
+  event: CalendarEvent,
+  windowStartISO: string,
+  windowEndISO: string,
+  getCategory: CategoryResolver,
+): Occurrence[] => {
+  const result: Occurrence[] = [];
+  forEachOccurrence(event, windowStartISO, windowEndISO, (iso, patch) => {
     result.push({
       eventId: event.id,
       date: iso,
-      title: override?.patch?.title ?? event.title,
-      category: getCategory(categoryId),
-      amount: override?.patch?.amount ?? event.amount,
-      direction: override?.patch?.direction ?? event.direction,
-      isRecurring: true,
+      title: patch?.title ?? event.title,
+      category: getCategory(patch?.categoryId ?? event.categoryId),
+      amount: patch?.amount ?? event.amount,
+      direction: patch?.direction ?? event.direction,
+      isRecurring: event.recurrence !== null,
     });
-  }
+  });
   return result;
 };
 
