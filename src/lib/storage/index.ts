@@ -95,13 +95,22 @@ export const getAllEvents = async (): Promise<CalendarEvent[]> => {
   }
 };
 
-export const putEvent = async (event: CalendarEvent): Promise<void> => {
+// The four row-write exports share one transaction shape: a put replaces the
+// row and drops any pending tombstone; a delete removes the row and records a
+// tombstone so the deletion syncs.
+const storeFor = (type: TombstoneType): string =>
+  type === "event" ? STORE : CATEGORY_STORE;
+
+const putRow = async (
+  type: TombstoneType,
+  row: CalendarEvent | Category,
+): Promise<void> => {
   try {
     const db = await getDb();
-    const tx = db.transaction([STORE, TOMBSTONE_STORE], "readwrite");
+    const tx = db.transaction([storeFor(type), TOMBSTONE_STORE], "readwrite");
     await Promise.all([
-      tx.objectStore(STORE).put(event),
-      tx.objectStore(TOMBSTONE_STORE).delete(event.id),
+      tx.objectStore(storeFor(type)).put(row),
+      tx.objectStore(TOMBSTONE_STORE).delete(row.id),
     ]);
     await tx.done;
   } catch (error) {
@@ -110,13 +119,13 @@ export const putEvent = async (event: CalendarEvent): Promise<void> => {
   notifyDataChanged();
 };
 
-export const deleteEvent = async (id: string): Promise<void> => {
+const deleteRow = async (type: TombstoneType, id: string): Promise<void> => {
   try {
     const db = await getDb();
-    const tx = db.transaction([STORE, TOMBSTONE_STORE], "readwrite");
-    const tombstone: Tombstone = { id, type: "event", updatedAt: nowISO() };
+    const tx = db.transaction([storeFor(type), TOMBSTONE_STORE], "readwrite");
+    const tombstone: Tombstone = { id, type, updatedAt: nowISO() };
     await Promise.all([
-      tx.objectStore(STORE).delete(id),
+      tx.objectStore(storeFor(type)).delete(id),
       tx.objectStore(TOMBSTONE_STORE).put(tombstone),
     ]);
     await tx.done;
@@ -125,6 +134,12 @@ export const deleteEvent = async (id: string): Promise<void> => {
   }
   notifyDataChanged();
 };
+
+export const putEvent = async (event: CalendarEvent): Promise<void> =>
+  putRow("event", event);
+
+export const deleteEvent = async (id: string): Promise<void> =>
+  deleteRow("event", id);
 
 /**
  * Apply several event writes atomically: put every event in `puts` and
@@ -170,36 +185,11 @@ export const getAllCategories = async (): Promise<Category[]> => {
   }
 };
 
-export const putCategory = async (category: Category): Promise<void> => {
-  try {
-    const db = await getDb();
-    const tx = db.transaction([CATEGORY_STORE, TOMBSTONE_STORE], "readwrite");
-    await Promise.all([
-      tx.objectStore(CATEGORY_STORE).put(category),
-      tx.objectStore(TOMBSTONE_STORE).delete(category.id),
-    ]);
-    await tx.done;
-  } catch (error) {
-    throw toWriteError(error);
-  }
-  notifyDataChanged();
-};
+export const putCategory = async (category: Category): Promise<void> =>
+  putRow("category", category);
 
-export const deleteCategory = async (id: string): Promise<void> => {
-  try {
-    const db = await getDb();
-    const tx = db.transaction([CATEGORY_STORE, TOMBSTONE_STORE], "readwrite");
-    const tombstone: Tombstone = { id, type: "category", updatedAt: nowISO() };
-    await Promise.all([
-      tx.objectStore(CATEGORY_STORE).delete(id),
-      tx.objectStore(TOMBSTONE_STORE).put(tombstone),
-    ]);
-    await tx.done;
-  } catch (error) {
-    throw toWriteError(error);
-  }
-  notifyDataChanged();
-};
+export const deleteCategory = async (id: string): Promise<void> =>
+  deleteRow("category", id);
 
 export const exportDatabase = async (): Promise<string> => {
   try {
