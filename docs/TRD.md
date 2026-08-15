@@ -85,14 +85,10 @@ A single person managing their own schedule of **all-day, date-based events**: m
 - **Create:** clicking **+ New Event** or an empty day opens the **Event editor** (shadcn Dialog). Clicking a day prefills its date.
 - **Edit/View:** clicking an event chip opens the editor populated with that event.
 - **Delete:** available within the editor.
-- **Move:** drag a chip onto a different day cell to move the event. A `sonner` toast with an Undo action appears after every successful move. Recurring events prompt for scope (this / this and following / all) before applying; see §7 and §4.4.2.
+- **Move:** drag a chip onto a different day cell to move the event. A `sonner` toast with an Undo action appears after every successful move. Recurring events prompt for scope (this / this and following / all) before applying; see §7 and §4.4.1.
 - The editor validates input on submit (see §8): invalid input is blocked and surfaces inline, accessible field errors.
 
-#### 4.4.1 Quick add (experimental, on-device AI)
-
-A natural-language entry path over Chrome's built-in Prompt API (`LanguageModel`, an on-device model). `src/components/QuickAddBar` renders a one-line input above the calendar on the full layout only, and only when `src/lib/quickAdd` reports the model as available or downloadable; in every other browser the feature does not exist. Typing something like "netflix 15.99 monthly starting sep 1" and submitting asks the model for a JSON reply constrained to a fixed schema (`QUICK_ADD_RESPONSE_SCHEMA`), which `normalizeQuickAddOutput` validates and maps onto the same `EventInput` the event form produces: bad dates fall back to today, an unmatched category falls back to the first one, and a missing title or non-positive amount fails the parse with a typed `QuickAddError`. A successful parse never saves directly: it opens the normal event editor prefilled (the `prefill` prop on `EventDialog`) for the user to confirm. Everything runs on-device, consistent with the no-data-leaves-the-device rule; the `quick-add-used` analytics event carries only an outcome code, never the typed text. The Prompt API is an origin trial on the web (Chrome 148+), so outside the trial the bar appears only with the browser's Prompt API flags enabled.
-
-#### 4.4.2 Drag-and-drop mechanics
+#### 4.4.1 Drag-and-drop mechanics
 
 Drag-and-drop is powered by `@dnd-kit/core`. `DndContext` lives in `src/App.tsx`, wrapping `MonthGrid`. Chips rendered directly in a day cell are wrapped by `src/components/DraggableEventChip`, which calls `useDraggable` and passes the `occurrence` as drag data. Each `DayCell` calls `useDroppable({ id: cell.iso })` and adds a `.drop` class while a chip hovers over it, producing a cyan highlight. A `DragOverlay` in `App` renders a themed floating copy of the chip while dragging; the source chip dims via `.cy-chip-dragging`.
 

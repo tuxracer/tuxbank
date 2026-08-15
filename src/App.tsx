@@ -29,7 +29,6 @@ import LandingPage from "@/components/LandingPage";
 import CalendarToolbar from "@/components/CalendarToolbar";
 import DayPanel from "@/components/DayPanel";
 import MonthGrid from "@/components/MonthGrid";
-import QuickAddBar from "@/components/QuickAddBar";
 import { useIsCompact } from "@/hooks/useIsCompact";
 import EventChip from "@/components/EventChip";
 import EventDialog from "@/components/EventDialog";
@@ -73,7 +72,7 @@ const needsScopeChoice = (event: CalendarEvent): boolean =>
   event.recurrence !== null;
 
 type EditorState =
-  | { mode: "create"; date: string; prefill?: EventInput }
+  | { mode: "create"; date: string }
   | { mode: "edit"; occurrence: Occurrence; event: CalendarEvent };
 
 type ScopeState =
@@ -158,11 +157,6 @@ const CalendarScreen = ({ entrance = false }: { entrance?: boolean }) => {
   // button for the day panel's + Add. (SettingsDialog reports its own
   // per-tab open events.)
   const layout = isCompact ? "compact" : "full";
-
-  // A quick-add parse is a prefill, not a save: it opens the editor on the
-  // parsed values so the user confirms them through the normal form.
-  const openQuickAddResult = (input: EventInput) =>
-    setEditor({ mode: "create", date: input.date, prefill: input });
 
   const openNewEvent = (date: string) => {
     trackEvent("new-event-clicked", { layout });
@@ -349,17 +343,6 @@ const CalendarScreen = ({ entrance = false }: { entrance?: boolean }) => {
         />
       </div>
 
-      {/* Renders only when Chrome's on-device model is present (or fetchable),
-          and only on the full layout: the Prompt API is desktop Chrome behind
-          an origin trial, and the compact screen has no row to spare. */}
-      {!isCompact && (
-        <QuickAddBar
-          categories={cal.categories}
-          todayISO={cal.todayISO}
-          onParsed={openQuickAddResult}
-        />
-      )}
-
       {/* The calendar sits in a bordered console panel like the landing
           preview's, but follows the active theme rather than pinning the
           landing's dark ink. */}
@@ -430,7 +413,6 @@ const CalendarScreen = ({ entrance = false }: { entrance?: boolean }) => {
           defaultDate={
             editor.mode === "create" ? editor.date : editor.occurrence.date
           }
-          prefill={editor.mode === "create" ? editor.prefill : undefined}
           initialOccurrence={
             editor.mode === "edit" ? editor.occurrence : undefined
           }
