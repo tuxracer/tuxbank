@@ -376,11 +376,7 @@ export const SyncSettings = () => {
             onChange={(e) => setCode(e.target.value)}
           />
           <Label htmlFor="del-confirm">
-            Type{" "}
-            <span className="text-[color:var(--cy-magenta)]">
-              {deletePhrase(sync.email)}
-            </span>{" "}
-            to confirm
+            Type &quot;{deletePhrase(sync.email)}&quot; to confirm
           </Label>
           <Input
             id="del-confirm"
