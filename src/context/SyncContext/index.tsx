@@ -40,7 +40,7 @@ import {
 import {
   buildDeviceLinkUrl,
   DEVICE_LINK_HASH_PREFIX,
-  DEVICE_LINK_VERSION,
+  isDeviceLinkExpired,
   parseDeviceLinkHash,
   type DeviceLinkPayload,
 } from "@/lib/deviceLink";
@@ -84,6 +84,12 @@ const SYNC_DEBOUNCE_MS = 2_000;
 // resuming a half-completed link sign-in at boot.
 const LINK_SIGNIN_FAILED_MESSAGE =
   "This link code did not work. It may be outdated. Generate a new one on your signed-in device.";
+
+// Shown when the scan itself was fine but the code is past its lifetime. Its
+// own message because this is the one link failure the user can act on
+// directly, and the generic one would read as a malfunction.
+const LINK_EXPIRED_MESSAGE =
+  "This sign-in code has expired. Generate a new one on your signed-in device.";
 
 const describeError = (error: unknown): string =>
   isAccountError(error)
@@ -594,7 +600,13 @@ export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
   // Detect an existing session on mount and resume it without re-prompting.
   // A scanned device link arrives here too, via the URL hash.
   useEffect(() => {
-    const linkPayload = consumeLinkPayload();
+    // An expired code is consumed (and stripped) like any other, then dropped
+    // with its own message: the secrets it carries are no longer accepted, but
+    // the user still needs to hear why nothing happened.
+    const scanned = consumeLinkPayload();
+    const expired = scanned !== null && isDeviceLinkExpired(scanned);
+    if (expired) toast.error(LINK_EXPIRED_MESSAGE);
+    const linkPayload = expired ? null : scanned;
     if (!remote) return;
     let active = true;
     void getActiveSession()
@@ -646,7 +658,7 @@ export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
         await unlockWithKek(kek, await fetchKeyMaterial());
         setError(null);
         return buildDeviceLinkUrl(
-          { v: DEVICE_LINK_VERSION, email, authSecret, kek: toBase64(kek) },
+          { email, authSecret, kek: toBase64(kek) },
           window.location.origin,
         );
       } catch (caught) {

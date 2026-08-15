@@ -15,7 +15,11 @@ import {
 } from "@/lib/storage";
 import type { CalendarEvent } from "@/types";
 import { CalendarProvider, useCalendar } from "@/context/CalendarContext";
-import { buildDeviceLinkUrl, parseDeviceLinkHash } from "@/lib/deviceLink";
+import {
+  buildDeviceLinkUrl,
+  parseDeviceLinkHash,
+  DEVICE_LINK_TTL_MS,
+} from "@/lib/deviceLink";
 import { toBase64 } from "@/utils/base64";
 import { SyncProvider, useSync } from "./index";
 
@@ -633,8 +637,7 @@ const keyMaterial = {
   kdf_version: 1,
 };
 
-const linkPayload = {
-  v: 1 as const,
+const linkSecrets = {
   email: "a@b.com",
   authSecret: "auth-secret",
   kek: toBase64(KEK),
@@ -674,7 +677,10 @@ describe("createDeviceLink", () => {
       url = await result.current.createDeviceLink("pw-123456");
     });
     expect(url).not.toBeNull();
-    expect(parseDeviceLinkHash(new URL(url!).hash)).toEqual(linkPayload);
+    const parsed = parseDeviceLinkHash(new URL(url!).hash);
+    expect(parsed).toMatchObject(linkSecrets);
+    // A link the user is about to scan has to be live when it is minted.
+    expect(parsed!.exp).toBeGreaterThan(Date.now());
     expect(mocks.unlockWithKek).toHaveBeenCalledWith(KEK, keyMaterial);
   });
 
@@ -694,9 +700,9 @@ describe("createDeviceLink", () => {
   });
 });
 
-const setLinkHash = () => {
+const setLinkHash = (now?: number) => {
   window.location.hash = new URL(
-    buildDeviceLinkUrl(linkPayload, "https://tuxbank.app"),
+    buildDeviceLinkUrl(linkSecrets, "https://tuxbank.app", now),
   ).hash;
 };
 
@@ -778,6 +784,16 @@ describe("device-link hash at boot", () => {
     const { result } = renderHook(() => useSync(), { wrapper });
     await waitFor(() => expect(result.current.status).toBe("synced"));
     expect(mocks.signIn).not.toHaveBeenCalled();
+    expect(window.location.hash).toBe("");
+  });
+
+  it("refuses an expired link but still strips the hash", async () => {
+    setLinkHash(Date.now() - DEVICE_LINK_TTL_MS - 1);
+    mocks.getActiveSession.mockResolvedValue(null);
+    const { result } = renderHook(() => useSync(), { wrapper });
+    await waitFor(() => expect(result.current.status).toBe("off"));
+    expect(mocks.signIn).not.toHaveBeenCalled();
+    expect(mocks.toastError).toHaveBeenCalled();
     expect(window.location.hash).toBe("");
   });
 

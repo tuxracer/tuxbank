@@ -6,9 +6,13 @@ import { toast } from "sonner";
 import { renderSVG } from "uqr";
 import { useSync } from "@/context/SyncContext";
 import type { SyncContextValue } from "@/context/SyncContext";
+import { DEVICE_LINK_TTL_MS } from "@/lib/deviceLink";
 import { markLandingDismissed } from "@/lib/landingGate";
 
 type Mode = "choose" | "create" | "signin";
+
+const MS_PER_MINUTE = 60 * 1_000;
+const DEVICE_LINK_TTL_MINUTES = DEVICE_LINK_TTL_MS / MS_PER_MINUTE;
 
 /** The exact word the user must type to confirm a destructive sign-in choice. */
 const CONFIRM_WORD = "delete";
@@ -529,8 +533,8 @@ export const SyncSettings = () => {
               />
               <p className="cy-mono text-[10px] text-[color:var(--cy-magenta)]">
                 Treat this code like your password: anyone who scans it can sign
-                in as you if they also have a 2FA code. It stays valid until you
-                change your password.
+                in as you if they also have a 2FA code. It expires{" "}
+                {DEVICE_LINK_TTL_MINUTES} minutes after you generate it.
               </p>
             </>
           )}
