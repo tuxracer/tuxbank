@@ -5,19 +5,8 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { renderSVG } from "uqr";
 import { useSync } from "@/context/SyncContext";
-import type { SyncContextValue, SyncStatus } from "@/context/SyncContext";
+import type { SyncContextValue } from "@/context/SyncContext";
 import { markLandingDismissed } from "@/lib/landingGate";
-
-/** Statuses where the account is active (signed in and unlocked). */
-const ACCOUNT_ACTIVE_STATUSES: readonly SyncStatus[] = [
-  "synced",
-  "syncing",
-  "error",
-  "offline",
-];
-
-const isAccountActive = (status: SyncStatus): boolean =>
-  ACCOUNT_ACTIVE_STATUSES.includes(status);
 
 type Mode = "choose" | "create" | "signin";
 
@@ -145,7 +134,8 @@ export const SyncSettings = () => {
   // this. The onboarding cancels call sync.signOut directly to abort a
   // half-finished sign-in, and must not wipe a local-only user's calendar.
   const finishSignOut = async () => {
-    if (!window.confirm(`Sign out of ${sync.email}?`)) return;
+    // The confirmingSignOut section already asked "Sign out of {email}?";
+    // only the pending-changes warning below adds new information.
     // Push anything outstanding first so signing out does not strand it. Best
     // effort: offline or a failing account leaves changes pending, which the
     // warning below reports. A sync failure must never block the sign-out.
@@ -279,7 +269,7 @@ export const SyncSettings = () => {
       )}
 
       {/* SYNCED / SYNCING / ERROR / OFFLINE (all post-onboarding, account active) */}
-      {isAccountActive(sync.status) &&
+      {sync.unlocked &&
         sync.step === "idle" &&
         !changingPw &&
         !confirmingSignOut &&
@@ -324,7 +314,7 @@ export const SyncSettings = () => {
         )}
 
       {/* CHANGE PASSWORD (from the synced state) */}
-      {isAccountActive(sync.status) &&
+      {sync.unlocked &&
         sync.step === "idle" &&
         changingPw &&
         !awaitingReauth && (
@@ -382,7 +372,7 @@ export const SyncSettings = () => {
         )}
 
       {/* LINK ANOTHER DEVICE: password check, then a sign-in QR */}
-      {isAccountActive(sync.status) && sync.step === "idle" && linking && (
+      {sync.unlocked && sync.step === "idle" && linking && (
         <section className="flex flex-col gap-3">
           {!linkUrl && (
             <>

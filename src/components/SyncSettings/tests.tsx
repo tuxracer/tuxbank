@@ -23,7 +23,6 @@ const syncValue: SyncContextValue = {
   confirmTotp: vi.fn(),
   finishCreate: vi.fn(),
   signIn: vi.fn(),
-  signInWithLink: vi.fn(),
   unlock: vi.fn(),
   changePassword: vi.fn(),
   recoverWithKey: vi.fn(),
@@ -255,18 +254,6 @@ describe("SyncSettings sign out", () => {
     fireEvent.click(screen.getByRole("button", { name: /^sign out$/i }));
   };
 
-  it("does not sign out when the native confirm is dismissed", async () => {
-    confirm.mockReturnValue(false);
-    openSignOutPanel();
-
-    fireEvent.click(screen.getByRole("button", { name: /^sign out$/i }));
-
-    await waitFor(() => expect(confirm).toHaveBeenCalled());
-    expect(syncValue.signOut).not.toHaveBeenCalled();
-    expect(reload).not.toHaveBeenCalled();
-    expect(window.localStorage.getItem("leftover")).toBe("1");
-  });
-
   it("clears local data, wipes web storage, and reloads once confirmed", async () => {
     confirm.mockReturnValue(true);
     openSignOutPanel();
@@ -333,7 +320,7 @@ describe("SyncSettings sign out", () => {
     fireEvent.click(screen.getByRole("button", { name: /^sign out$/i }));
 
     await waitFor(() => expect(reload).toHaveBeenCalled());
-    expect(confirm).toHaveBeenCalledTimes(1);
+    expect(confirm).not.toHaveBeenCalled();
   });
 
   it("warns separately about changes the sync could not push", async () => {
@@ -344,19 +331,19 @@ describe("SyncSettings sign out", () => {
     fireEvent.click(screen.getByRole("button", { name: /^sign out$/i }));
 
     await waitFor(() => expect(reload).toHaveBeenCalled());
-    expect(confirm).toHaveBeenCalledTimes(2);
+    expect(confirm).toHaveBeenCalledTimes(1);
     // The count is what matters; the wording of the prompt is copy.
-    expect(confirm).toHaveBeenNthCalledWith(2, expect.stringContaining("3"));
+    expect(confirm).toHaveBeenCalledWith(expect.stringContaining("3"));
   });
 
   it("aborts when the unpushed-changes warning is dismissed", async () => {
-    confirm.mockReturnValueOnce(true).mockReturnValueOnce(false);
+    confirm.mockReturnValueOnce(false);
     syncValue.readPendingCount = vi.fn().mockResolvedValue(2);
     openSignOutPanel();
 
     fireEvent.click(screen.getByRole("button", { name: /^sign out$/i }));
 
-    await waitFor(() => expect(confirm).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(confirm).toHaveBeenCalledTimes(1));
     expect(syncValue.signOut).not.toHaveBeenCalled();
     expect(reload).not.toHaveBeenCalled();
     expect(window.localStorage.getItem("leftover")).toBe("1");
@@ -373,6 +360,6 @@ describe("SyncSettings sign out", () => {
     fireEvent.click(screen.getByRole("button", { name: /^sign out$/i }));
 
     await waitFor(() => expect(reload).toHaveBeenCalled());
-    expect(confirm).toHaveBeenNthCalledWith(2, expect.stringContaining("4"));
+    expect(confirm).toHaveBeenCalledWith(expect.stringContaining("4"));
   });
 });
