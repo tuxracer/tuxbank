@@ -11,6 +11,8 @@ export type EventDialogProps = {
   mode: "create" | "edit";
   categories: readonly Category[];
   defaultDate: string;
+  /** Create mode only: opens the form prefilled (e.g. from quick add) for the user to confirm. */
+  prefill?: EventInput;
   initialOccurrence?: Occurrence;
   sourceEvent?: CalendarEvent;
   onOpenChange: (open: boolean) => void;

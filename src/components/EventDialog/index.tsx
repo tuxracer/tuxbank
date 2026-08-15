@@ -50,8 +50,26 @@ const FieldError = ({ message }: { message?: string }) =>
   ) : null;
 
 const buildDefaults = (props: EventDialogProps): EventFormValues => {
-  const { mode, defaultDate, initialOccurrence, sourceEvent, categories } =
-    props;
+  const {
+    mode,
+    defaultDate,
+    initialOccurrence,
+    sourceEvent,
+    categories,
+    prefill,
+  } = props;
+  if (mode === "create" && prefill) {
+    return {
+      title: prefill.title,
+      date: prefill.date,
+      categoryId: prefill.categoryId || (categories[0]?.id ?? ""),
+      amount: prefill.amount,
+      direction: prefill.direction,
+      repeat: prefill.recurrence?.freq ?? "none",
+      interval: prefill.recurrence?.interval ?? 1,
+      endsOn: prefill.recurrence?.endsOn ?? "",
+    };
+  }
   if (mode === "edit" && initialOccurrence && sourceEvent) {
     // The stored categoryId (occurrence patch, else the series base), not the
     // resolved initialOccurrence.category.id: a deleted category resolves to
