@@ -1,7 +1,12 @@
 import { describe, it, expect } from "vitest";
-import type { CalendarEvent } from "@/types";
+import type { CalendarEvent, OccurrenceOverride } from "@/types";
 import { PRESET_CATEGORIES } from "@/types";
-import { expandEvent, expandEvents, makeCategoryResolver } from "./index";
+import {
+  expandEvent,
+  expandEvents,
+  forEachOccurrence,
+  makeCategoryResolver,
+} from "./index";
 import {
   cancelOccurrence,
   patchOccurrence,
@@ -452,5 +457,131 @@ describe("buildMovedFollowing (following-scope move)", () => {
       "2026-05-19",
       "2026-05-26",
     ]);
+  });
+});
+
+describe("forEachOccurrence with visitUnoverridden", () => {
+  type Visit = { iso: string; patch: OccurrenceOverride["patch"] | undefined };
+
+  const runIterative = (
+    event: CalendarEvent,
+    start: string,
+    end: string,
+  ): Visit[] => {
+    const visits: Visit[] = [];
+    forEachOccurrence(event, start, end, (iso, patch) =>
+      visits.push({ iso, patch }),
+    );
+    return visits;
+  };
+
+  const runBulked = (event: CalendarEvent, start: string, end: string) => {
+    const visits: Visit[] = [];
+    let count = 0;
+    forEachOccurrence(
+      event,
+      start,
+      end,
+      (iso, patch) => visits.push({ iso, patch }),
+      (n) => {
+        count += n;
+      },
+    );
+    return { visits, count };
+  };
+
+  const byIso = (a: Visit, b: Visit) => a.iso.localeCompare(b.iso);
+  const patched = (visits: Visit[]) =>
+    visits.filter((v) => v.patch !== undefined).sort(byIso);
+
+  // The bulk mode's contract relative to the plain walk: every patched
+  // occurrence is still visited individually with its patch, and the
+  // individually-visited plain occurrences plus the bulk count add up to
+  // exactly the plain walk's occurrence total.
+  const expectEquivalent = (
+    event: CalendarEvent,
+    start: string,
+    end: string,
+  ) => {
+    const iterative = runIterative(event, start, end);
+    const bulked = runBulked(event, start, end);
+    expect(patched(bulked.visits)).toEqual(patched(iterative));
+    expect(bulked.visits.length + bulked.count).toBe(iterative.length);
+    for (const v of bulked.visits) {
+      expect(iterative).toContainEqual(v);
+    }
+  };
+
+  const daily = (
+    interval: number,
+    over: Partial<CalendarEvent> = {},
+  ): CalendarEvent => ({
+    ...base,
+    date: "2026-01-05",
+    recurrence: { freq: "daily", interval, endsOn: null },
+    ...over,
+  });
+
+  it("matches the iterative walk across window and override shapes", () => {
+    // Window starting at the anchor, and starting mid-series (off-anchor).
+    expectEquivalent(daily(1), "2026-01-05", "2026-03-15");
+    expectEquivalent(daily(3), "2026-02-01", "2026-03-01");
+    // Window entirely before the anchor, and a single-day window on it.
+    expectEquivalent(daily(1), "2025-11-01", "2025-12-31");
+    expectEquivalent(daily(1), "2026-01-05", "2026-01-05");
+    // endsOn inside and before the window.
+    expectEquivalent(
+      daily(2, {
+        recurrence: { freq: "daily", interval: 2, endsOn: "2026-02-10" },
+      }),
+      "2026-01-01",
+      "2026-06-30",
+    );
+    expectEquivalent(
+      daily(1, {
+        recurrence: { freq: "daily", interval: 1, endsOn: "2026-01-02" },
+      }),
+      "2026-02-01",
+      "2026-02-28",
+    );
+    // Weekly with interval 2.
+    expectEquivalent(
+      daily(2, { recurrence: { freq: "weekly", interval: 2, endsOn: null } }),
+      "2026-01-01",
+      "2026-06-30",
+    );
+  });
+
+  it("matches the iterative walk with cancelled, patched, and off-pattern overrides", () => {
+    const withOverrides = daily(3, {
+      overrides: [
+        { occurrenceDate: "2026-01-08", cancelled: true },
+        { occurrenceDate: "2026-01-14", patch: { amount: 250 } },
+        // Off-pattern: Jan 5 + 3k never lands on Jan 15.
+        { occurrenceDate: "2026-01-15", patch: { amount: 999 } },
+        // Before the anchor.
+        { occurrenceDate: "2025-12-30", patch: { amount: 999 } },
+        // Outside the window / beyond endsOn.
+        { occurrenceDate: "2027-01-05", cancelled: true },
+      ],
+    });
+    expectEquivalent(withOverrides, "2026-01-05", "2026-02-15");
+    expectEquivalent(withOverrides, "2026-01-10", "2026-01-14");
+  });
+
+  it("reports monthly and yearly series identically with or without the bulk visitor", () => {
+    const monthly31: CalendarEvent = {
+      ...base,
+      date: "2026-01-31",
+      recurrence: { freq: "monthly", interval: 1, endsOn: null },
+      overrides: [{ occurrenceDate: "2026-03-31", patch: { amount: 5 } }],
+    };
+    expectEquivalent(monthly31, "2026-01-01", "2026-12-31");
+    const yearly: CalendarEvent = {
+      ...base,
+      date: "2024-02-29",
+      recurrence: { freq: "yearly", interval: 1, endsOn: null },
+    };
+    expectEquivalent(yearly, "2024-01-01", "2029-12-31");
   });
 });

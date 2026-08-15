@@ -20,7 +20,9 @@ export const signedAmount = (
  * all transactions up to & including that day. Occurrences whose (resolved)
  * category is hidden are excluded, so the balances always sum exactly the
  * events the calendar is showing. Sums via forEachOccurrence, so even the
- * carry-in over a years-old daily series allocates no occurrence objects.
+ * carry-in over a years-old daily series allocates no occurrence objects, and
+ * the carry-in passes the bulk visitor so daily/weekly series contribute
+ * count-times-amount in closed form instead of one visit per historical day.
  */
 export const computeRunningBalances = (
   events: CalendarEvent[],
@@ -60,6 +62,12 @@ export const computeRunningBalances = (
         sumInto((signed) => {
           carryIn += signed;
         }),
+        // Unoverridden occurrences all carry the event's own category, amount,
+        // and direction, so the whole stretch filters and sums as one unit.
+        (count) => {
+          if (hiddenCategoryIds.has(getCategory(event.categoryId).id)) return;
+          carryIn += count * signedAmount(event.direction, event.amount);
+        },
       );
     }
     forEachOccurrence(

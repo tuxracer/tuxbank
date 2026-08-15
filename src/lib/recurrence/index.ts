@@ -1,5 +1,5 @@
 import { addDays, differenceInCalendarDays, parseISO, subDays } from "date-fns";
-import { toISODate } from "@/lib/dateGrid";
+import { DAYS_PER_WEEK, toISODate } from "@/lib/dateGrid";
 import type {
   CalendarEvent,
   Category,
@@ -38,17 +38,70 @@ const indexOverrides = (
   Object.fromEntries(overrides.map((o) => [o.occurrenceDate, o]));
 
 /**
+ * Closed-form fast path for daily/weekly aggregation: these frequencies never
+ * clamp (unlike a day-31 monthly anchor), so the unoverridden occurrence
+ * count over any range is pure day arithmetic, and only the overrides need
+ * individual visits. Cancelled overrides get no visit at all; patched ones
+ * are visited with their patch, exactly like the iterative walk.
+ */
+const forEachDayStepped = (
+  event: CalendarEvent,
+  stepDays: number,
+  windowStartISO: string,
+  windowEndISO: string,
+  visit: (iso: string, patch: OccurrenceOverride["patch"] | undefined) => void,
+  visitUnoverridden: (count: number) => void,
+): void => {
+  const { endsOn } = event.recurrence!;
+  const hardEndISO = endsOn && endsOn < windowEndISO ? endsOn : windowEndISO;
+  if (hardEndISO < event.date) return;
+
+  const firstStep = Math.max(
+    0,
+    Math.ceil(daysBetweenISO(event.date, windowStartISO) / stepDays),
+  );
+  const lastStep = Math.floor(
+    daysBetweenISO(event.date, hardEndISO) / stepDays,
+  );
+  if (lastStep < firstStep) return;
+
+  let count = lastStep - firstStep + 1;
+  // indexOverrides dedupes same-date overrides (last wins) the same way the
+  // iterative walk's lookup does, so a duplicated date can't double-subtract.
+  for (const override of Object.values(indexOverrides(event.overrides))) {
+    const iso = override.occurrenceDate;
+    if (iso < windowStartISO || iso > hardEndISO) continue;
+    const days = daysBetweenISO(event.date, iso);
+    // Off-pattern overrides never match a candidate in the iterative walk, so
+    // they are ignored here too.
+    if (days < 0 || days % stepDays !== 0) continue;
+    count -= 1;
+    if (!override.cancelled) visit(iso, override.patch);
+  }
+  if (count > 0) visitUnoverridden(count);
+};
+
+/**
  * Visit every non-cancelled occurrence of an event inside the window without
  * materializing Occurrence objects. expandEvent builds on this; callers that
  * only aggregate (the balance carry-in over a series' whole history) use it
  * directly so a long-lived daily series does not allocate thousands of
  * throwaway objects per recompute.
+ *
+ * `visitUnoverridden` is an optional aggregation fast path: when the caller
+ * needs no per-date detail for unoverridden occurrences (their title, amount,
+ * and direction all come from the event itself), daily and weekly series
+ * report them as a single count instead of one visit per occurrence, turning
+ * a walk over a years-old daily series into O(overrides). Monthly and yearly
+ * series stay on the iterative walk (their clamp-skip rule needs real dates,
+ * and they step at most once per month/year anyway).
  */
 export const forEachOccurrence = (
   event: CalendarEvent,
   windowStartISO: string,
   windowEndISO: string,
   visit: (iso: string, patch: OccurrenceOverride["patch"] | undefined) => void,
+  visitUnoverridden?: (count: number) => void,
 ): void => {
   if (!event.recurrence) {
     if (event.date < windowStartISO || event.date > windowEndISO) return;
@@ -57,6 +110,17 @@ export const forEachOccurrence = (
   }
 
   const { freq, interval, endsOn } = event.recurrence;
+  if (visitUnoverridden && (freq === "daily" || freq === "weekly")) {
+    forEachDayStepped(
+      event,
+      interval * (freq === "weekly" ? DAYS_PER_WEEK : 1),
+      windowStartISO,
+      windowEndISO,
+      visit,
+      visitUnoverridden,
+    );
+    return;
+  }
   const anchor = parseISO(event.date);
   const windowStart = parseISO(windowStartISO);
   const hardEndISO = endsOn && endsOn < windowEndISO ? endsOn : windowEndISO;
