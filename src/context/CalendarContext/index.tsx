@@ -319,10 +319,9 @@ export const CalendarProvider = ({
         ...prev.map((e) => (e.id === id ? truncated : e)),
         created,
       ]);
-      await persist(async () => {
-        await putEvent(truncated);
-        await putEvent(created);
-      });
+      // One transaction: committing the truncation without its replacement
+      // tail would permanently drop the following occurrences.
+      await persist(() => applyEventChanges([truncated, created]));
     },
     [events, persist, createEvent],
   );

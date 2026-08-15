@@ -53,11 +53,17 @@ const buildDefaults = (props: EventDialogProps): EventFormValues => {
   const { mode, defaultDate, initialOccurrence, sourceEvent, categories } =
     props;
   if (mode === "edit" && initialOccurrence && sourceEvent) {
+    // The stored categoryId (occurrence patch, else the series base), not the
+    // resolved initialOccurrence.category.id: a deleted category resolves to
+    // the UNKNOWN_CATEGORY sentinel, whose id must never be persisted back.
+    const override = sourceEvent.overrides.find(
+      (o) => o.occurrenceDate === initialOccurrence.date,
+    );
     return {
       title: initialOccurrence.title,
       // anchor date, not the clicked occurrence — so whole-series ("all") edits don't shift the series
       date: sourceEvent.date,
-      categoryId: initialOccurrence.category.id,
+      categoryId: override?.patch?.categoryId ?? sourceEvent.categoryId,
       // resolved occurrence values (carry any per-occurrence patch), not the series base
       amount: initialOccurrence.amount,
       direction: initialOccurrence.direction,
