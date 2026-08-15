@@ -30,6 +30,7 @@ import {
   type EventInput,
 } from "@/lib/recurrence";
 import {
+  applyEventChanges,
   deleteEvent as dbDelete,
   getAllEvents,
   isStorageError,
@@ -375,11 +376,17 @@ export const CalendarProvider = ({
           ...cancelOccurrence(current, occurrence.date),
           updatedAt: nowISO(),
         };
+        // The stored categoryId (occurrence patch, else the series base), not
+        // the resolved occurrence.category.id: a deleted category resolves to
+        // the UNKNOWN_CATEGORY sentinel, whose id must never be persisted.
+        const override = current.overrides.find(
+          (o) => o.occurrenceDate === occurrence.date,
+        );
         const standalone: CalendarEvent = {
           id: newId(),
           title: occurrence.title,
           date: toDate,
-          categoryId: occurrence.category.id,
+          categoryId: override?.patch?.categoryId ?? current.categoryId,
           amount: occurrence.amount,
           direction: occurrence.direction,
           recurrence: null,
@@ -412,25 +419,27 @@ export const CalendarProvider = ({
         for (const w of writes) byId.set(w.id, w);
         return [...byId.values()];
       });
-      await persist(async () => {
-        for (const w of writes) await putEvent(w);
-      });
+      // One transaction: a cancelled/truncated series must never commit
+      // without its paired replacement event.
+      await persist(() => applyEventChanges(writes));
 
       return async () => {
+        // Restore with a fresh stamp: putting the snapshot back verbatim
+        // would leave its old updatedAt at/below the sync cursor, so the
+        // undo would never be pushed and the next pull would re-apply the
+        // move on every device.
+        const restoredAt = nowISO();
+        const restores = snapshot.flatMap((s) =>
+          s.prev ? [{ ...s.prev, updatedAt: restoredAt }] : [],
+        );
+        const removals = snapshot.flatMap((s) => (s.prev ? [] : [s.id]));
         setEvents((prev) => {
           const byId = new Map(prev.map((e) => [e.id, e]));
-          for (const s of snapshot) {
-            if (s.prev) byId.set(s.id, s.prev);
-            else byId.delete(s.id);
-          }
+          for (const r of restores) byId.set(r.id, r);
+          for (const id of removals) byId.delete(id);
           return [...byId.values()];
         });
-        await persist(async () => {
-          for (const s of snapshot) {
-            if (s.prev) await putEvent(s.prev);
-            else await dbDelete(s.id);
-          }
-        });
+        await persist(() => applyEventChanges(restores, removals));
       };
     },
     [events, persist],

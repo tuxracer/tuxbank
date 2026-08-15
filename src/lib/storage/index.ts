@@ -126,6 +126,40 @@ export const deleteEvent = async (id: string): Promise<void> => {
   notifyDataChanged();
 };
 
+/**
+ * Apply several event writes atomically: put every event in `puts` and
+ * tombstone-delete every id in `deleteIds`, all in one transaction. Paired
+ * writes (a truncated series plus its replacement tail, an undo restoring a
+ * snapshot) can therefore never partially commit — a failure rolls the whole
+ * batch back. One change notification covers the batch.
+ */
+export const applyEventChanges = async (
+  puts: readonly CalendarEvent[],
+  deleteIds: readonly string[] = [],
+): Promise<void> => {
+  try {
+    const db = await getDb();
+    const tx = db.transaction([STORE, TOMBSTONE_STORE], "readwrite");
+    const events = tx.objectStore(STORE);
+    const tombstones = tx.objectStore(TOMBSTONE_STORE);
+    const stamp = nowISO();
+    await Promise.all([
+      ...puts.flatMap((event) => [
+        events.put(event),
+        tombstones.delete(event.id),
+      ]),
+      ...deleteIds.flatMap((id) => {
+        const tombstone: Tombstone = { id, type: "event", updatedAt: stamp };
+        return [events.delete(id), tombstones.put(tombstone)];
+      }),
+    ]);
+    await tx.done;
+  } catch (error) {
+    throw toWriteError(error);
+  }
+  notifyDataChanged();
+};
+
 export const getAllCategories = async (): Promise<Category[]> => {
   try {
     const db = await getDb();
