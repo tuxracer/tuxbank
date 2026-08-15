@@ -8,6 +8,7 @@ import {
 import DayCell from "@/components/DayCell";
 import { useDisplayPreferences } from "@/hooks/useDisplayPreferences";
 import { useSwipeNavigation } from "@/hooks/useSwipeNavigation";
+import { fullDateLabel } from "@/utils/fullDateLabel";
 import { RUNTIME_LOCALE } from "@/utils/runtimeLocale";
 import { useWheelNavigation } from "@/hooks/useWheelNavigation";
 
@@ -24,12 +25,6 @@ import type { MonthGridProps } from "./types";
 
 export * from "./consts";
 export * from "./types";
-
-const dayLabeler = new Intl.DateTimeFormat(undefined, {
-  weekday: "long",
-  month: "long",
-  day: "numeric",
-});
 
 // Stable identity for empty cells so DayCell's memo sees an unchanged prop.
 const EMPTY_OCCURRENCES: Occurrence[] = [];
@@ -90,7 +85,7 @@ const MonthGrid = ({
     [cells, compact, rows],
   );
   const dateLabels = useMemo(
-    () => visibleCells.map((cell) => dayLabeler.format(cell.date)),
+    () => visibleCells.map((cell) => fullDateLabel(cell.date)),
     [visibleCells],
   );
 

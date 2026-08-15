@@ -5,6 +5,7 @@ import { WEEK_STARTS_ON } from "@/lib/dateGrid";
 import { RUNTIME_LOCALE } from "@/utils/runtimeLocale";
 import { catColorVar } from "@/utils/categoryColor";
 import { formatCurrency, formatSignedCompact } from "@/utils/formatCurrency";
+import { fullDateLabel } from "@/utils/fullDateLabel";
 import { prefersReducedMotion } from "@/utils/prefersReducedMotion";
 import {
   LANDING_COUNT_MS,
@@ -90,12 +91,6 @@ const PREVIEW_PANEL_DAY = PREVIEW_DAYS[LANDING_PREVIEW_TODAY - 1];
 /** The panel lands once the last cell above it has. */
 const PREVIEW_PANEL_DELAY_MS =
   LANDING_ENTRANCE_MS.grid + PREVIEW_DAYS.length * LANDING_STAGGER_MS;
-
-const panelDateLabeler = new Intl.DateTimeFormat(undefined, {
-  weekday: "long",
-  month: "long",
-  day: "numeric",
-});
 
 /** Matches the `ease-out` the cells fade in on, so figure and cell settle together. */
 const easeOutCubic = (progress: number) => 1 - (1 - progress) ** 3;
@@ -251,7 +246,7 @@ const PreviewPanel = () => (
         className="cy-mono text-[10px] tracking-widest text-[color:var(--cy-cyan)] uppercase"
         lang={RUNTIME_LOCALE}
       >
-        {panelDateLabeler.format(LANDING_PREVIEW_TODAY_DATE)}
+        {fullDateLabel(LANDING_PREVIEW_TODAY_DATE)}
       </p>
       <CountUpBalance
         className={`cy-balance ${PREVIEW_PANEL_DAY.balance < 0 ? "cy-balance-neg" : ""}`}

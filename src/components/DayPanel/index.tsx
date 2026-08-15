@@ -2,18 +2,13 @@ import { parseISO } from "date-fns";
 import { Button } from "@/components/ui/button";
 import EventChip from "@/components/EventChip";
 import { formatCurrency } from "@/utils/formatCurrency";
+import { fullDateLabel } from "@/utils/fullDateLabel";
 import { RUNTIME_LOCALE } from "@/utils/runtimeLocale";
 import { useDisplayPreferences } from "@/hooks/useDisplayPreferences";
 
 import type { DayPanelProps } from "./types";
 
 export * from "./types";
-
-const dateLabeler = new Intl.DateTimeFormat(undefined, {
-  weekday: "long",
-  month: "long",
-  day: "numeric",
-});
 
 /** Selected-day detail shown below the month grid in compact mode. */
 const DayPanel = ({
@@ -31,7 +26,7 @@ const DayPanel = ({
           className="cy-mono text-[10px] uppercase tracking-widest text-[color:var(--cy-cyan)]"
           lang={RUNTIME_LOCALE}
         >
-          {dateLabeler.format(parseISO(dateISO))}
+          {fullDateLabel(parseISO(dateISO))}
         </p>
         <span className={`cy-balance ${balance < 0 ? "cy-balance-neg" : ""}`}>
           {formatCurrency(balance, currency)}
