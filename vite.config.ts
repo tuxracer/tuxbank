@@ -30,6 +30,8 @@ const commitShaMeta = (): Plugin => {
 };
 
 const PRECACHE_MAX_FILE_SIZE = 5_000_000; // headroom so the single no-split bundle (libsodium + supabase) stays precacheable as it grows past workbox's 2 MiB default
+const NAVIGATION_CACHE = "tuxbank-navigation";
+const NAVIGATION_NETWORK_TIMEOUT_SECONDS = 3; // bound the wait on a connection that is up but not answering before falling back to cache
 
 const pwa = () =>
   VitePWA({
@@ -59,6 +61,32 @@ const pwa = () =>
     workbox: {
       globPatterns: ["**/*.{js,css,html,svg,png,woff,woff2}"],
       maximumFileSizeToCacheInBytes: PRECACHE_MAX_FILE_SIZE,
+      // Two workbox defaults answer a navigation from the precache before
+      // anything in `runtimeCaching` is consulted, which is what kept online
+      // visitors on the previous deploy's `index.html` (and its hashed bundle)
+      // until they hard-reloaded. `navigateFallback` generates a cache-first
+      // NavigationRoute, and `directoryIndex` makes the precache route itself
+      // answer "/" with the precached "index.html". Both are cleared here so
+      // navigations reach the network-first route below; the precached copy is
+      // still reachable, as that route's explicit offline fallback.
+      navigateFallback: undefined,
+      directoryIndex: null,
+      runtimeCaching: [
+        {
+          // Navigations go to the network first, so an online visitor always
+          // lands on the newest `index.html`. Cache and precache are fallbacks
+          // for an offline or unresponsive network, not the default response.
+          urlPattern: ({ request }) => request.mode === "navigate",
+          handler: "NetworkFirst",
+          options: {
+            cacheName: NAVIGATION_CACHE,
+            networkTimeoutSeconds: NAVIGATION_NETWORK_TIMEOUT_SECONDS,
+            // Last resort: the precached shell, which is always consistent
+            // with the precached assets the same worker installed.
+            precacheFallback: { fallbackURL: "index.html" },
+          },
+        },
+      ],
     },
   });
 
