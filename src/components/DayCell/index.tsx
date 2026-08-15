@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { useDroppable } from "@dnd-kit/core";
 import DraggableEventChip from "@/components/DraggableEventChip";
 import DayEventsPopover from "@/components/DayEventsPopover";
@@ -114,4 +115,7 @@ const DayCell = ({
   );
 };
 
-export default DayCell;
+// Memoized: MonthGrid re-renders all 42 cells on every focus move, slide
+// animation tick, and row-height measurement; with stable props only the
+// cells whose tabIndex/selection actually changed re-render.
+export default memo(DayCell);

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import type { Occurrence } from "@/types";
 import {
   defaultFocusISO,
   inMonthWeekCount,
@@ -29,6 +30,9 @@ const dayLabeler = new Intl.DateTimeFormat(undefined, {
   month: "long",
   day: "numeric",
 });
+
+// Stable identity for empty cells so DayCell's memo sees an unchanged prop.
+const EMPTY_OCCURRENCES: Occurrence[] = [];
 
 const initialActiveIndex = (cells: DateCell[], todayISO: string): number => {
   const index = cells.findIndex(
@@ -77,9 +81,18 @@ const MonthGrid = ({
   const weekdays = useMemo(() => weekdayLabels(weekStartsOn), [weekStartsOn]);
   // Compact (mobile) always fills the full 6-week grid; desktop renders only
   // the weeks the month spans (4-6) so day cells get more height. cells is the
-  // full 6-week window from buildMonthGrid either way.
+  // full 6-week window from buildMonthGrid either way. Memoized (with the
+  // per-cell Intl labels) so DayCell props keep a stable identity across
+  // focus/animation/measurement re-renders.
   const rows = compact ? cells.length / COLS : inMonthWeekCount(cells);
-  const visibleCells = compact ? cells : cells.slice(0, rows * COLS);
+  const visibleCells = useMemo(
+    () => (compact ? cells : cells.slice(0, rows * COLS)),
+    [cells, compact, rows],
+  );
+  const dateLabels = useMemo(
+    () => visibleCells.map((cell) => dayLabeler.format(cell.date)),
+    [visibleCells],
+  );
 
   const rootRef = useRef<HTMLDivElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
@@ -213,7 +226,7 @@ const MonthGrid = ({
         onKeyDown={onKeyDown}
       >
         {visibleCells.map((cell, index) => {
-          const occurrences = occurrencesByDate[cell.iso] ?? [];
+          const occurrences = occurrencesByDate[cell.iso] ?? EMPTY_OCCURRENCES;
           return (
             <DayCell
               key={cell.iso}
@@ -224,7 +237,7 @@ const MonthGrid = ({
               tabIndex={index === resolvedActiveIndex ? 0 : -1}
               occurrences={occurrences}
               balance={balancesByDate[cell.iso] ?? 0}
-              dateLabel={dayLabeler.format(cell.date)}
+              dateLabel={dateLabels[index]}
               maxVisibleChips={
                 rowHeightPx === null
                   ? undefined
