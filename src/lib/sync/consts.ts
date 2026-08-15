@@ -1,16 +1,50 @@
-import { CATEGORY_STORE, STORE } from "@/lib/storage";
-import type { TombstoneType } from "@/lib/storage";
+import {
+  CATEGORY_STORE,
+  getAllCategories,
+  getAllEvents,
+  getAllSettings,
+  isSettingRow,
+  SETTINGS_STORE,
+  STORE,
+} from "@/lib/storage";
+import type { SyncedRow, TombstoneType } from "@/lib/storage";
+import { isCalendarEvent, isCategory } from "@/types";
 
 /** Default cursor before the first sync. */
 export const EPOCH_CURSOR = "1970-01-01T00:00:00.000Z";
 
 /**
- * The record types to sync. `table` is the Supabase table name (identical to
- * the local IndexedDB store name); `type` tags tombstones and local routing.
+ * One synced collection. `table` is the Supabase table name (identical to the
+ * local IndexedDB store name); `type` tags tombstones and local routing;
+ * `readAll` and `guard` are the only places the merge loop needs to know which
+ * kind of row it is holding, so adding a collection is adding an entry here.
  */
-export const SYNC_TABLES: readonly { table: string; type: TombstoneType }[] = [
-  { table: STORE, type: "event" },
-  { table: CATEGORY_STORE, type: "category" },
+export interface SyncCollection {
+  table: string;
+  type: TombstoneType;
+  readAll: () => Promise<SyncedRow[]>;
+  guard: (value: unknown) => value is SyncedRow;
+}
+
+export const SYNC_TABLES: readonly SyncCollection[] = [
+  {
+    table: STORE,
+    type: "event",
+    readAll: getAllEvents,
+    guard: isCalendarEvent,
+  },
+  {
+    table: CATEGORY_STORE,
+    type: "category",
+    readAll: getAllCategories,
+    guard: isCategory,
+  },
+  {
+    table: SETTINGS_STORE,
+    type: "setting",
+    readAll: getAllSettings,
+    guard: isSettingRow,
+  },
 ];
 
 /** Abort a hung pull/push so a sync can never leave the UI stuck on "syncing". */

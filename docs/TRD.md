@@ -345,7 +345,7 @@ src/
     EventDialog/            # create/edit form (shadcn Form + react-hook-form/zod, Dialog/Select/Textarea + date picker)
     RecurrenceScopeDialog/  # This / This & following / All (shadcn Dialog + RadioGroup)
     DataSettings/           # settings pane: JSON backup export/import (validate -> confirm -> swap) + guarded clear-all
-    DisplaySettings/        # settings pane: per-device currency + week-start overrides (automatic = follow the locale)
+    DisplaySettings/        # settings pane: currency + week-start overrides (automatic = follow the locale); synced
     StorageUnavailableBanner/ # shown when storage fails; offers a reset when the DB is unopenable
     SyncSettings/           # settings pane: optional account sync: create / sign-in / TOTP / recovery-key / change-password
     LandingPage/            # first-visit entry screen; Try Now CTA dismisses it via landingGate
@@ -363,7 +363,7 @@ src/
     recurrence/             # expand(window) + recurrence override/split/move helpers (pure)
     dateGrid/               # month -> 6x7 date matrix; inMonthWeekCount() for the weeks a month spans
     balance/                # running balance from deposits/withdrawals
-    displayPreferences/     # localStorage-backed per-device display overrides (currency, week start); null = automatic
+    displayPreferences/     # synced display overrides (currency, week start); null = automatic; localStorage mirrors for first paint
     landingGate/            # localStorage flag for skipping the landing page on return visits
   types/                    # CalendarEvent, Category, Recurrence + type guards
   utils/
@@ -465,7 +465,7 @@ Vitest, **behavior-focused** (verify behavior, not implementation constants, per
   end-to-end-encrypted account feature (see Optional account sync).
 - Personal-scale data volume (hundreds to low thousands of events); in-memory expansion is acceptable.
 - Modern evergreen browser with IndexedDB support and current Intl APIs; no polyfills or fallback data for legacy engines.
-- The week starts on the locale's first weekday (Intl.Locale week info); engines without that API (Firefox, as of 2026) get a Sunday-first week. The Display settings pane can override both the week start and the currency per device (stored in localStorage, deliberately outside the synced dataset).
+- The week starts on the locale's first weekday (Intl.Locale week info); engines without that API (Firefox, as of 2026) get a Sunday-first week. The Display settings pane can override both the week start and the currency; the override is part of the synced dataset, so a signed-in account carries it to every device. "Automatic" syncs as a choice in its own right, and each device resolves it against its own locale rather than being pinned to the locale of whichever device set it.
 
 ## Persistence: IndexedDB
 
@@ -474,12 +474,13 @@ All data persists locally in **IndexedDB** via the
 The local database lives entirely in the browser profile; optional cloud sync is
 a separate, encrypted layer (see Optional account sync).
 
-- **Database:** `tuxbank`, version `2`. Object stores: `events` and
-  `categories` (keyed by `id`), `tombstones` (deleted-row markers, keyed by
-  `id`), `syncMeta` (key-value; sync cursor and cached key), and `outbox`
+- **Database:** `tuxbank`, version `3`. Object stores: `events`, `categories`,
+  and `settings` (all keyed by `id`), `tombstones` (deleted-row markers, keyed
+  by `id`), `syncMeta` (key-value; sync cursor and cached key), and `outbox`
   (pending local changes awaiting a sync push, keyed by `[type, id]`; added by
-  the v1 to v2 upgrade). Records are stored as the in-memory `CalendarEvent` /
-  `Category` objects verbatim; there is no mapping layer.
+  the v1 to v2 upgrade). `settings` was added by the v2 to v3 upgrade. Records
+  are stored as the in-memory `CalendarEvent` / `Category` / `SettingRow`
+  objects verbatim; there is no mapping layer.
 - **Connection:** a lazily created, module-cached `openDB()` promise
   (`src/lib/storage/index.ts`). A missing `indexedDB` global or a failed open
   maps to `StorageError("UNAVAILABLE")`; the cache resets on failure so a later
@@ -510,19 +511,27 @@ a separate, encrypted layer (see Optional account sync).
   ```json
   {
     "app": "tuxbank",
-    "schemaVersion": 1,
+    "schemaVersion": 2,
     "exportedAt": "2026-06-03T18:00:00.000Z",
     "events": [],
-    "categories": []
+    "categories": [],
+    "settings": []
   }
   ```
+
+  A backup covers every synced collection, so what a file restores matches what
+  an account syncs with no exceptions to remember.
 
 - **Import** is a staged, destructive replace, routed by sign-in state through
   `useSync().importData()`; the confirmation copy states the scope.
   `validateImport(text)` parses and validates the candidate (app marker,
   supported `schemaVersion`, every record passes its type guard) without
   touching the live database and returns an `ImportPreview`
-  (`{ events, categories, schemaVersion }`) for the confirmation dialog.
+  (`{ events, categories, settings, schemaVersion }`) for the confirmation
+  dialog. Schema 1 files (which predate synced settings) still import: a v1
+  file is read as saying *nothing* about settings rather than as saying there
+  are none, so restoring one leaves the account's display choices in place
+  instead of silently resetting them.
   Signed in and unlocked, `commitImportSynced(text)` makes the backup the
   truth everywhere: it re-stamps every imported row to now, writes a fresh
   tombstone for every pre-import id the backup lacks, drops tombstones for
@@ -570,14 +579,17 @@ so there is no server code of ours. Config lives in `VITE_SUPABASE_URL` and
 `VITE_SUPABASE_PUBLISHABLE_KEY` (public values, safe in the bundle; kept in
 gitignored `.env.local`, template in `.env.example`). The applied schema is
 recorded in `supabase/migrations/` (`0001_e2ee_sync.sql`,
-`0002_server_updated_at.sql`, `0003_password_rewrap_staging.sql`). Step-by-step
+`0002_server_updated_at.sql`, `0003_password_rewrap_staging.sql`,
+`0004_settings_sync.sql`). Step-by-step
 setup instructions (create the project, apply the schema, configure auth, set
 the env vars) live in [docs/sync.md](sync.md).
 
-Three tables, all keyed by `user_id` (= `auth.users.id`):
+Four tables, all keyed by `user_id` (= `auth.users.id`):
 
-- `events` and `categories`:
-  `( id uuid, user_id uuid, updated_at timestamptz, server_updated_at timestamptz, deleted bool, nonce text, ciphertext text, primary key (user_id, id) )`.
+- `events`, `categories`, and `settings`:
+  `( id, user_id uuid, updated_at timestamptz, server_updated_at timestamptz, deleted bool, nonce text, ciphertext text, primary key (user_id, id) )`.
+  `id` is `uuid` on `events` and `categories` and `text` on `settings`, whose
+  rows are keyed by a stable name (`currency`) rather than a generated id.
   Only routing metadata is plaintext; the record's sensitive fields live inside
   `ciphertext` (base64). `deleted = true` is a tombstone. `server_updated_at`
   is set by a database trigger on every insert and update (clients never write
@@ -638,11 +650,11 @@ The pure key functions (`provisionAccountKeys`, `unlockWithPassword`,
 alongside the thin Supabase auth/MFA/key-material wrappers; base64 helpers are
 shared in `src/utils/base64`.
 
-### Local storage (`src/lib/storage`, DB v2)
+### Local storage (`src/lib/storage`, DB v3)
 
-The database opens at v2: v1 created `events`, `categories`, `tombstones`, and
-`syncMeta`; v2 adds `outbox`. Both `CalendarEvent` and `Category` carry an
-`updatedAt`. Deleting a row writes a tombstone; writing a row clears any
+The database opens at v3: v1 created `events`, `categories`, `tombstones`, and
+`syncMeta`; v2 adds `outbox`; v3 adds `settings`. `CalendarEvent`, `Category`,
+and `SettingRow` all carry an `updatedAt`. Deleting a row writes a tombstone; writing a row clears any
 tombstone for its id. Every local write also enqueues an **outbox** entry
 (`{ id, type, updatedAt }`) in the same transaction; the outbox is the "what
 must the next push send" set, and a successful push clears an entry only while
@@ -674,7 +686,10 @@ that deletes the database and reloads.
 
 `runSync(dek, remote)` runs one last-write-wins push/pull cycle against a
 `SyncRemote` interface (the real implementation wraps the Supabase client; tests
-use an in-memory fake).
+use an in-memory fake). The collections it covers come from the `SYNC_TABLES`
+registry, which pairs each table with its local reader and type guard; those
+are the only two places the merge loop needs to know which kind of row it
+holds, so adding a collection is adding an entry plus a store and a table.
 
 **Pull** is cursored on the server-assigned `server_updated_at` watermark, not
 on client timestamps: a row uploaded late (an offline edit pushed after another
@@ -706,6 +721,51 @@ limitation: conflict resolution itself is last-write-wins by client
 `updated_at`, so heavily skewed device clocks can pick the "wrong" winner for
 a genuinely concurrent edit; acceptable for a single user.
 
+### Synced settings (`settings` store, `src/lib/displayPreferences`)
+
+Everything the user chose syncs when signed in: events, categories, and
+settings. Display preferences (currency, week start) were originally
+device-local in localStorage, which left a signed-in user unable to tell which
+of their choices followed them across devices. They are now ordinary synced
+rows and ride the same machinery as everything else.
+
+**One row per setting**, `{ id, value, updatedAt }`, keyed by a stable name
+(`currency`, `weekStartsOn`) rather than a generated id. A single settings blob
+would make two unrelated preferences compete under last-write-wins; per-row
+means a device that changes the currency and a device that changes the week
+start both keep their change. `SettingValue` is deliberately narrow (string,
+number, boolean, or null): settings are scalar choices, and a tight guard keeps
+a corrupt row from reaching a consumer half-valid. The `settings` Supabase table
+is structurally identical to `events`/`categories` except that `id` is `text`,
+so the merge engine handles it with no special cases.
+
+**An absent row and a null value are different states.** Absent means the
+setting was never chosen anywhere; `null` means it was explicitly set back to
+"automatic". Representing automatic by deleting the row would drop its
+`updatedAt`, so the choice would lose every merge and the other device's stale
+override would win back. Nothing deletes a settings row.
+
+**Validation is split by layer.** `storage` validates only the envelope;
+whether a value is legal for a given id belongs to the module that owns the
+setting. `displayPreferences` falls back to automatic for a row it cannot
+recognize, so a row written by a newer build degrades instead of breaking.
+
+**Reads stay synchronous.** The calendar renders before IndexedDB can answer,
+and a grid that starts Sunday-first and jumps to Monday-first is worse than one
+frame of slightly stale truth, so localStorage keeps a first-paint mirror of
+the resolved preferences. It is a cache, not a second source of truth:
+`hydrateDisplayPreferences` overwrites it from IndexedDB on the first
+subscribe, on a cross-tab change, and from `refreshFromStorage` (which covers
+every path that rewrites storage out of band: a sync pull, an import, a reset).
+A device upgrading from the pre-sync build migrates its old localStorage key
+into settings rows once, on first hydrate; only an explicit override migrates,
+because a `null` in the old format cannot be told apart from "never chose
+anything" and seeding it as a real choice would overwrite another device's
+actual pick. The legacy key is removed either way, so the migration runs once.
+
+Settings changes feed the same debounced push as edits (`SyncContext` watches
+the resolved preferences alongside events and categories).
+
 ### First-sync conflict
 
 A first sync merges both sides last-write-wins, which is the wrong default when
@@ -728,7 +788,8 @@ means it runs at most once per device, since the cursor is a single unscoped
 value: signing out of one account and into another on the same device without
 clearing local data carries the cursor over and skips the prompt.
 
-Categories are not part of the trigger and follow whichever side the user keeps.
+Categories and settings are not part of the trigger and follow whichever side
+the user keeps.
 
 The gate sits at the top of `doSync` in `SyncContext`, so it covers every path
 that can start a first sync: the TOTP confirm, device-link sign-in, a cached-key

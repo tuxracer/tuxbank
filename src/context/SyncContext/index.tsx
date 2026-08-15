@@ -9,6 +9,7 @@ import {
 } from "react";
 import { toast } from "sonner";
 import { useCalendar } from "@/context/CalendarContext";
+import { useDisplayPreferences } from "@/hooks/useDisplayPreferences";
 import { deriveKeys } from "@/lib/crypto";
 import { trackEvent } from "@/lib/analytics";
 import {
@@ -135,6 +136,9 @@ export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
   // thrash on the calendar context value object (which is new every render).
   const { events, categories, visibleMonth, refreshFromStorage, clearAllData } =
     useCalendar();
+  // Settings sync like any other row, so a preference change has to schedule a
+  // push the same way an edit does.
+  const { preferences } = useDisplayPreferences();
   const remote = useMemo(() => createSupabaseRemote(), []);
 
   const [status, setStatus] = useState<SyncStatus>("off");
@@ -307,19 +311,19 @@ export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
   // every sync attempt). refreshPendingCount self-gates on an unlocked DEK.
   useEffect(() => {
     refreshPendingCount();
-  }, [events, categories, refreshPendingCount]);
+  }, [events, categories, preferences, refreshPendingCount]);
 
   // Debounced sync after a local edit or a month/year navigation. Changing the
   // visible month is the user's cue to pull fresh data for the dates they're now
   // looking at (a no-op push, since navigating changes no local rows). Gated on
-  // an unlocked DEK (a ref), so it fires on events/categories/visibleMonth
-  // changes, never on a status flip (which would otherwise create a perpetual
-  // self-triggering sync loop).
+  // an unlocked DEK (a ref), so it fires on events/categories/preferences/
+  // visibleMonth changes, never on a status flip (which would otherwise create
+  // a perpetual self-triggering sync loop).
   useEffect(() => {
     if (!dekRef.current) return;
     const id = setTimeout(() => void doSync(), SYNC_DEBOUNCE_MS);
     return () => clearTimeout(id);
-  }, [events, categories, visibleMonth, doSync]);
+  }, [events, categories, preferences, visibleMonth, doSync]);
 
   // Begin TOTP enrollment (first-time setup) and show the QR to the user.
   const beginEnrollment = useCallback(

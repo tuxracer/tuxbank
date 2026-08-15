@@ -9,6 +9,7 @@ import {
   createSupabaseRemote,
   countPendingChanges,
   detectSignInConflict,
+  SYNC_TABLES,
 } from "./index";
 import {
   getAllEvents,
@@ -20,6 +21,8 @@ import {
   clearLocalData,
   commitImportLocal,
   commitImportSynced,
+  putSetting,
+  getAllSettings,
 } from "@/lib/storage";
 import { resetDbForTests } from "@/lib/storage/testing";
 import {
@@ -126,10 +129,11 @@ const backupOf = (events: CalendarEvent[]): string =>
  * pulls filter on that server stamp, never on the client updated_at.
  */
 const makeFakeRemote = () => {
-  const tables: Record<string, Map<string, RemoteRow>> = {
-    events: new Map(),
-    categories: new Map(),
-  };
+  // Derived from the registry, so adding a synced collection cannot leave the
+  // fake backend missing a table the engine will reach for.
+  const tables: Record<string, Map<string, RemoteRow>> = Object.fromEntries(
+    SYNC_TABLES.map(({ table }) => [table, new Map<string, RemoteRow>()]),
+  );
   let tick = 0;
   const nextServerStamp = () =>
     new Date(
@@ -215,6 +219,69 @@ describe("runSync", () => {
     expect(
       await decryptRow([...tables.events.values()][0], dek, "events"),
     ).toMatchObject({ title: "New" });
+  });
+
+  it("round-trips a setting through push and pull", async () => {
+    const dek = await generateDek();
+    const { remote } = makeFakeRemote();
+    await putSetting("currency", "EUR");
+    await runSync(dek, remote);
+    // A second device starting empty pulls the account's settings.
+    await resetDbForTests();
+    await runSync(dek, remote);
+    expect(await getAllSettings()).toMatchObject([
+      { id: "currency", value: "EUR" },
+    ]);
+  });
+
+  it("keeps both changes when two devices each change a different setting", async () => {
+    const dek = await generateDek();
+    const { remote, seed } = makeFakeRemote();
+    // The other device already published a week-start change.
+    seed(
+      "settings",
+      await encryptRecord(
+        {
+          id: "weekStartsOn",
+          value: 1,
+          updatedAt: "2026-06-09T00:00:02.000Z",
+        },
+        dek,
+        "settings",
+      ),
+    );
+    // This device changed the currency instead. One row per setting is what
+    // keeps last-write-wins from making these two edits compete.
+    await putSetting("currency", "JPY");
+    await runSync(dek, remote);
+    const merged = await getAllSettings();
+    expect(
+      Object.fromEntries(merged.map((row) => [row.id, row.value])),
+    ).toEqual({ currency: "JPY", weekStartsOn: 1 });
+  });
+
+  it("syncs a setting cleared back to automatic as an explicit null", async () => {
+    const dek = await generateDek();
+    const { remote, seed } = makeFakeRemote();
+    seed(
+      "settings",
+      await encryptRecord(
+        {
+          id: "currency",
+          value: "EUR",
+          updatedAt: "2026-06-09T00:00:01.000Z",
+        },
+        dek,
+        "settings",
+      ),
+    );
+    await putSetting("currency", null);
+    await runSync(dek, remote);
+    // Dropping the row instead would read as "never chosen" on the other
+    // device, letting its stale EUR stand.
+    expect(await getAllSettings()).toMatchObject([
+      { id: "currency", value: null },
+    ]);
   });
 
   it("propagates a local deletion to the remote", async () => {

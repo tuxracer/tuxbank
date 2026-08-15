@@ -15,6 +15,7 @@ import {
   CATEGORY_STORE,
   TOMBSTONE_STORE,
   SYNC_META_STORE,
+  BACKUP_SCHEMA_VERSION,
 } from "@/lib/storage";
 import { resetChannelForTests, SYNC_CHANNEL_NAME } from "@/lib/tabSync";
 import { CalendarProvider, useCalendar } from "./index";
@@ -393,7 +394,7 @@ describe("CalendarContext", () => {
       new File([json], "backup.json"),
     );
     expect(preview.events).toBe(1);
-    expect(preview.schemaVersion).toBe(1);
+    expect(preview.schemaVersion).toBe(BACKUP_SCHEMA_VERSION);
   });
 
   it("year range defaults to current year .. current year + 10 with no events", async () => {

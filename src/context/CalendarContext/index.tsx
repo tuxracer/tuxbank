@@ -45,6 +45,7 @@ import {
 } from "@/lib/storage";
 import { subscribeToDataChanges } from "@/lib/tabSync";
 import { useDisplayPreferences } from "@/hooks/useDisplayPreferences";
+import { hydrateDisplayPreferences } from "@/lib/displayPreferences";
 import { downloadBlob } from "@/utils/downloadBlob";
 import { computeRunningBalances } from "@/lib/balance";
 
@@ -154,6 +155,10 @@ export const CalendarProvider = ({
    */
   const refreshFromStorage = useCallback(async () => {
     const seq = ++refreshSeqRef.current;
+    // Display preferences are synced rows too, so every path that rewrites
+    // storage behind our back (a sync pull, an import, a reset) has to reload
+    // them alongside the events. Their own store notifies its subscribers.
+    void hydrateDisplayPreferences();
     try {
       const [loadedEvents, loadedCategories] = await Promise.all([
         getAllEvents(),

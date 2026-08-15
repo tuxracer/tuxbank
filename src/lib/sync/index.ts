@@ -5,16 +5,13 @@ import {
   applyRemoteChanges,
   clearOutboxEntries,
   getAllEvents,
-  getAllCategories,
   getOutboxEntries,
   getTombstones,
   getSyncCursor,
   hasEverSynced,
   setSyncCursor,
 } from "@/lib/storage";
-import type { OutboxEntry, Tombstone } from "@/lib/storage";
-import { isCalendarEvent, isCategory } from "@/types";
-import type { CalendarEvent, Category } from "@/types";
+import type { OutboxEntry, SyncedRow, Tombstone } from "@/lib/storage";
 import {
   EPOCH_CURSOR,
   EVENT_TABLE,
@@ -43,12 +40,11 @@ export * from "./types";
  */
 export const countPendingChanges = async (): Promise<number> => {
   if (!(await hasEverSynced())) {
-    const [events, categories, tombstones] = await Promise.all([
-      getAllEvents(),
-      getAllCategories(),
-      getTombstones(),
-    ]);
-    return events.length + categories.length + tombstones.length;
+    const collections = await Promise.all(
+      SYNC_TABLES.map(async ({ readAll }) => (await readAll()).length),
+    );
+    const tombstones = (await getTombstones()).length;
+    return collections.reduce((total, count) => total + count, tombstones);
   }
   return (await getOutboxEntries()).length;
 };
@@ -87,7 +83,7 @@ const rowAd = (
 ): string => `tuxbank:${table}:${id}:${updatedAt}:${deleted ? "1" : "0"}`;
 
 export const encryptRecord = async (
-  record: CalendarEvent | Category,
+  record: SyncedRow,
   dek: Uint8Array,
   table: string,
 ): Promise<PushRow> => {
@@ -195,9 +191,8 @@ export const runSync = async (
   let skipped = 0;
   const outbox = await getOutboxEntries();
 
-  for (const { table, type } of SYNC_TABLES) {
-    const localRecords: (CalendarEvent | Category)[] =
-      type === "event" ? await getAllEvents() : await getAllCategories();
+  for (const { table, type, readAll, guard } of SYNC_TABLES) {
+    const localRecords: SyncedRow[] = await readAll();
     const localById = new Map(
       localRecords.map((record) => [record.id, record]),
     );
@@ -207,7 +202,7 @@ export const runSync = async (
     // Pull: decide each remote row's fate, then apply the batch in one
     // transaction (and one cross-tab notification).
     const remoteRows = await remote.pull(table, pullSince(storedCursor));
-    const puts: (CalendarEvent | Category)[] = [];
+    const puts: SyncedRow[] = [];
     const deleteIds: string[] = [];
     const pulledIds = new Set<string>();
     for (const row of remoteRows) {
@@ -229,7 +224,6 @@ export const runSync = async (
           }
           continue;
         }
-        const guard = type === "event" ? isCalendarEvent : isCategory;
         if (!guard(record)) throw new SyncError("DECRYPT_INVALID");
         const local = localById.get(row.id);
         if (
@@ -253,7 +247,7 @@ export const runSync = async (
     // pushed, so an edit landing mid-sync keeps its entry for the next sync.
     const pushRows: PushRow[] = [];
     const clearable: OutboxEntry[] = [];
-    const pushRecord = async (record: CalendarEvent | Category) => {
+    const pushRecord = async (record: SyncedRow) => {
       pushRows.push(await encryptRecord(record, dek, table));
     };
     const pushTombstone = async (t: Tombstone) => {

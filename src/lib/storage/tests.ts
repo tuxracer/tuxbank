@@ -31,6 +31,9 @@ import {
   CATEGORY_STORE,
   TOMBSTONE_STORE,
   SYNC_META_STORE,
+  BACKUP_SCHEMA_VERSION,
+  putSetting,
+  getAllSettings,
 } from "./index";
 import { resetDbForTests } from "./testing";
 import { resetChannelForTests, SYNC_CHANNEL_NAME } from "@/lib/tabSync";
@@ -196,7 +199,7 @@ describe("export / import (JSON backup)", () => {
     const text = await exportDatabase();
     const parsed = JSON.parse(text);
     expect(parsed.app).toBe("tuxbank");
-    expect(parsed.schemaVersion).toBe(1);
+    expect(parsed.schemaVersion).toBe(BACKUP_SCHEMA_VERSION);
     expect(parsed.events).toHaveLength(1);
     expect(parsed.categories).toEqual([]);
     expect(text).toContain("\n"); // pretty-printed, not minified
@@ -219,6 +222,40 @@ describe("export / import (JSON backup)", () => {
     await commitImportLocal(text);
     expect((await getAllEvents()).map((e) => e.id)).toEqual(["a"]);
     expect((await getAllCategories()).map((c) => c.id)).toEqual(["rent"]);
+  });
+
+  it("round-trips settings through export + commitImportLocal", async () => {
+    await putSetting("currency", "EUR");
+    const text = await exportDatabase();
+    await putSetting("currency", "USD");
+
+    await commitImportLocal(text);
+    expect(await getAllSettings()).toMatchObject([
+      { id: "currency", value: "EUR" },
+    ]);
+  });
+
+  it("leaves settings untouched when importing a pre-settings v1 backup", async () => {
+    await putSetting("currency", "EUR");
+    // A v1 file says nothing about settings rather than saying there are none,
+    // so restoring one must not silently reset the account's display choices.
+    await commitImportLocal(backupOf([make("a")]));
+    expect(await getAllSettings()).toMatchObject([
+      { id: "currency", value: "EUR" },
+    ]);
+    expect((await getAllEvents()).map((e) => e.id)).toEqual(["a"]);
+  });
+
+  it("commitImportSynced leaves settings and their tombstones alone for a v1 backup", async () => {
+    await putSetting("currency", "EUR");
+    await commitImportSynced(backupOf([make("a")]));
+    expect(await getAllSettings()).toMatchObject([
+      { id: "currency", value: "EUR" },
+    ]);
+    // No settings tombstone, so the deletion never propagates to the account.
+    expect((await getTombstones()).some((t) => t.type === "setting")).toBe(
+      false,
+    );
   });
 
   it("commitImportLocal replaces pre-existing data entirely", async () => {
@@ -244,7 +281,8 @@ describe("export / import (JSON backup)", () => {
     expect(await validateImport(text)).toEqual({
       events: 2,
       categories: 0,
-      schemaVersion: 1,
+      settings: 0,
+      schemaVersion: BACKUP_SCHEMA_VERSION,
     });
   });
 

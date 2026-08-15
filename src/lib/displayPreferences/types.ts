@@ -2,10 +2,14 @@ import type { Day } from "date-fns";
 import { isNumber, isPlainObject, isString } from "remeda";
 
 /**
- * Per-device display overrides, each `null` when the app should follow the
- * locale ("automatic"). Deliberately not part of the synced dataset: which
- * currency to label amounts with and which day a week starts on are properties
- * of where and how a device is used, not of the data.
+ * Display overrides, each `null` when the app should follow the locale
+ * ("automatic"). Part of the synced dataset: a signed-in account carries its
+ * settings to every device, because a user who picks a currency on one device
+ * and finds another still showing a different one cannot tell what syncs.
+ *
+ * "Automatic" stays meaningful across devices: what syncs is the choice to
+ * follow the locale, and each device then resolves it against its own locale
+ * rather than being pinned to whichever locale set it.
  */
 export type DisplayPreferences = {
   /** ISO 4217 code to format amounts in, or null for the locale's currency. */

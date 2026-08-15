@@ -11,6 +11,8 @@ import {
   DEK_KEY,
   DELETE_BLOCKED_TIMEOUT_MS,
   OUTBOX_STORE,
+  SETTINGS_BACKUP_SCHEMA_VERSION,
+  SETTINGS_STORE,
   STORE,
   SYNC_CURSOR_KEY,
   SYNC_META_STORE,
@@ -20,11 +22,14 @@ import {
 import {
   isBackupFile,
   isOutboxEntry,
+  isSettingRow,
   isTombstone,
   StorageError,
   type BackupFile,
   type ImportPreview,
   type OutboxEntry,
+  type SettingRow,
+  type SettingValue,
   type StorageErrorCode,
   type Tombstone,
   type TombstoneType,
@@ -53,6 +58,9 @@ const getDb = (): Promise<IDBPDatabase> => {
         }
         if (oldVersion < 2) {
           db.createObjectStore(OUTBOX_STORE, { keyPath: ["type", "id"] });
+        }
+        if (oldVersion < 3) {
+          db.createObjectStore(SETTINGS_STORE, { keyPath: "id" });
         }
       },
       // Another tab is upgrading or deleting the database; close this tab's
@@ -104,16 +112,21 @@ export const getAllEvents = async (): Promise<CalendarEvent[]> => {
   }
 };
 
-// The four row-write exports share one transaction shape: a put replaces the
-// row and drops any pending tombstone; a delete removes the row and records a
+// The row-write exports share one transaction shape: a put replaces the row
+// and drops any pending tombstone; a delete removes the row and records a
 // tombstone so the deletion syncs.
-const storeFor = (type: TombstoneType): string =>
-  type === "event" ? STORE : CATEGORY_STORE;
+const STORE_FOR: Record<TombstoneType, string> = {
+  event: STORE,
+  category: CATEGORY_STORE,
+  setting: SETTINGS_STORE,
+};
 
-const putRow = async (
-  type: TombstoneType,
-  row: CalendarEvent | Category,
-): Promise<void> => {
+const storeFor = (type: TombstoneType): string => STORE_FOR[type];
+
+/** Every row shape that syncs: keyed by `id` and stamped with `updatedAt`. */
+export type SyncedRow = CalendarEvent | Category | SettingRow;
+
+const putRow = async (type: TombstoneType, row: SyncedRow): Promise<void> => {
   try {
     const db = await getDb();
     const tx = db.transaction(
@@ -225,11 +238,33 @@ export const putCategory = async (category: Category): Promise<void> =>
 export const deleteCategory = async (id: string): Promise<void> =>
   deleteRow("category", id);
 
+export const getAllSettings = async (): Promise<SettingRow[]> => {
+  try {
+    const db = await getDb();
+    const rows: unknown[] = await db.getAll(SETTINGS_STORE);
+    return rows.filter(isSettingRow);
+  } catch (error) {
+    throw toStorageError(error, "READ_FAILED");
+  }
+};
+
+/**
+ * Write one setting, stamping it now so it wins last-write-wins against the
+ * copy every other device holds. Settings are never deleted: choosing
+ * "automatic" stores a null value, which is a real choice that has to sync,
+ * not the absence of one.
+ */
+export const putSetting = async (
+  id: string,
+  value: SettingValue,
+): Promise<void> => putRow("setting", { id, value, updatedAt: nowISO() });
+
 export const exportDatabase = async (): Promise<string> => {
   try {
-    const [events, categories] = await Promise.all([
+    const [events, categories, settings] = await Promise.all([
       getAllEvents(),
       getAllCategories(),
+      getAllSettings(),
     ]);
     const backup: BackupFile = {
       app: BACKUP_APP,
@@ -237,6 +272,7 @@ export const exportDatabase = async (): Promise<string> => {
       exportedAt: new Date().toISOString(),
       events,
       categories,
+      settings,
     };
     return JSON.stringify(backup, null, 2);
   } catch (error) {
@@ -390,7 +426,7 @@ export const clearStoredDek = async (): Promise<void> => {
  */
 export const applyRemoteChanges = async (
   type: TombstoneType,
-  puts: readonly (CalendarEvent | Category)[],
+  puts: readonly SyncedRow[],
   deleteIds: readonly string[] = [],
 ): Promise<void> => {
   if (puts.length === 0 && deleteIds.length === 0) return;
@@ -422,7 +458,16 @@ export const applyRemoteChanges = async (
   notifyDataChanged();
 };
 
-const parseBackup = (text: string): BackupFile => {
+/**
+ * A parsed backup with the fields a v1 file omits filled in, plus whether the
+ * file is new enough to be making a statement about settings at all.
+ */
+type ParsedBackup = BackupFile & {
+  settings: SettingRow[];
+  carriesSettings: boolean;
+};
+
+const parseBackup = (text: string): ParsedBackup => {
   let parsed: unknown;
   try {
     parsed = JSON.parse(text);
@@ -430,7 +475,13 @@ const parseBackup = (text: string): BackupFile => {
     throw new StorageError("IMPORT_INVALID", cause);
   }
   if (!isBackupFile(parsed)) throw new StorageError("IMPORT_INVALID");
-  return parsed;
+  return {
+    ...parsed,
+    settings: parsed.settings ?? [],
+    carriesSettings:
+      parsed.schemaVersion >= SETTINGS_BACKUP_SCHEMA_VERSION &&
+      parsed.settings !== undefined,
+  };
 };
 
 export const validateImport = async (text: string): Promise<ImportPreview> => {
@@ -438,6 +489,7 @@ export const validateImport = async (text: string): Promise<ImportPreview> => {
   return {
     events: backup.events.length,
     categories: backup.categories.length,
+    settings: backup.settings.length,
     schemaVersion: backup.schemaVersion,
   };
 };
@@ -454,7 +506,14 @@ export const commitImportLocal = async (text: string): Promise<void> => {
   try {
     const db = await getDb();
     const tx = db.transaction(
-      [STORE, CATEGORY_STORE, TOMBSTONE_STORE, SYNC_META_STORE, OUTBOX_STORE],
+      [
+        STORE,
+        CATEGORY_STORE,
+        SETTINGS_STORE,
+        TOMBSTONE_STORE,
+        SYNC_META_STORE,
+        OUTBOX_STORE,
+      ],
       "readwrite",
     );
     // Accumulate request promises as they are queued so we can silence any
@@ -465,6 +524,7 @@ export const commitImportLocal = async (text: string): Promise<void> => {
       const categories = tx.objectStore(CATEGORY_STORE);
       const tombstones = tx.objectStore(TOMBSTONE_STORE);
       const syncMeta = tx.objectStore(SYNC_META_STORE);
+      const settings = tx.objectStore(SETTINGS_STORE);
       // Requests are queued synchronously in push order — the clears are
       // enqueued before any put, and IndexedDB runs same-store requests in
       // creation order. The whole transaction rolls back on failure.
@@ -476,11 +536,17 @@ export const commitImportLocal = async (text: string): Promise<void> => {
         syncMeta.delete(SYNC_CURSOR_KEY),
         syncMeta.delete(SYNC_SERVER_CURSOR_KEY),
       );
+      // A v1 backup says nothing about settings; leave this device's in place
+      // rather than clearing them to nothing.
+      if (backup.carriesSettings) requests.push(settings.clear());
       for (const event of backup.events) {
         requests.push(events.put(event));
       }
       for (const category of backup.categories) {
         requests.push(categories.put(category));
+      }
+      for (const setting of backup.settings) {
+        requests.push(settings.put(setting));
       }
       await Promise.all(requests);
       await tx.done;
@@ -516,13 +582,14 @@ export const commitImportSynced = async (text: string): Promise<void> => {
   try {
     const db = await getDb();
     const tx = db.transaction(
-      [STORE, CATEGORY_STORE, TOMBSTONE_STORE, OUTBOX_STORE],
+      [STORE, CATEGORY_STORE, SETTINGS_STORE, TOMBSTONE_STORE, OUTBOX_STORE],
       "readwrite",
     );
     const requests: Promise<unknown>[] = [];
     try {
       const events = tx.objectStore(STORE);
       const categories = tx.objectStore(CATEGORY_STORE);
+      const settings = tx.objectStore(SETTINGS_STORE);
       const tombstones = tx.objectStore(TOMBSTONE_STORE);
       const outbox = tx.objectStore(OUTBOX_STORE);
       // Read the pre-import state first. Awaiting idb request promises keeps
@@ -531,20 +598,20 @@ export const commitImportSynced = async (text: string): Promise<void> => {
       // clearAllData).
       const eventIds = await events.getAllKeys();
       const categoryIds = await categories.getAllKeys();
+      const settingIds = await settings.getAllKeys();
       const tombstoneRows: unknown[] = await tombstones.getAll();
       const stamp = nowISO();
-      const importedEventIds = new Set(backup.events.map((e) => e.id));
-      const importedCategoryIds = new Set(backup.categories.map((c) => c.id));
+      const importedIds: Record<TombstoneType, Set<string>> = {
+        event: new Set(backup.events.map((e) => e.id)),
+        category: new Set(backup.categories.map((c) => c.id)),
+        setting: new Set(backup.settings.map((s) => s.id)),
+      };
       // For every pre-import id: a fresh tombstone if the backup lacks it,
       // otherwise drop any pending tombstone so the imported row wins. Every
       // resulting row and tombstone is a pending change for the next push.
-      const entomb = (
-        id: IDBValidKey,
-        type: TombstoneType,
-        imported: Set<string>,
-      ): void => {
+      const entomb = (id: IDBValidKey, type: TombstoneType): void => {
         if (!isString(id)) return;
-        if (imported.has(id)) {
+        if (importedIds[type].has(id)) {
           requests.push(tombstones.delete(id));
         } else {
           const row: Tombstone = { id, type, updatedAt: stamp };
@@ -556,14 +623,17 @@ export const commitImportSynced = async (text: string): Promise<void> => {
         }
       };
       requests.push(events.clear(), categories.clear(), outbox.clear());
-      for (const id of eventIds) entomb(id, "event", importedEventIds);
-      for (const id of categoryIds) entomb(id, "category", importedCategoryIds);
+      for (const id of eventIds) entomb(id, "event");
+      for (const id of categoryIds) entomb(id, "category");
+      // A v1 backup predates synced settings and says nothing about them, so
+      // it must not retire the ones this account already holds.
+      if (backup.carriesSettings) {
+        requests.push(settings.clear());
+        for (const id of settingIds) entomb(id, "setting");
+      }
       for (const row of tombstoneRows.filter(isTombstone)) {
-        entomb(
-          row.id,
-          row.type,
-          row.type === "event" ? importedEventIds : importedCategoryIds,
-        );
+        if (row.type === "setting" && !backup.carriesSettings) continue;
+        entomb(row.id, row.type);
       }
       for (const event of backup.events) {
         requests.push(events.put({ ...event, updatedAt: stamp }));
@@ -575,6 +645,12 @@ export const commitImportSynced = async (text: string): Promise<void> => {
         requests.push(categories.put({ ...category, updatedAt: stamp }));
         requests.push(
           outbox.put({ id: category.id, type: "category", updatedAt: stamp }),
+        );
+      }
+      for (const setting of backup.settings) {
+        requests.push(settings.put({ ...setting, updatedAt: stamp }));
+        requests.push(
+          outbox.put({ id: setting.id, type: "setting", updatedAt: stamp }),
         );
       }
       await Promise.all(requests);

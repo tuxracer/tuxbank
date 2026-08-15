@@ -26,6 +26,8 @@ Run every file in [`supabase/migrations/`](../supabase/migrations/), in order:
   (column plus trigger) that sync pulls cursor on.
 - `0003_password_rewrap_staging.sql` adds the staging columns the two-phase
   password change uses.
+- `0004_settings_sync.sql` creates the `settings` table (same shape and
+  policies as the others) so display preferences sync with the account.
 
 An existing project that already ran an earlier migration only needs the ones
 added since.
