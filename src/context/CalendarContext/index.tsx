@@ -7,7 +7,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { addMonths, format, startOfMonth } from "date-fns";
+import { addMonths, startOfMonth } from "date-fns";
 import { groupBy } from "remeda";
 import type {
   CalendarEvent,
@@ -16,7 +16,7 @@ import type {
   Occurrence,
 } from "@/types";
 import { categoryKey } from "@/types";
-import { buildMonthGrid } from "@/lib/dateGrid";
+import { buildMonthGrid, toISODate } from "@/lib/dateGrid";
 import {
   buildFollowingSeries,
   buildMovedFollowing,
@@ -73,7 +73,18 @@ export const CalendarProvider = ({
   );
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  // Synchronous mirror of `categories` for duplicate-name checks: two rapid
+  // createCategory calls (combobox double-submit) land before the state
+  // re-render, so state alone would miss the dedupe. Written ONLY through
+  // applyCategories below — never assign categoriesRef.current directly.
   const categoriesRef = useRef<Category[]>([]);
+  const applyCategories = useCallback(
+    (updater: (prev: Category[]) => Category[]): void => {
+      categoriesRef.current = updater(categoriesRef.current);
+      setCategories(categoriesRef.current);
+    },
+    [],
+  );
   const [storageAvailable, setStorageAvailable] = useState<boolean>(true);
   const [storageResettable, setStorageResettable] = useState<boolean>(false);
   const [loaded, setLoaded] = useState<boolean>(false);
@@ -89,17 +100,6 @@ export const CalendarProvider = ({
   }, []);
   const [hiddenCategoryIds, setHiddenCategoryIds] = useState<Set<string>>(
     () => new Set(),
-  );
-
-  const setCategoriesWithRef = useCallback(
-    (updater: (prev: Category[]) => Category[]) => {
-      setCategories((prev) => {
-        const next = updater(prev);
-        categoriesRef.current = next;
-        return next;
-      });
-    },
-    [],
   );
 
   const toggleCategory = useCallback((id: string) => {
@@ -122,8 +122,7 @@ export const CalendarProvider = ({
       .then(([loadedEvents, loadedCategories]) => {
         if (!active) return;
         setEvents(loadedEvents);
-        categoriesRef.current = loadedCategories;
-        setCategories(loadedCategories);
+        applyCategories(() => loadedCategories);
         setLoaded(true);
       })
       .catch((error) => {
@@ -134,7 +133,7 @@ export const CalendarProvider = ({
     return () => {
       active = false;
     };
-  }, [handleStorageError]);
+  }, [handleStorageError, applyCategories]);
 
   const persist = useCallback(
     async (write: () => Promise<void>) => {
@@ -161,15 +160,14 @@ export const CalendarProvider = ({
         getAllCategories(),
       ]);
       if (seq !== refreshSeqRef.current) return; // superseded by a newer refresh
-      categoriesRef.current = loadedCategories;
-      setCategories(loadedCategories);
+      applyCategories(() => loadedCategories);
       setEvents(loadedEvents);
     } catch (error) {
       if (seq !== refreshSeqRef.current) return;
       handleStorageError(error);
       // Otherwise keep the current (stale) state; the next notification retries.
     }
-  }, [handleStorageError]);
+  }, [handleStorageError, applyCategories]);
 
   const resetLocalData = useCallback(async () => {
     await deleteDatabase();
@@ -190,7 +188,7 @@ export const CalendarProvider = ({
     const json = await exportDatabase();
     downloadBlob(
       new Blob([json], { type: "application/json" }),
-      `tuxbank-backup-${format(new Date(), "yyyy-MM-dd")}.json`,
+      `tuxbank-backup-${toISODate(new Date())}.json`,
     );
   }, []);
 
@@ -208,7 +206,7 @@ export const CalendarProvider = ({
     () => buildMonthGrid(visibleMonth, weekStartsOn),
     [visibleMonth, weekStartsOn],
   );
-  const todayISO = format(new Date(), "yyyy-MM-dd");
+  const todayISO = toISODate(new Date());
 
   const yearRange = useMemo(() => {
     const currentYear = new Date().getFullYear();
@@ -484,12 +482,11 @@ export const CalendarProvider = ({
         color,
         updatedAt: nowISO(),
       };
-      categoriesRef.current = [...categoriesRef.current, category];
-      setCategoriesWithRef(() => categoriesRef.current);
+      applyCategories((prev) => [...prev, category]);
       await persist(() => putCategory(category));
       return category;
     },
-    [persist, setCategoriesWithRef],
+    [persist, applyCategories],
   );
 
   const updateCategory = useCallback(
@@ -509,22 +506,18 @@ export const CalendarProvider = ({
         name: patch.name?.trim() ?? current.name,
         updatedAt: nowISO(),
       };
-      categoriesRef.current = categoriesRef.current.map((c) =>
-        c.id === id ? next : c,
-      );
-      setCategoriesWithRef(() => categoriesRef.current);
+      applyCategories((prev) => prev.map((c) => (c.id === id ? next : c)));
       await persist(() => putCategory(next));
     },
-    [persist, setCategoriesWithRef],
+    [persist, applyCategories],
   );
 
   const deleteCategory = useCallback(
     async (id: string) => {
-      categoriesRef.current = categoriesRef.current.filter((c) => c.id !== id);
-      setCategoriesWithRef(() => categoriesRef.current);
+      applyCategories((prev) => prev.filter((c) => c.id !== id));
       await persist(() => dbDeleteCategory(id));
     },
-    [persist, setCategoriesWithRef],
+    [persist, applyCategories],
   );
 
   const goToPrevMonth = useCallback(

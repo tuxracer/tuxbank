@@ -1,10 +1,5 @@
-import {
-  addDays,
-  differenceInCalendarDays,
-  format,
-  parseISO,
-  subDays,
-} from "date-fns";
+import { addDays, differenceInCalendarDays, parseISO, subDays } from "date-fns";
+import { toISODate } from "@/lib/dateGrid";
 import type {
   CalendarEvent,
   Category,
@@ -72,7 +67,7 @@ export const forEachOccurrence = (
 
   for (let guard = 0; guard < MAX_ITER; guard += 1, i += 1) {
     const candidate = STEP[freq](anchor, i * interval);
-    const iso = format(candidate, "yyyy-MM-dd");
+    const iso = toISODate(candidate);
     if (iso > hardEndISO) break;
     if (iso < windowStartISO) continue;
     if (!landsOnAnchorDay(candidate, anchor, freq)) continue;
@@ -115,10 +110,10 @@ export const expandEvents = (
   );
 
 export const dayBeforeISO = (iso: string): string =>
-  format(subDays(parseISO(iso), 1), "yyyy-MM-dd");
+  toISODate(subDays(parseISO(iso), 1));
 
 export const shiftISO = (iso: string, days: number): string =>
-  format(addDays(parseISO(iso), days), "yyyy-MM-dd");
+  toISODate(addDays(parseISO(iso), days));
 
 export const daysBetweenISO = (from: string, to: string): number =>
   differenceInCalendarDays(parseISO(to), parseISO(from));
