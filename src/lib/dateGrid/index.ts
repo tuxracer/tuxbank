@@ -1,6 +1,5 @@
 import {
   addDays,
-  format,
   isSameMonth,
   startOfMonth,
   startOfWeek,
@@ -15,7 +14,14 @@ import type { DateCell } from "./types";
 export * from "./consts";
 export * from "./types";
 
-export const toISODate = (date: Date): string => format(date, "yyyy-MM-dd");
+// Hand-rolled rather than date-fns format(): this runs once per candidate
+// occurrence inside forEachOccurrence's loops, where format()'s format-string
+// parsing is ~5x slower for the same output.
+export const toISODate = (date: Date): string => {
+  const month = date.getMonth() + 1;
+  const day = date.getDate();
+  return `${String(date.getFullYear()).padStart(4, "0")}-${month < 10 ? "0" : ""}${month}-${day < 10 ? "0" : ""}${day}`;
+};
 
 /** date-fns day-of-week index: 0 = Sunday … 6 = Saturday. */
 const isWeekStart = (value: number): value is Day =>
