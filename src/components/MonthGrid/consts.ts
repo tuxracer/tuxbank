@@ -1,5 +1,21 @@
-export const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+import { WEEK_STARTS_ON } from "@/lib/dateGrid";
+
 export const COLS = 7;
+
+const weekdayFormatter = new Intl.DateTimeFormat(undefined, {
+  weekday: "short",
+});
+
+// 2023-01-01 is a Sunday, so day-of-week d (0 = Sunday) lands on January 1+d.
+const weekdayLabel = (dayOfWeek: number): string =>
+  weekdayFormatter.format(new Date(2023, 0, 1 + dayOfWeek));
+
+/** Column headers in the viewer's language, starting on the locale's first
+    weekday to match the buildMonthGrid column order. */
+export const WEEKDAYS: readonly string[] = Array.from(
+  { length: COLS },
+  (_, index) => weekdayLabel((WEEK_STARTS_ON + index) % COLS),
+);
 
 /* Pixel sizes mirrored from the rendered desktop CSS, used to compute how
    many whole chips fit a day cell (see chipCapacity in index.tsx). Verified

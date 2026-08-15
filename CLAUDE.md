@@ -181,6 +181,7 @@ pnpm format      # Auto-fix formatting (prettier --write)
 - **JSDoc**: Skip `@param`/`@returns` tags (TypeScript provides types); use inline comments if needed
 - **Loading indicators**: Delay by ~1 second to avoid flash for fast operations
 - **Intl API**: Prefer `Intl.DateTimeFormat`, `Intl.NumberFormat`, etc. over manual formatting for dates, numbers, and currencies
+- **Modern Intl baseline, no legacy fallbacks**: We only support browsers that ship the latest Intl APIs (`Intl.Locale` week info, `maximize()`, `Intl.NumberFormat` currency formatting, and similar). Do not add polyfills or hardcoded fallback data tables for engines that lack them. Where an evergreen engine simply has not shipped an API yet (e.g. Firefox and `getWeekInfo`), degrade to a one-line default (such as the Sunday week start) and let it self-heal when the API lands
 - **Explicit conditionals for derived values**: When a value like `isWithdrawal` is derived from another value like `direction`, branch on the source value, not the derived one. This makes the logic clearer and avoids confusion:
 
   ```typescript

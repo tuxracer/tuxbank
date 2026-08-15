@@ -62,7 +62,7 @@ A single person managing their own schedule of **all-day, date-based events**: m
 
 ### 4.1 Month view & navigation
 - On load, the calendar shows the **current month** in the viewer's local time zone, filling the viewport (`100dvh`).
-- A **7-column grid** (Sunday-first) renders a fixed **6-week (6×7) matrix** so layout height is stable; leading/trailing days from adjacent months are shown **dimmed**.
+- A **7-column grid** (week start follows the locale via Intl week info; Sunday where unavailable) renders a fixed **6-week (6×7) matrix** so layout height is stable; leading/trailing days from adjacent months are shown **dimmed**.
 - The **today** cell is visually emphasized (a yellow inset left edge).
 - **Toolbar** provides: previous month (‹), next month (›), current **month/year label**, **Today** (jump to current month), a **category filter**, and **+ New Event**.
 - A **HUD status line** shows decorative/real system context (e.g., app name, `LOCAL_DB::INDEXEDDB`, record count).
@@ -409,7 +409,7 @@ It branches on four cases driven by `scope` and whether the event recurs:
 
 Vitest, **behavior-focused** (verify behavior, not implementation constants, per `CLAUDE.md`):
 
-- **`dateGrid`:** correct 6×7 matrix, Sunday-first, accurate leading/trailing days across month/year boundaries; `inMonthWeekCount` reports the weeks a month spans (4-6).
+- **`dateGrid`:** correct 6×7 matrix starting on the locale's first weekday (Intl week info, Sunday fallback), accurate leading/trailing days across month/year boundaries; `inMonthWeekCount` reports the weeks a month spans (4-6).
 - **`recurrence`:** daily/weekly/monthly/yearly expansion within a window; interval honored; `endsOn` boundary inclusive; month-skip (31st) and Feb-29 leap rules; overrides (cancel + patch); **split-series** ("this and following"); single-occurrence exception; date-shift helpers (`shiftISO`, `daysBetweenISO`, `shiftSeries`, `buildMovedFollowing`).
 - **`storage`:** CRUD round-trips against fake-indexeddb (`resetDbForTests()` per test); errors map to the correct `StorageError` codes; backup export → validate → commit round-trips.
 - **`tabSync`:** notifications cross channel instances and never echo to the
@@ -459,8 +459,8 @@ Vitest, **behavior-focused** (verify behavior, not implementation constants, per
   last-write-wins semantics; cross-device sync is available as an opt-in,
   end-to-end-encrypted account feature (see Optional account sync).
 - Personal-scale data volume (hundreds to low thousands of events); in-memory expansion is acceptable.
-- Modern evergreen browser with IndexedDB support.
-- Sunday-first week (can be made configurable later).
+- Modern evergreen browser with IndexedDB support and current Intl APIs; no polyfills or fallback data for legacy engines.
+- The week starts on the locale's first weekday (Intl.Locale week info); engines without that API (Firefox, as of 2026) get a Sunday-first week.
 
 ## Persistence: IndexedDB
 
