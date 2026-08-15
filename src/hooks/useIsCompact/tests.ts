@@ -1,16 +1,17 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { act, renderHook } from "@testing-library/react";
-import { useIsCompact, COMPACT_MEDIA_QUERY } from "./index";
+import { useIsCompact } from "./index";
 
 type ChangeListener = () => void;
 
 // Controllable matchMedia stand-in: one shared MQL object whose `matches`
-// flips via setMatches, notifying subscribed change listeners.
-const installFakeMatchMedia = (initialMatches: boolean) => {
+// flips via setMatches, notifying subscribed change listeners. The hook's
+// query is min-width (desktop matches), so compact = !matches.
+const installFakeMatchMedia = (matchesMinWidth: boolean) => {
   const listeners = new Set<ChangeListener>();
   const mql = {
-    matches: initialMatches,
-    media: COMPACT_MEDIA_QUERY,
+    matches: matchesMinWidth,
+    media: "(min-width: 640px)",
     addEventListener: (_type: string, listener: ChangeListener) => {
       listeners.add(listener);
     },
@@ -33,23 +34,23 @@ describe("useIsCompact", () => {
   });
 
   it("reports a wide viewport as not compact", () => {
-    installFakeMatchMedia(false);
+    installFakeMatchMedia(true);
     const { result } = renderHook(() => useIsCompact());
     expect(result.current).toBe(false);
   });
 
   it("reports a narrow viewport as compact", () => {
-    installFakeMatchMedia(true);
+    installFakeMatchMedia(false);
     const { result } = renderHook(() => useIsCompact());
     expect(result.current).toBe(true);
   });
 
   it("updates live when the media query match flips", () => {
-    const { setMatches } = installFakeMatchMedia(false);
+    const { setMatches } = installFakeMatchMedia(true);
     const { result } = renderHook(() => useIsCompact());
-    act(() => setMatches(true));
-    expect(result.current).toBe(true);
     act(() => setMatches(false));
+    expect(result.current).toBe(true);
+    act(() => setMatches(true));
     expect(result.current).toBe(false);
   });
 });
