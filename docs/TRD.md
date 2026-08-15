@@ -365,7 +365,7 @@ src/
   types/                    # CalendarEvent, Category, Recurrence + type guards
   utils/
     categoryColor/          # PALETTE, DEFAULT_CATEGORY_COLOR, catColorVar
-    formatCurrency/         # Intl.NumberFormat wrapper
+    formatCurrency/         # Intl.NumberFormat in the viewer's locale and local currency (region -> currency lookup, USD fallback)
     base64/                 # base64 encode/decode helpers (used by the sync layer)
   components/
     ui/                     # shadcn primitives (shadcn CLI default location)

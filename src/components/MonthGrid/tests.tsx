@@ -3,6 +3,7 @@ import { render, screen, fireEvent, act } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { Occurrence } from "@/types";
 import { buildMonthGrid } from "@/lib/dateGrid";
+import { formatCurrency } from "@/utils/formatCurrency";
 import MonthGrid, {
   chipCapacity,
   CHIP_AREA_OVERHEAD_PX,
@@ -165,7 +166,7 @@ describe("MonthGrid", () => {
         onSelectOccurrence={vi.fn()}
       />,
     );
-    expect(screen.getByText("$4,200.00")).toBeInTheDocument();
+    expect(screen.getByText(formatCurrency(4_200))).toBeInTheDocument();
   });
 
   it("shows every chip when the observed grid has room for them all", () => {
@@ -203,8 +204,12 @@ describe("MonthGrid", () => {
         onSelectOccurrence={vi.fn()}
       />,
     );
-    expect(screen.getByText("-$2,000.00")).toHaveClass("cy-balance-neg");
-    expect(screen.getByText("$500.00")).not.toHaveClass("cy-balance-neg");
+    expect(screen.getByText(formatCurrency(-2_000))).toHaveClass(
+      "cy-balance-neg",
+    );
+    expect(screen.getByText(formatCurrency(500))).not.toHaveClass(
+      "cy-balance-neg",
+    );
   });
 });
 
@@ -239,7 +244,7 @@ describe("MonthGrid compact mode", () => {
     expect(screen.getByText("+")).toBeInTheDocument();
     expect(screen.queryByText("+1 more")).not.toBeInTheDocument();
     // No per-cell balance in compact cells.
-    expect(screen.queryByText("$4,200.00")).not.toBeInTheDocument();
+    expect(screen.queryByText(formatCurrency(4_200))).not.toBeInTheDocument();
   });
 
   it("marks the selected day and reports taps via onSelectDate", async () => {

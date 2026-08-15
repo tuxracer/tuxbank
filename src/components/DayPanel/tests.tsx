@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { Occurrence } from "@/types";
+import { formatCurrency } from "@/utils/formatCurrency";
 import DayPanel from "./index";
 
 const occ: Occurrence = {
@@ -45,6 +46,8 @@ describe("DayPanel", () => {
         onAddEvent={vi.fn()}
       />,
     );
-    expect(screen.getByText("-$240.00")).toHaveClass("cy-balance-neg");
+    expect(screen.getByText(formatCurrency(-240))).toHaveClass(
+      "cy-balance-neg",
+    );
   });
 });
