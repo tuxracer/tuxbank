@@ -22,14 +22,20 @@ export const resolveLocalCurrency = (locale: string): string => {
 /** What "automatic" resolves to: the currency the viewer's region transacts in. */
 export const LOCAL_CURRENCY = resolveLocalCurrency(RUNTIME_LOCALE);
 
-// One cached formatter per currency: the default plus whatever override the
-// display preferences select, without rebuilding Intl.NumberFormat per call.
+// One cached formatter per currency and form: the default plus whatever
+// override the display preferences select, in the full figure and the
+// abbreviated one, without rebuilding Intl.NumberFormat per call.
 const currencyFormats = new Map<string, Intl.NumberFormat>();
-const currencyFormat = (currency: string): Intl.NumberFormat => {
-  let format = currencyFormats.get(currency);
+const currencyFormat = (currency: string, short = false): Intl.NumberFormat => {
+  const key = short ? `${currency}:short` : currency;
+  let format = currencyFormats.get(key);
   if (!format) {
-    format = new Intl.NumberFormat(undefined, { style: "currency", currency });
-    currencyFormats.set(currency, format);
+    format = new Intl.NumberFormat(undefined, {
+      style: "currency",
+      currency,
+      ...(short ? { notation: "compact" as const } : {}),
+    });
+    currencyFormats.set(key, format);
   }
   return format;
 };
@@ -43,5 +49,14 @@ export const formatCurrency = (
   amount: number,
   currency: string = LOCAL_CURRENCY,
 ): string => currencyFormat(currency).format(amount);
+/**
+ * The same figure abbreviated by the locale's own compact notation ("$1.2K",
+ * "1,3 Mio. €") and without cents, for the compact layout's day cells, which
+ * are around 32px wide and cannot hold the full form.
+ */
+export const formatCurrencyShort = (
+  amount: number,
+  currency: string = LOCAL_CURRENCY,
+): string => currencyFormat(currency, true).format(amount);
 export const formatSignedCompact = (amount: number): string =>
   COMPACT.format(amount);

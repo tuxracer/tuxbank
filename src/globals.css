@@ -562,6 +562,14 @@ body {
   font-size: 10px;
   color: var(--cy-muted);
 }
+/* Compact day cells are about 32px of usable width, so their balance drops a
+   step and prints the abbreviated figure (formatCurrencyShort). Sized here
+   rather than with a Tailwind utility: .cy-balance is unlayered and would win
+   over one. */
+.cy-balance-sm {
+  font-size: 9px;
+  line-height: 1.1;
+}
 .cy-balance-neg {
   color: var(--cy-magenta);
 }

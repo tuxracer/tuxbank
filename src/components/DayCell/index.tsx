@@ -3,7 +3,7 @@ import { useDroppable } from "@dnd-kit/core";
 import { isSameOccurrence, type Occurrence } from "@/types";
 import DraggableEventChip from "@/components/DraggableEventChip";
 import DayEventsPopover from "@/components/DayEventsPopover";
-import { formatCurrency } from "@/utils/formatCurrency";
+import { formatCurrency, formatCurrencyShort } from "@/utils/formatCurrency";
 import { catColorVar } from "@/utils/categoryColor";
 import { useDisplayPreferences } from "@/hooks/useDisplayPreferences";
 
@@ -40,7 +40,12 @@ const DayCell = ({
   const visible = occurrences.slice(0, limit);
   const overflow = occurrences.slice(limit);
   const dots = occurrences.slice(0, MAX_COMPACT_DOTS);
-  const classes = ["cy-cell", "flex", "min-h-0", "flex-col", "gap-1", "p-1.5"];
+  // Compact cells run tighter: three stacked lines (day number, dots, balance)
+  // have to clear a row that is only ~43px tall on a 568px-high phone, where
+  // the desktop padding and gaps would push the balance past the bottom edge.
+  const classes = compact
+    ? ["cy-cell", "flex", "min-h-0", "flex-col", "gap-0.5", "p-1"]
+    : ["cy-cell", "flex", "min-h-0", "flex-col", "gap-1", "p-1.5"];
   if (!cell.inMonth) classes.push("out");
   if (isToday) classes.push("today");
   if (isSelected) classes.push("selected");
@@ -71,21 +76,31 @@ const DayCell = ({
     >
       <span className="cy-cell-num">{cell.dayOfMonth}</span>
       {compact ? (
-        <div className="flex flex-wrap items-center gap-1">
-          {dots.map((o) => (
-            <span
-              key={`${o.eventId}:${o.date}`}
-              title={o.title}
-              className="inline-block h-1.5 w-1.5 rounded-full"
-              style={{ background: catColorVar(o.category.color) }}
-            />
-          ))}
-          {occurrences.length > MAX_COMPACT_DOTS && (
-            <span className="cy-mono text-[9px] leading-none text-[color:var(--cy-cyan)]">
-              +
-            </span>
-          )}
-        </div>
+        <>
+          <div className="flex flex-wrap items-center gap-1">
+            {dots.map((o) => (
+              <span
+                key={`${o.eventId}:${o.date}`}
+                title={o.title}
+                className="inline-block h-1.5 w-1.5 rounded-full"
+                style={{ background: catColorVar(o.category.color) }}
+              />
+            ))}
+            {occurrences.length > MAX_COMPACT_DOTS && (
+              <span className="cy-mono text-[9px] leading-none text-[color:var(--cy-cyan)]">
+                +
+              </span>
+            )}
+          </div>
+          {/* The running balance every cell carries on desktop, abbreviated to
+              fit the compact cell, so the month reads as a balance curve
+              without tapping a day for the panel's exact figure. */}
+          <span
+            className={`cy-balance cy-balance-sm mt-auto self-end ${balance < 0 ? "cy-balance-neg" : ""}`}
+          >
+            {formatCurrencyShort(balance, currency)}
+          </span>
+        </>
       ) : (
         <>
           <div className="flex flex-col gap-1 overflow-hidden">
