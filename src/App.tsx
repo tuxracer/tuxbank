@@ -13,6 +13,7 @@ import {
 import { toast } from "sonner";
 import { isOccurrence } from "@/types";
 import type { CalendarEvent, Occurrence } from "@/types";
+import { isSameRecurrence } from "@/lib/recurrence";
 import type { EventInput } from "@/lib/recurrence";
 import {
   CalendarProvider,
@@ -65,6 +66,8 @@ type ScopeState =
       input: EventInput;
       event: CalendarEvent;
       occurrenceDate: string;
+      /** False when the edit changes the recurrence rule, which a single-occurrence edit can't carry. */
+      allowThis: boolean;
     }
   | { action: "delete"; event: CalendarEvent; occurrenceDate: string }
   | { action: "move"; occurrence: Occurrence; toDate: string };
@@ -187,6 +190,7 @@ const CalendarScreen = ({ entrance = false }: { entrance?: boolean }) => {
       input,
       event: editor.event,
       occurrenceDate: editor.occurrence.date,
+      allowThis: isSameRecurrence(input.recurrence, editor.event.recurrence),
     });
     setEditor(null);
   };
@@ -381,6 +385,7 @@ const CalendarScreen = ({ entrance = false }: { entrance?: boolean }) => {
         <RecurrenceScopeDialog
           open
           action={scope.action}
+          allowThis={scope.action === "edit" ? scope.allowThis : true}
           onConfirm={confirmScope}
           onOpenChange={(open) => !open && setScope(null)}
         />

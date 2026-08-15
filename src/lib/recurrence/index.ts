@@ -10,6 +10,7 @@ import type {
   Category,
   Occurrence,
   OccurrenceOverride,
+  Recurrence,
   RecurrenceFreq,
 } from "@/types";
 import { UNKNOWN_CATEGORY } from "@/types";
@@ -225,3 +226,15 @@ export const buildFollowingSeries = (
   createdAt: nowISO,
   updatedAt: nowISO,
 });
+
+/** Whether two recurrence rules describe the same schedule. */
+export const isSameRecurrence = (
+  a: Recurrence | null,
+  b: Recurrence | null,
+): boolean =>
+  a === b ||
+  (a !== null &&
+    b !== null &&
+    a.freq === b.freq &&
+    a.interval === b.interval &&
+    a.endsOn === b.endsOn);

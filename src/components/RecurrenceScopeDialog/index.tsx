@@ -21,10 +21,16 @@ export * from "./types";
 const RecurrenceScopeDialog = ({
   open,
   action,
+  allowThis = true,
   onConfirm,
   onOpenChange,
 }: RecurrenceScopeDialogProps) => {
-  const [scope, setScope] = useState<EditScope>("this");
+  const [scope, setScope] = useState<EditScope>(
+    allowThis ? "this" : "following",
+  );
+  const options = allowThis
+    ? OPTIONS
+    : OPTIONS.filter((o) => o.value !== "this");
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -46,7 +52,7 @@ const RecurrenceScopeDialog = ({
           }}
           className="flex flex-col gap-2 py-2"
         >
-          {OPTIONS.map((o) => (
+          {options.map((o) => (
             <div key={o.value} className="flex items-center gap-3">
               <RadioGroupItem id={`scope-${o.value}`} value={o.value} />
               <Label htmlFor={`scope-${o.value}`}>{o.label}</Label>
