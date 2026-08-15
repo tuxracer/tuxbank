@@ -57,6 +57,12 @@ const dropDateFormatter = new Intl.DateTimeFormat(undefined, {
 const LANDING_EXIT_FALLBACK_MS = 400;
 const APP_ENTRANCE_MS = { toolbar: 0, console: 70, panel: 140 } as const;
 
+// One owner for the "does this mutation need the recurrence-scope dialog?"
+// policy: a non-recurring event has exactly one occurrence, so every mutation
+// applies to the whole event ("all") without asking.
+const needsScopeChoice = (event: CalendarEvent): boolean =>
+  event.recurrence !== null;
+
 type EditorState =
   | { mode: "create"; date: string }
   | { mode: "edit"; occurrence: Occurrence; event: CalendarEvent };
@@ -174,7 +180,7 @@ const CalendarScreen = ({ entrance = false }: { entrance?: boolean }) => {
       setEditor(null);
       return;
     }
-    if (!editor.event.recurrence) {
+    if (!needsScopeChoice(editor.event)) {
       void cal.updateEvent(
         editor.event.id,
         input,
@@ -196,7 +202,7 @@ const CalendarScreen = ({ entrance = false }: { entrance?: boolean }) => {
 
   const handleDelete = () => {
     if (!editor || editor.mode !== "edit") return;
-    if (!editor.event.recurrence) {
+    if (!needsScopeChoice(editor.event)) {
       void cal.deleteEvent(editor.event.id, "all", editor.occurrence.date);
       setEditor(null);
       return;
@@ -235,7 +241,7 @@ const CalendarScreen = ({ entrance = false }: { entrance?: boolean }) => {
     if (toDate === occurrence.date) return;
     const event = cal.events.find((ev) => ev.id === occurrence.eventId);
     if (!event) return;
-    if (!event.recurrence) {
+    if (!needsScopeChoice(event)) {
       void runMove(occurrence, toDate, "all");
       return;
     }
