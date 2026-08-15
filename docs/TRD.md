@@ -367,6 +367,7 @@ src/
     categoryColor/          # PALETTE, DEFAULT_CATEGORY_COLOR, catColorVar
     formatCurrency/         # Intl.NumberFormat in the viewer's locale and local currency (region -> currency lookup, USD fallback)
     base64/                 # base64 encode/decode helpers (used by the sync layer)
+    runtimeLocale/          # RUNTIME_LOCALE: the resolved default locale; lang attribute for Intl-generated text (document stays lang="en" until the copy is translated)
   components/
     ui/                     # shadcn primitives (shadcn CLI default location)
 ```

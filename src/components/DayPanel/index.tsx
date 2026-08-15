@@ -1,6 +1,7 @@
 import { parseISO } from "date-fns";
 import EventChip from "@/components/EventChip";
 import { formatCurrency } from "@/utils/formatCurrency";
+import { RUNTIME_LOCALE } from "@/utils/runtimeLocale";
 
 import type { DayPanelProps } from "./types";
 
@@ -22,7 +23,10 @@ const DayPanel = ({
 }: DayPanelProps) => (
   <section className="cy-toolbar relative flex flex-col gap-2 px-3 py-2.5">
     <div className="flex items-center justify-between gap-2">
-      <p className="cy-mono text-[10px] uppercase tracking-widest text-[color:var(--cy-cyan)]">
+      <p
+        className="cy-mono text-[10px] uppercase tracking-widest text-[color:var(--cy-cyan)]"
+        lang={RUNTIME_LOCALE}
+      >
         {dateLabeler.format(parseISO(dateISO))}
       </p>
       <span className={`cy-balance ${balance < 0 ? "cy-balance-neg" : ""}`}>

@@ -1,3 +1,4 @@
+import { RUNTIME_LOCALE } from "@/utils/runtimeLocale";
 import { FALLBACK_CURRENCY, REGION_CURRENCY } from "./consts";
 
 export * from "./consts";
@@ -18,12 +19,7 @@ export const resolveLocalCurrency = (locale: string): string => {
   }
 };
 
-// resolvedOptions().locale is the runtime's default locale, the same one the
-// `undefined`-locale formatters below format in (navigator.language can
-// disagree with it, and does not exist in every test environment).
-const LOCAL_CURRENCY = resolveLocalCurrency(
-  new Intl.NumberFormat().resolvedOptions().locale,
-);
+const LOCAL_CURRENCY = resolveLocalCurrency(RUNTIME_LOCALE);
 
 const CURRENCY_FORMAT = new Intl.NumberFormat(undefined, {
   style: "currency",

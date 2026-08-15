@@ -1,5 +1,6 @@
 import { useLayoutEffect, useRef } from "react";
 import { COLS, WEEKDAYS } from "@/components/MonthGrid";
+import { RUNTIME_LOCALE } from "@/utils/runtimeLocale";
 import { catColorVar } from "@/utils/categoryColor";
 import { formatCurrency, formatSignedCompact } from "@/utils/formatCurrency";
 import { prefersReducedMotion } from "@/utils/prefersReducedMotion";
@@ -169,7 +170,7 @@ const chipStyle = (day: LandingPreviewDay) => ({
 
 /** The weekday header row, identical in both previews and in the real grid. */
 const PreviewWeekHead = () => (
-  <div className="grid grid-cols-7 gap-1.5">
+  <div className="grid grid-cols-7 gap-1.5" lang={RUNTIME_LOCALE}>
     {WEEKDAYS.map((day) => (
       <div key={day} className="cy-weekhead px-1">
         {day}
@@ -240,7 +241,10 @@ const PreviewPanel = () => (
     style={{ animationDelay: `${PREVIEW_PANEL_DELAY_MS}ms` }}
   >
     <div className="flex items-center justify-between gap-2">
-      <p className="cy-mono text-[10px] tracking-widest text-[color:var(--cy-cyan)] uppercase">
+      <p
+        className="cy-mono text-[10px] tracking-widest text-[color:var(--cy-cyan)] uppercase"
+        lang={RUNTIME_LOCALE}
+      >
         {panelDateLabeler.format(LANDING_PREVIEW_TODAY_DATE)}
       </p>
       <CountUpBalance

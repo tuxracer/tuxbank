@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { NativeSelect } from "@/components/ui/native-select";
 import { catColorVar } from "@/utils/categoryColor";
+import { RUNTIME_LOCALE } from "@/utils/runtimeLocale";
 import {
   SyncAttentionBadge,
   SyncAttentionDot,
@@ -53,6 +54,9 @@ const CalendarToolbar = ({
       </Button>
       <NativeSelect
         title="Month"
+        // Month names are Intl text in the viewer's locale inside an English
+        // document, and `uppercase` casing is locale-sensitive.
+        lang={RUNTIME_LOCALE}
         className={`${selectClasses} uppercase`}
         value={selectedMonth}
         onChange={(e) => onSelectMonth(Number(e.target.value))}

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { inMonthWeekCount, type DateCell } from "@/lib/dateGrid";
 import DayCell from "@/components/DayCell";
 import { useSwipeNavigation } from "@/hooks/useSwipeNavigation";
+import { RUNTIME_LOCALE } from "@/utils/runtimeLocale";
 import { useWheelNavigation } from "@/hooks/useWheelNavigation";
 
 import {
@@ -186,7 +187,11 @@ const MonthGrid = ({
       {...swipeHandlers}
       {...wheelHandlers}
     >
-      <div className="grid grid-cols-7 gap-1.5" role="row">
+      <div
+        className="grid grid-cols-7 gap-1.5"
+        role="row"
+        lang={RUNTIME_LOCALE}
+      >
         {WEEKDAYS.map((d) => (
           <div key={d} className="cy-weekhead px-1" role="columnheader">
             {d}

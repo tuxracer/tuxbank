@@ -8,6 +8,7 @@ import {
 } from "date-fns";
 import { isNumber, isPlainObject } from "remeda";
 
+import { RUNTIME_LOCALE } from "@/utils/runtimeLocale";
 import { DAYS_PER_WEEK, GRID_DAYS } from "./consts";
 import type { DateCell } from "./types";
 
@@ -53,11 +54,7 @@ export const resolveWeekStartsOn = (locale: string): Day => {
   return 0;
 };
 
-// resolvedOptions().locale is the runtime's default locale, the same one the
-// Intl-formatted labels elsewhere render in.
-export const WEEK_STARTS_ON: Day = resolveWeekStartsOn(
-  new Intl.DateTimeFormat().resolvedOptions().locale,
-);
+export const WEEK_STARTS_ON: Day = resolveWeekStartsOn(RUNTIME_LOCALE);
 
 // Always build the full 6-week window so the data layer has a stable date range
 // (occurrences, balances) and the compact view can fill 6 rows on every month.
