@@ -10,6 +10,11 @@ describe("base64", () => {
   it("encodes to standard base64", () => {
     expect(toBase64(new Uint8Array([0]))).toBe("AA==");
   });
+
+  it("round-trips payloads past the fromCharCode argument limit", () => {
+    const bytes = Uint8Array.from({ length: 300_000 }, (_, i) => i % 256);
+    expect(fromBase64(toBase64(bytes))).toEqual(bytes);
+  });
 });
 
 describe("base64url helpers", () => {
