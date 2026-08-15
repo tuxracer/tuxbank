@@ -79,7 +79,7 @@ A single person managing their own schedule of **all-day, date-based events**: m
 - Each category has an opaque **GUID** `id` (`crypto.randomUUID()`), generated at creation and stable across renames. Categories live in their own object store (see §4.6); events reference a category by id, so renaming or recoloring propagates to every event that uses it.
 - **Names are unique, case-insensitively** (`categoryKey(name) = name.trim().toLowerCase()` is the match key): creating a name that already exists selects the existing category instead of duplicating it, and renaming to a name another category already uses is rejected inline in the Manage dialog.
 - **Deleting an in-use category** prompts a confirm noting how many events use it; on delete its events keep the now-missing id and render as **Uncategorized** (a neutral cyan fallback) until re-categorized.
-- The toolbar **category filter** is **per category**: a toggle per category currently in use (plus an **Uncategorized** toggle when orphaned events exist); each can be turned on/off independently, all shown by default. The filter affects which event chips display, not the running balance (§4.7).
+- The toolbar **category filter** is **per category**: a toggle per category currently in use (plus an **Uncategorized** toggle when orphaned events exist); each can be turned on/off independently, all shown by default. The filter affects both which event chips display and the running balance (§4.7), so the visible events always sum to the balances shown beside them.
 
 ### 4.4 Create / edit / delete / move (CRUD)
 - **Create:** clicking **+ New Event** or an empty day opens the **Event editor** (shadcn Dialog). Clicking a day prefills its date.
@@ -109,7 +109,7 @@ Chips in the "+N more" overflow popover are not draggable; move them by opening 
 - No data leaves the device. Clearing browser data clears the calendar.
 
 ### 4.7 Account balance
-- Each event is a transaction (deposit or withdrawal). Each day cell shows the **cumulative running balance**: starts at `0`, equals all deposits minus withdrawals up to and including that day, and carries continuously across months. Computed by the pure `src/lib/balance` engine (`computeRunningBalances`): a per-event carry-in for transactions before the visible window plus the windowed per-day net, accumulated forward (recurrence iteration is uncapped so long/infinite series sum correctly). Balances render cyan when ≥ 0 and magenta when negative; the toolbar HUD shows the end-of-window balance. The balance reflects **all** events regardless of the active category filter.
+- Each event is a transaction (deposit or withdrawal). Each day cell shows the **cumulative running balance**: starts at `0`, equals all deposits minus withdrawals up to and including that day, and carries continuously across months. Computed by the pure `src/lib/balance` engine (`computeRunningBalances`): a per-event carry-in for transactions before the visible window plus the windowed per-day net, accumulated forward (recurrence iteration is uncapped so long/infinite series sum correctly). Balances render cyan when ≥ 0 and magenta when negative; the toolbar HUD shows the end-of-window balance. The balance honors the active category filter: hiding a category removes its amounts from every displayed balance, so the visible events always sum to the figures shown.
 
 ---
 
@@ -475,10 +475,10 @@ The local database lives entirely in the browser profile; optional cloud sync is
 a separate, encrypted layer (see Optional account sync).
 
 - **Database:** `tuxbank`, version `2`. Object stores: `events` and
-  `categories` (keyed by `id`), plus `tombstones` (deleted-row markers, keyed by
-  `id`) and `syncMeta` (key-value; holds the sync cursor), both added for
-  optional sync. The v1 to v2 upgrade backfills a per-row `updatedAt` on
-  existing rows. Records are stored as the in-memory `CalendarEvent` /
+  `categories` (keyed by `id`), `tombstones` (deleted-row markers, keyed by
+  `id`), `syncMeta` (key-value; sync cursor and cached key), and `outbox`
+  (pending local changes awaiting a sync push, keyed by `[type, id]`; added by
+  the v1 to v2 upgrade). Records are stored as the in-memory `CalendarEvent` /
   `Category` objects verbatim; there is no mapping layer.
 - **Connection:** a lazily created, module-cached `openDB()` promise
   (`src/lib/storage/index.ts`). A missing `indexedDB` global or a failed open
@@ -494,7 +494,11 @@ a separate, encrypted layer (see Optional account sync).
   a `BroadcastChannel` (`src/lib/tabSync`); other tabs re-read events and
   categories from IndexedDB and update live. Last write wins: saving an edit
   whose event another tab deleted recreates it. Per-tab UI state (visible
-  month, hidden-category filters) stays independent per tab.
+  month, hidden-category filters) stays independent per tab. Every connection
+  registers a `blocking` handler that closes itself when another tab upgrades
+  or deletes the database, and `deleteDatabase()` fails with
+  `StorageError("BLOCKED")` after a grace period instead of hanging if a
+  connection still refuses to close.
 - **Testing:** vitest swaps in a fresh `fake-indexeddb` `IDBFactory` per test
   via `resetDbForTests()` (`src/lib/storage/testing.ts`).
 
@@ -565,23 +569,29 @@ with the public publishable key; authorization is entirely Row Level Security,
 so there is no server code of ours. Config lives in `VITE_SUPABASE_URL` and
 `VITE_SUPABASE_PUBLISHABLE_KEY` (public values, safe in the bundle; kept in
 gitignored `.env.local`, template in `.env.example`). The applied schema is
-recorded in `supabase/migrations/` (`0001_e2ee_sync.sql`). Step-by-step setup
-instructions (create the project, apply the schema, configure auth, set the env
-vars) live in [docs/sync.md](sync.md).
+recorded in `supabase/migrations/` (`0001_e2ee_sync.sql`,
+`0002_server_updated_at.sql`, `0003_password_rewrap_staging.sql`). Step-by-step
+setup instructions (create the project, apply the schema, configure auth, set
+the env vars) live in [docs/sync.md](sync.md).
 
 Three tables, all keyed by `user_id` (= `auth.users.id`):
 
 - `events` and `categories`:
-  `( id uuid, user_id uuid, updated_at timestamptz, deleted bool, nonce text, ciphertext text, primary key (user_id, id) )`.
+  `( id uuid, user_id uuid, updated_at timestamptz, server_updated_at timestamptz, deleted bool, nonce text, ciphertext text, primary key (user_id, id) )`.
   Only routing metadata is plaintext; the record's sensitive fields live inside
-  `ciphertext` (base64). `deleted = true` is a tombstone. The primary key is
-  composite on purpose: ids are client-generated and travel inside JSON
-  backups, so the same id can exist under two accounts, and upserts (which
-  PostgREST resolves on the primary key) must only ever conflict with the
-  caller's own rows. A global `id` key would make a backup imported under a
-  second account fail sync with RLS error 42501.
+  `ciphertext` (base64). `deleted = true` is a tombstone. `server_updated_at`
+  is set by a database trigger on every insert and update (clients never write
+  it): it is the upload watermark sync pulls cursor on, in a single clock's
+  domain, while the client-stamped `updated_at` stays the last-write-wins merge
+  key. The primary key is composite on purpose: ids are client-generated and
+  travel inside JSON backups, so the same id can exist under two accounts, and
+  upserts (which PostgREST resolves on the primary key) must only ever conflict
+  with the caller's own rows. A global `id` key would make a backup imported
+  under a second account fail sync with RLS error 42501.
 - `key_material`: per-user wrapped keys
-  `( user_id pk, wrapped_dek, wrapped_dek_nonce, recovery_wrapped_dek, recovery_nonce, kdf_version, created_at )`.
+  `( user_id pk, wrapped_dek, wrapped_dek_nonce, recovery_wrapped_dek, recovery_nonce, kdf_version, created_at, wrapped_dek_prev, wrapped_dek_prev_nonce )`.
+  The `*_prev` columns are the two-phase password change's staging area (see
+  below); they are null outside a change.
 
 **RLS** on every table combines a permissive owner policy
 (`user_id = auth.uid()`) with a restrictive `aal2` policy
@@ -597,7 +607,15 @@ hand-rolled.
 - `KEK = Argon2id(password, salt = normalized email)` wraps a random 256-bit
   `DEK`. The DEK encrypts each record with XChaCha20-Poly1305 (a fresh nonce per
   write). Plaintext columns (`id`, `updated_at`, `deleted`) carry only routing
-  metadata.
+  metadata, and that metadata is bound into each row's AEAD as additional data
+  (`table:id:updated_at:deleted`), so a compromised backend cannot replay an
+  old ciphertext under a bumped timestamp, relabel a row under another id or
+  table, or flip `deleted` to fabricate a deletion: any such edit fails
+  decryption on every device. Tombstones carry an encrypted `{}` payload
+  exactly so their metadata can be verified before a remote delete is applied.
+  Rows uploaded before the binding existed decrypt via a metadata-free
+  fallback and are re-secured as they re-push (the first sync after the cursor
+  migration re-pushes everything).
 - `authSecret = Argon2id(password, email, distinct context)` is the value sent
   to Supabase auth, so the real password never leaves the device. The two
   derivations use different domain-separation contexts, so knowing one does not
@@ -605,25 +623,42 @@ hand-rolled.
 - A one-time **recovery key** independently wraps the same DEK (the `recovery_*`
   columns), so a forgotten password is recoverable.
 - A password change re-wraps only the small DEK blob (`rewrapForNewPassword`);
-  data is never re-encrypted, and the recovery columns are untouched.
+  data is never re-encrypted, and the recovery columns are untouched. The
+  change is **two-phase** because the auth password and the wrap columns
+  cannot be updated atomically: `stagePasswordRewrap` first installs the new
+  wrap as primary while parking the old wrap in the `wrapped_dek_prev`
+  columns, then the auth password flips, then `clearPreviousPasswordWrap`
+  retires the staged wrap (best effort). Unlock tries the primary wrap and
+  falls back to the staged one, so whichever password the account still
+  accepts opens the data; a failure between the steps can no longer lock
+  every other device out.
 
 The pure key functions (`provisionAccountKeys`, `unlockWithPassword`,
 `unlockWithRecoveryKey`, `rewrapForNewPassword`) live in `src/lib/account`
 alongside the thin Supabase auth/MFA/key-material wrappers; base64 helpers are
 shared in `src/utils/base64`.
 
-### Local storage (`src/lib/storage`, DB v1)
+### Local storage (`src/lib/storage`, DB v2)
 
-The database opens at v1 and creates all four stores up front (`events`,
-`categories`, `tombstones`, `syncMeta`); there is no migration history. Both
-`CalendarEvent` and `Category` carry an `updatedAt`. Deleting a row writes a
-tombstone; writing a row clears any tombstone for its id. A signed-out import
-(`commitImportLocal`) clears all tombstones, while a signed-in import
-(`commitImportSynced`) rewrites them: it tombstones ids the backup drops and
-clears tombstones for ids it re-introduces (see the Import bullet above).
-`applyRemoteDelete` removes a row **without** writing a
-new tombstone, so an applied remote delete does not bounce back to the server.
-`getSyncCursor` / `setSyncCursor` persist the sync cursor in `syncMeta`.
+The database opens at v2: v1 created `events`, `categories`, `tombstones`, and
+`syncMeta`; v2 adds `outbox`. Both `CalendarEvent` and `Category` carry an
+`updatedAt`. Deleting a row writes a tombstone; writing a row clears any
+tombstone for its id. Every local write also enqueues an **outbox** entry
+(`{ id, type, updatedAt }`) in the same transaction; the outbox is the "what
+must the next push send" set, and a successful push clears an entry only while
+its `updatedAt` still matches, so an edit landing mid-sync survives to the next
+push. A signed-out import (`commitImportLocal`) clears tombstones, outbox, and
+cursor, while a signed-in import (`commitImportSynced`) rewrites them: it
+tombstones ids the backup drops, clears tombstones for ids it re-introduces,
+and enqueues everything it wrote (see the Import bullet above).
+`applyRemoteChanges` applies one table's pulled rows and deletions in a single
+transaction **without** writing tombstones or outbox entries (a remote-applied
+change is not a pending local one), so an applied remote delete does not bounce
+back to the server. `getSyncCursor` / `setSyncCursor` persist the pull
+watermark in `syncMeta` under `serverCursor`; the pre-watermark `cursor` key is
+never written anymore but still counts for `hasEverSynced()`, so an upgraded
+device is not mistaken for a fresh sign-in (it re-runs first-sync semantics —
+push everything — without re-asking the conflict question).
 
 Opening the database distinguishes two failure modes. `UNAVAILABLE` means there
 is no IndexedDB at all (e.g. a hostile private-mode context); nothing can be
@@ -639,17 +674,37 @@ that deletes the database and reloads.
 
 `runSync(dek, remote)` runs one last-write-wins push/pull cycle against a
 `SyncRemote` interface (the real implementation wraps the Supabase client; tests
-use an in-memory fake). A single ISO-timestamp **cursor** bounds each run. Pull
-applies remote rows whose `updated_at` is strictly greater than the local copy
-(decrypt and upsert, or delete); push uploads local rows and tombstones newer
-than the cursor that were not just pulled (which prevents an echo). On the
-**first sync** (no stored cursor) push uploads every local row regardless of
-timestamp, so a row stamped at the epoch (e.g. restored from an old backup that
-predates per-row timestamps) still reaches the cloud; a cursor is always
-persisted afterward so later syncs stay incremental. Each row's payload is
-encrypted with the DEK before it leaves the device. Known limitation:
-last-write-wins by client timestamp is vulnerable to clock skew across devices,
-which is acceptable for a single user.
+use an in-memory fake).
+
+**Pull** is cursored on the server-assigned `server_updated_at` watermark, not
+on client timestamps: a row uploaded late (an offline edit pushed after another
+device's cursor advanced, a skewed clock) is still pulled, because upload time
+and edit time are different clocks. Each pull starts a small lookback behind
+the stored watermark (upserts stamp `now()` at transaction start, so a slow
+transaction can commit slightly below the watermark; re-applied overlap rows
+are idempotent no-ops) and paginates in server-stamp order, so it can never be
+silently truncated at PostgREST's row cap. Per pulled row, the merge is by the
+client `updated_at`: a strictly newer local copy wins (its outbox entry pushes
+it right after); otherwise the remote copy is applied, with an exact tie going
+to the server copy so divergent same-stamp content converges deterministically
+(a byte-identical echo of this device's own push is skipped). Deleted rows are
+authenticated by decrypting their tombstone payload before anything is removed
+locally. A row that fails to decrypt or validate is **skipped and counted**
+(`SyncResult.skipped`, surfaced as a toast), never fatal: the watermark still
+advances, so one poison row cannot permanently brick the account (it retries
+when the row is next re-uploaded). Each table's pulled batch applies in one
+transaction with one cross-tab notification.
+
+**Push** sends the outbox: every local write enqueued an entry, and entries
+clear only when the pushed `updatedAt` still matches, so a concurrent edit
+mid-sync is never lost to cursor math. On the **first sync** (never synced
+under either cursor generation) push uploads every local row and tombstone
+regardless of the outbox, so old backups and pre-outbox data still reach the
+cloud, re-encrypted with the current metadata binding. Each row's payload is
+encrypted with the DEK before it leaves the device. Remaining known
+limitation: conflict resolution itself is last-write-wins by client
+`updated_at`, so heavily skewed device clocks can pick the "wrong" winner for
+a genuinely concurrent edit; acceptable for a single user.
 
 ### First-sync conflict
 
@@ -661,7 +716,8 @@ user gets both interleaved with no warning.
 `detectSignInConflict` (in `src/lib/sync`) returns the two event counts when all
 three of these hold, and null otherwise:
 
-1. no sync cursor is stored
+1. the device has never synced (`hasEverSynced()` false: no cursor stored
+   under either cursor generation)
 2. the device has at least one event
 3. the account has at least one non-deleted event row
 
@@ -712,7 +768,8 @@ focus, on network reconnect (the `online` event), debounced after edits and
 month navigation, and a manual "Sync now". Sync attempts are skipped while the
 browser reports offline (`navigator.onLine` false): the status becomes
 **offline** until the connection returns, and the sync dialog shows how many
-local changes are waiting to push (rows and tombstones newer than the cursor).
+local changes are waiting to push (the outbox; before a first sync, every row
+and tombstone).
 Pull and push requests abort after 30 seconds so a dead connection fails into
 the error state instead of hanging. The toolbar's SYNC button shows a persistent
 badge (OFFLINE, LOCKED, ACTION, or ERROR) whenever sync needs attention, so a

@@ -17,11 +17,20 @@ the public API, so the database password does not matter here.
 
 ## 2. Apply the schema
 
-Run [`supabase/migrations/0001_e2ee_sync.sql`](../supabase/migrations/0001_e2ee_sync.sql).
-It creates the `events`, `categories`, and `key_material` tables plus the RLS
-policies that enforce per-user isolation and require TOTP.
+Run every file in [`supabase/migrations/`](../supabase/migrations/), in order:
 
-- **Dashboard:** open the SQL Editor, paste the file's contents, and run it.
+- `0001_e2ee_sync.sql` creates the `events`, `categories`, and `key_material`
+  tables plus the RLS policies that enforce per-user isolation and require
+  TOTP.
+- `0002_server_updated_at.sql` adds the server-assigned upload watermark
+  (column plus trigger) that sync pulls cursor on.
+- `0003_password_rewrap_staging.sql` adds the staging columns the two-phase
+  password change uses.
+
+An existing project that already ran an earlier migration only needs the ones
+added since.
+
+- **Dashboard:** open the SQL Editor, paste each file's contents, and run it.
 - **CLI:** `supabase link --project-ref YOUR-PROJECT-REF && supabase db push`
 
 ## 3. Configure authentication
