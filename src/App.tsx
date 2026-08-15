@@ -324,6 +324,8 @@ const CalendarScreen = ({ entrance = false }: { entrance?: boolean }) => {
               selectedISO={isCompact ? resolvedSelectedDate : undefined}
               onSwipeLeft={isCompact ? cal.goToNextMonth : undefined}
               onSwipeRight={isCompact ? cal.goToPrevMonth : undefined}
+              onPrevMonth={cal.goToPrevMonth}
+              onNextMonth={cal.goToNextMonth}
               occurrencesByDate={cal.occurrencesByDate}
               onSelectDate={isCompact ? setSelectedDate : openCreate}
               onSelectOccurrence={openEdit}

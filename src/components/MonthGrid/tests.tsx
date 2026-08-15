@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, act } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { Occurrence } from "@/types";
@@ -392,6 +392,103 @@ describe("MonthGrid swipe navigation", () => {
     fireEvent.pointerUp(grid, { clientX: 200, clientY: 100 });
     expect(onSwipeLeft).not.toHaveBeenCalled();
     expect(onSwipeRight).not.toHaveBeenCalled();
+  });
+});
+
+describe("MonthGrid wheel navigation", () => {
+  // The hook separates gestures by wall-clock gaps in the wheel-event stream,
+  // so these tests drive Date.now with fake timers.
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  const renderWheelGrid = () => {
+    const onPrevMonth = vi.fn();
+    const onNextMonth = vi.fn();
+    const utils = render(
+      <MonthGrid
+        cells={buildMonthGrid(new Date(2026, 4, 1))}
+        todayISO="2026-05-14"
+        occurrencesByDate={{}}
+        onSelectDate={vi.fn()}
+        onSelectOccurrence={vi.fn()}
+        onPrevMonth={onPrevMonth}
+        onNextMonth={onNextMonth}
+      />,
+    );
+    return { ...utils, onPrevMonth, onNextMonth };
+  };
+
+  it("goes to the next month on a scroll down, with the slide feedback", () => {
+    const { container, onPrevMonth, onNextMonth } = renderWheelGrid();
+    fireEvent.wheel(screen.getByRole("grid"), { deltaY: 100 });
+    expect(onNextMonth).toHaveBeenCalledOnce();
+    expect(onPrevMonth).not.toHaveBeenCalled();
+    expect(container.querySelector(".cy-shift-next")).not.toBeNull();
+  });
+
+  it("goes to the previous month on a scroll up", () => {
+    const { container, onPrevMonth, onNextMonth } = renderWheelGrid();
+    fireEvent.wheel(screen.getByRole("grid"), { deltaY: -100 });
+    expect(onPrevMonth).toHaveBeenCalledOnce();
+    expect(onNextMonth).not.toHaveBeenCalled();
+    expect(container.querySelector(".cy-shift-prev")).not.toBeNull();
+  });
+
+  it("accumulates small deltas across one gesture before navigating", () => {
+    const { onNextMonth } = renderWheelGrid();
+    const grid = screen.getByRole("grid");
+    fireEvent.wheel(grid, { deltaY: 25 });
+    fireEvent.wheel(grid, { deltaY: 25 });
+    expect(onNextMonth).not.toHaveBeenCalled();
+    fireEvent.wheel(grid, { deltaY: 25 });
+    expect(onNextMonth).toHaveBeenCalledOnce();
+  });
+
+  it("swallows the momentum tail after navigating", () => {
+    const { onNextMonth } = renderWheelGrid();
+    const grid = screen.getByRole("grid");
+    fireEvent.wheel(grid, { deltaY: 100 });
+    for (let i = 0; i < 10; i += 1) {
+      vi.advanceTimersByTime(16);
+      fireEvent.wheel(grid, { deltaY: 50 });
+    }
+    expect(onNextMonth).toHaveBeenCalledOnce();
+  });
+
+  it("treats a scroll after a quiet gap as a new gesture", () => {
+    const { onNextMonth } = renderWheelGrid();
+    const grid = screen.getByRole("grid");
+    fireEvent.wheel(grid, { deltaY: 100 });
+    vi.advanceTimersByTime(250);
+    fireEvent.wheel(grid, { deltaY: 100 });
+    expect(onNextMonth).toHaveBeenCalledTimes(2);
+  });
+
+  it("navigates on a single line-mode wheel notch", () => {
+    const { onNextMonth } = renderWheelGrid();
+    fireEvent.wheel(screen.getByRole("grid"), {
+      deltaY: 3,
+      deltaMode: WheelEvent.DOM_DELTA_LINE,
+    });
+    expect(onNextMonth).toHaveBeenCalledOnce();
+  });
+
+  it("does nothing without month callbacks", () => {
+    const { container } = render(
+      <MonthGrid
+        cells={buildMonthGrid(new Date(2026, 4, 1))}
+        todayISO="2026-05-14"
+        occurrencesByDate={{}}
+        onSelectDate={vi.fn()}
+        onSelectOccurrence={vi.fn()}
+      />,
+    );
+    fireEvent.wheel(screen.getByRole("grid"), { deltaY: 500 });
+    expect(container.querySelector(".cy-shift-next")).toBeNull();
   });
 });
 

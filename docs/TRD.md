@@ -352,6 +352,8 @@ src/
     SyncContext/            # optional account-sync state machine; consume via useSync()
   hooks/
     useIsCompact/           # matchMedia hook; true below 640px (Tailwind sm breakpoint)
+    useSwipeNavigation/     # compact-mode swipe left/right on the grid changes months
+    useWheelNavigation/     # wheel/trackpad scroll on the grid changes months (down = next)
   lib/
     storage/                # IndexedDB (idb); StorageError + guards; JSON backup
     tabSync/                # cross-tab change signal (BroadcastChannel)
@@ -394,7 +396,7 @@ It branches on four cases driven by `scope` and whether the event recurs:
 
 ## 12. Accessibility & Performance
 
-- Grid uses semantic roles (`grid` / `row` / `gridcell`); **arrow keys** (←/→/↑/↓) move day focus via a **roving tabindex** in `MonthGrid`; **PageUp/PageDown** navigate months; **Enter** opens a day; dialogs trap focus (Radix-managed).
+- Grid uses semantic roles (`grid` / `row` / `gridcell`); **arrow keys** (←/→/↑/↓) move day focus via a **roving tabindex** in `MonthGrid`; **PageUp/PageDown** navigate months, as does a **vertical wheel/trackpad scroll** over the grid (down for next month, up for previous; one navigation per gesture, with the same 180ms directional slide as compact-mode swipe); **Enter** opens a day; dialogs trap focus (Radix-managed).
 - **Color is never the only signal**: chips carry text + ↻; categories have names.
 - **Contrast:** ensure text remains legible over the dark HUD (target WCAG AA for body text).
 - **`prefers-reduced-motion`** honored (see §10).

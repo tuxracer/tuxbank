@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { inMonthWeekCount, type DateCell } from "@/lib/dateGrid";
 import DayCell from "@/components/DayCell";
 import { useSwipeNavigation } from "@/hooks/useSwipeNavigation";
+import { useWheelNavigation } from "@/hooks/useWheelNavigation";
 
 import {
   WEEKDAYS,
@@ -59,6 +60,8 @@ const MonthGrid = ({
   selectedISO,
   onSwipeLeft,
   onSwipeRight,
+  onPrevMonth,
+  onNextMonth,
   occurrencesByDate,
   balancesByDate = {},
   onSelectDate,
@@ -80,8 +83,9 @@ const MonthGrid = ({
     initialActiveIndex(visibleCells, todayISO),
   );
 
-  // Swipe-to-change-month (compact mode). A one-shot 180ms directional slide is
-  // the month-change feedback, cleared on animationend.
+  // Gesture month navigation: swipe (compact mode) and vertical wheel scroll
+  // (any layout). Both share a one-shot 180ms directional slide as the
+  // month-change feedback, cleared on animationend.
   const [shift, setShift] = useState<"next" | "prev" | null>(null);
   const swipeEnabled = Boolean(onSwipeLeft ?? onSwipeRight);
   const swipeHandlers = useSwipeNavigation({
@@ -93,6 +97,17 @@ const MonthGrid = ({
     onSwipeRight: () => {
       setShift("prev");
       onSwipeRight?.();
+    },
+  });
+  const wheelHandlers = useWheelNavigation({
+    enabled: Boolean(onPrevMonth ?? onNextMonth),
+    onPrev: () => {
+      setShift("prev");
+      onPrevMonth?.();
+    },
+    onNext: () => {
+      setShift("next");
+      onNextMonth?.();
     },
   });
 
@@ -169,6 +184,7 @@ const MonthGrid = ({
       ref={rootRef}
       className={`flex min-h-0 flex-1 flex-col gap-1.5${swipeEnabled ? " touch-pan-y" : ""}${shift ? ` cy-shift-${shift}` : ""}`}
       {...swipeHandlers}
+      {...wheelHandlers}
     >
       <div className="grid grid-cols-7 gap-1.5" role="row">
         {WEEKDAYS.map((d) => (

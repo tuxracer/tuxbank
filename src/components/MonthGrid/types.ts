@@ -12,6 +12,10 @@ export type MonthGridProps = {
   onSwipeLeft?: () => void;
   /** Compact-mode swipe: rightward swipe on the grid (typically previous month). */
   onSwipeRight?: () => void;
+  /** Wheel scroll up on the grid: go to the previous month. */
+  onPrevMonth?: () => void;
+  /** Wheel scroll down on the grid: go to the next month. */
+  onNextMonth?: () => void;
   occurrencesByDate: Partial<Record<string, Occurrence[]>>;
   balancesByDate?: Record<string, number>;
   onSelectDate: (iso: string) => void;
