@@ -108,6 +108,11 @@ const DataSettings = ({
   };
 
   const handleReset = async () => {
+    const scope = includesCloud
+      ? "on this device and in your account, on every device signed into it"
+      : "on this device";
+    const gone = `Are you sure you want to delete all ${currentEventCount} events and ${currentCategoryCount} categories ${scope}? This cannot be undone.`;
+    if (!window.confirm(gone)) return;
     setStage({ kind: "resetting" });
     try {
       await onClearAllData();

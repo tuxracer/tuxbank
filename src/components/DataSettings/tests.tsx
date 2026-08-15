@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { StorageError } from "@/lib/storage";
@@ -112,6 +112,26 @@ describe("DataSettings", () => {
 describe("DataSettings — clear all data", () => {
   const startReset = async () =>
     userEvent.click(screen.getByRole("button", { name: /clear all data/i }));
+
+  beforeEach(() => {
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("does not clear when the confirm prompt is dismissed", async () => {
+    vi.spyOn(window, "confirm").mockReturnValue(false);
+    const onClearAllData = vi.fn().mockResolvedValue(undefined);
+    render(<DataSettings {...base} onClearAllData={onClearAllData} />);
+    await startReset();
+    await userEvent.type(confirmField(), "reset");
+    await userEvent.click(
+      screen.getByRole("button", { name: /reset everything/i }),
+    );
+    expect(onClearAllData).not.toHaveBeenCalled();
+  });
 
   it("keeps the destructive button disabled until the word reset is typed", async () => {
     render(<DataSettings {...base} />);
