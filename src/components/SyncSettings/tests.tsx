@@ -217,6 +217,11 @@ describe("SyncSettings delete account", () => {
     mocks.deleteAccount.mockResolvedValue(true);
     syncValue.status = "synced";
     syncValue.step = "idle";
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   // All three gates satisfied, so a test can relax exactly one of them.
@@ -246,6 +251,14 @@ describe("SyncSettings delete account", () => {
     await waitFor(() =>
       expect(mocks.deleteAccount).toHaveBeenCalledWith("pw-123456", "123456"),
     );
+  });
+
+  it("does not delete when the confirm prompt is dismissed", () => {
+    vi.spyOn(window, "confirm").mockReturnValue(false);
+
+    fireEvent.click(openDeletePanel());
+
+    expect(mocks.deleteAccount).not.toHaveBeenCalled();
   });
 
   it.each([

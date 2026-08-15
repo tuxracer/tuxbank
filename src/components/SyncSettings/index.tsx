@@ -400,6 +400,8 @@ export const SyncSettings = () => {
               !deleteConfirmed
             }
             onClick={async () => {
+              const gone = `Are you sure you want to delete ${sync.email}? This cannot be undone.`;
+              if (!window.confirm(gone)) return;
               setBusy(true);
               const deleted = await sync.deleteAccount(password, code.trim());
               setBusy(false);
