@@ -15,7 +15,7 @@ import type {
   CategoryColor,
   Occurrence,
 } from "@/types";
-import { categoryKey } from "@/types";
+import { categoryKey, UNKNOWN_CATEGORY } from "@/types";
 import { buildMonthGrid, toISODate } from "@/lib/dateGrid";
 import {
   buildFollowingSeries,
@@ -479,6 +479,9 @@ export const CalendarProvider = ({
     const seen = new Map<string, Category>();
     for (const e of events) {
       const cat = getCategory(e.categoryId);
+      // "Uncategorized" is the absence of a choice, not a category the user
+      // made, so it gets no filter chip: those events always stay visible.
+      if (cat.id === UNKNOWN_CATEGORY.id) continue;
       if (!seen.has(cat.id)) seen.set(cat.id, cat);
     }
     return [...seen.values()];
