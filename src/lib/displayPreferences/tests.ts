@@ -6,7 +6,7 @@ import {
   hydrateDisplayPreferences,
   LEGACY_DISPLAY_PREFERENCES_KEY,
   readDisplayPreferences,
-  resetDisplayPreferencesCache,
+  resetDisplayPreferencesSnapshot,
   subscribeToDisplayPreferences,
   WEEK_STARTS_ON_SETTING_ID,
   writeDisplayPreferences,
@@ -75,7 +75,7 @@ describe("displayPreferences", () => {
       LEGACY_DISPLAY_PREFERENCES_KEY,
       JSON.stringify({ currency: "JPY", weekStartsOn: null }),
     );
-    resetDisplayPreferencesCache();
+    resetDisplayPreferencesSnapshot();
     await hydrateDisplayPreferences();
 
     expect(readDisplayPreferences().currency).toBe("JPY");

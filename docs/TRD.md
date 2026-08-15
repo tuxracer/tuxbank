@@ -363,7 +363,7 @@ src/
     recurrence/             # expand(window) + recurrence override/split/move helpers (pure)
     dateGrid/               # month -> 6x7 date matrix; inMonthWeekCount() for the weeks a month spans
     balance/                # running balance from deposits/withdrawals
-    displayPreferences/     # synced display overrides (currency, week start); null = automatic; localStorage mirrors for first paint
+    displayPreferences/     # synced display overrides (currency, week start); null = automatic; IndexedDB-backed
     landingGate/            # localStorage flag for skipping the landing page on return visits
   types/                    # CalendarEvent, Category, Recurrence + type guards
   utils/
@@ -750,18 +750,40 @@ whether a value is legal for a given id belongs to the module that owns the
 setting. `displayPreferences` falls back to automatic for a row it cannot
 recognize, so a row written by a newer build degrades instead of breaking.
 
-**Reads stay synchronous.** The calendar renders before IndexedDB can answer,
-and a grid that starts Sunday-first and jumps to Monday-first is worse than one
-frame of slightly stale truth, so localStorage keeps a first-paint mirror of
-the resolved preferences. It is a cache, not a second source of truth:
-`hydrateDisplayPreferences` overwrites it from IndexedDB on the first
-subscribe, on a cross-tab change, and from `refreshFromStorage` (which covers
-every path that rewrites storage out of band: a sync pull, an import, a reset).
-A device upgrading from the pre-sync build migrates its old localStorage key
-into settings rows once, on first hydrate; only an explicit override migrates,
-because a `null` in the old format cannot be told apart from "never chose
-anything" and seeding it as a real choice would overwrite another device's
-actual pick. The legacy key is removed either way, so the migration runs once.
+**IndexedDB is the only copy, and the first paint waits for it.** The week
+start decides the shape of the grid, so painting before it is known would build
+the month on a guess and reshuffle every column a frame later. Rather than keep
+a second copy in localStorage to read synchronously, `CalendarContext`'s
+existing `loaded` flag covers the settings read too (it is already awaiting
+events and categories), and `CalendarScreen` holds the first paint until it
+flips. One short blank beats a visible reflow, and it is what lets the
+preferences live in one place with nothing to keep in agreement. `loaded` is
+set on the failure path as well, so a broken or absent IndexedDB shows the
+storage banner instead of hanging the gate; a load slow enough to notice
+(another tab holding an old database version open) surfaces a delayed notice
+after `SLOW_LOAD_NOTICE_MS`.
+
+`readDisplayPreferences` returns an in-memory snapshot of what IndexedDB last
+reported, kept identity-stable because `useSyncExternalStore` compares by
+reference. `hydrateDisplayPreferences` refreshes it during the initial load, on
+a cross-tab change, and from `refreshFromStorage` (which covers every path that
+rewrites storage out of band: a sync pull, an import, a reset).
+
+**A hydrate never publishes rows older than a write the user has already seen
+applied.** Two windows could do that: a hydrate starting while a write is
+mid-commit, and a hydrate whose read was already in flight when the write
+landed. A pending-write count closes the first, a generation stamp checked
+after the read closes the second, and either way the hydrate re-runs once the
+store goes quiet. Without this a sync pull landing next to a preference change
+silently reverts the change.
+
+**Migration.** A device upgrading from the pre-sync build moves its old
+localStorage key into settings rows once, on first hydrate. Only an explicit
+override migrates, because a `null` in the old format cannot be told apart from
+"never chose anything" and seeding it as a real choice would overwrite another
+device's actual pick. The legacy key is removed either way, so the migration
+runs exactly once; it is the only remaining localStorage involvement and can be
+dropped once no device is expected to still hold that key.
 
 Settings changes feed the same debounced push as edits (`SyncContext` watches
 the resolved preferences alongside events and categories).

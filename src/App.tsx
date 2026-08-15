@@ -57,6 +57,14 @@ const dropDateFormatter = new Intl.DateTimeFormat(undefined, {
 const LANDING_EXIT_FALLBACK_MS = 400;
 const APP_ENTRANCE_MS = { toolbar: 0, console: 70, panel: 140 } as const;
 
+/**
+ * How long the first load may take before it is worth saying so. Reading the
+ * local database normally finishes within a frame or two, and a notice that
+ * flashes for 20ms reads as a glitch; this only shows up when something is
+ * genuinely slow, such as another tab holding an old database version open.
+ */
+const SLOW_LOAD_NOTICE_MS = 1_000;
+
 // One owner for the "does this mutation need the recurrence-scope dialog?"
 // policy: a non-recurring event has exactly one occurrence, so every mutation
 // applies to the whole event ("all") without asking.
@@ -107,6 +115,12 @@ const CalendarScreen = ({ entrance = false }: { entrance?: boolean }) => {
     null,
   );
   const isCompact = useIsCompact();
+  const [slowLoad, setSlowLoad] = useState(false);
+  useEffect(() => {
+    if (cal.loaded) return;
+    const id = setTimeout(() => setSlowLoad(true), SLOW_LOAD_NOTICE_MS);
+    return () => clearTimeout(id);
+  }, [cal.loaded]);
   // Compact-mode day selection. Falls back to today (when the visible month
   // contains it) or the first in-month day whenever the stored pick is not in
   // the current grid, so month navigation resets the selection naturally.
@@ -269,12 +283,27 @@ const CalendarScreen = ({ entrance = false }: { entrance?: boolean }) => {
     setScope(null);
   };
 
+  // Hold the first paint until the stored state that decides the layout is in
+  // hand. The week start comes from the settings store, so painting early
+  // would build the grid on a guess and reshuffle every column once the real
+  // value arrives. One short blank beats a visible reflow, and it is what lets
+  // the preferences live in IndexedDB alone with no second copy to keep true.
+  if (!cal.loaded) {
+    return (
+      <main
+        className={`flex h-[100dvh] flex-col items-center justify-center ${isCompact ? "gap-2 p-2" : "gap-3 p-3.5"}`}
+      >
+        {slowLoad && <p className="cy-hud">Loading…</p>}
+      </main>
+    );
+  }
+
   return (
     <main
       className={`flex h-[100dvh] flex-col ${isCompact ? "gap-2 p-2" : "gap-3 p-3.5"}`}
       onKeyDown={onKeyDown}
     >
-      {cal.loaded && !cal.storageAvailable && (
+      {!cal.storageAvailable && (
         <StorageUnavailableBanner
           resettable={cal.storageResettable}
           onReset={handleResetLocalData}
@@ -356,7 +385,7 @@ const CalendarScreen = ({ entrance = false }: { entrance?: boolean }) => {
         </div>
       )}
 
-      {cal.loaded && totalOccurrences === 0 && (
+      {totalOccurrences === 0 && (
         <p
           className={`cy-mono text-center text-xs text-[color:var(--cy-muted)] ${landClass}`}
           style={landStyle(APP_ENTRANCE_MS.panel)}

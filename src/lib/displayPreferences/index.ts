@@ -3,7 +3,6 @@ import { subscribeToDataChanges } from "@/lib/tabSync";
 import {
   CURRENCY_SETTING_ID,
   DEFAULT_DISPLAY_PREFERENCES,
-  DISPLAY_PREFERENCES_CACHE_KEY,
   LEGACY_DISPLAY_PREFERENCES_KEY,
   WEEK_STARTS_ON_SETTING_ID,
 } from "./consts";
@@ -17,9 +16,11 @@ import {
 export * from "./consts";
 export * from "./types";
 
-// Cached so readDisplayPreferences returns a stable reference between writes
-// (useSyncExternalStore compares snapshots by identity).
-let cached: DisplayPreferences | null = null;
+// The snapshot. IndexedDB is the only source of truth; this is the in-memory
+// copy of it, kept identity-stable between writes because useSyncExternalStore
+// compares snapshots by reference. Nothing reads it before the app's initial
+// load has hydrated it (see CalendarContext's `loaded` gate).
+let snapshot: DisplayPreferences = DEFAULT_DISPLAY_PREFERENCES;
 const listeners = new Set<() => void>();
 let unsubscribeFromData: (() => void) | null = null;
 
@@ -44,9 +45,10 @@ const emit = (): void => {
   for (const listener of listeners) listener();
 };
 
-const readCache = (key: string): DisplayPreferences | null => {
+/** The pre-sync localStorage blob, if this device still holds an un-migrated one. */
+const readLegacyPreferences = (): DisplayPreferences | null => {
   try {
-    const raw = window.localStorage.getItem(key);
+    const raw = window.localStorage.getItem(LEGACY_DISPLAY_PREFERENCES_KEY);
     if (raw === null) return null;
     const parsed: unknown = JSON.parse(raw);
     if (isDisplayPreferences(parsed)) return parsed;
@@ -56,30 +58,12 @@ const readCache = (key: string): DisplayPreferences | null => {
   return null;
 };
 
-const writeCache = (preferences: DisplayPreferences): void => {
-  try {
-    window.localStorage.setItem(
-      DISPLAY_PREFERENCES_CACHE_KEY,
-      JSON.stringify(preferences),
-    );
-  } catch {
-    // Best effort: the cache only saves a frame of first paint.
-  }
-};
+/** The synchronous snapshot of what IndexedDB last reported. */
+export const readDisplayPreferences = (): DisplayPreferences => snapshot;
 
-/**
- * The synchronous snapshot. Served from the first-paint cache until the first
- * hydrate replaces it with what IndexedDB holds.
- */
-export const readDisplayPreferences = (): DisplayPreferences =>
-  (cached ??=
-    readCache(DISPLAY_PREFERENCES_CACHE_KEY) ??
-    readCache(LEGACY_DISPLAY_PREFERENCES_KEY) ??
-    DEFAULT_DISPLAY_PREFERENCES);
-
-/** Drop the snapshot cache; the next read reloads from storage (see testing.ts). */
-export const resetDisplayPreferencesCache = (): void => {
-  cached = null;
+/** Test-only: forget the snapshot so the next hydrate starts from automatic. */
+export const resetDisplayPreferencesSnapshot = (): void => {
+  snapshot = DEFAULT_DISPLAY_PREFERENCES;
 };
 
 const settingValueFor = (
@@ -120,7 +104,7 @@ const toPreferences = (
 const migrateLegacyPreferences = async (
   existingIds: ReadonlySet<string>,
 ): Promise<boolean> => {
-  const legacy = readCache(LEGACY_DISPLAY_PREFERENCES_KEY);
+  const legacy = readLegacyPreferences();
   if (legacy === null) {
     // Nothing stored, or unparseable; either way there is nothing to carry
     // over. Clear the key so a corrupt value is not re-read every hydrate.
@@ -150,9 +134,10 @@ const migrateLegacyPreferences = async (
 };
 
 /**
- * Reload the snapshot from IndexedDB. Called on the first subscribe, whenever
- * another tab changes stored data, and after any path that rewrites storage
- * behind this module's back (a sync pull, an import, a reset).
+ * Reload the snapshot from IndexedDB. Called once during the app's initial
+ * load (which gates the first paint on it), whenever another tab changes
+ * stored data, and after any path that rewrites storage behind this module's
+ * back (a sync pull, an import, a reset).
  */
 export const hydrateDisplayPreferences = async (): Promise<void> => {
   if (pendingWrites > 0) {
@@ -164,7 +149,8 @@ export const hydrateDisplayPreferences = async (): Promise<void> => {
   try {
     rows = await getAllSettings();
   } catch {
-    // No IndexedDB, or it could not be read. The cache-backed snapshot stands.
+    // No IndexedDB, or it could not be read. Everything stays automatic, and
+    // the storage banner tells the user why.
     return;
   }
   const ids = new Set(rows.map((row) => row.id));
@@ -190,8 +176,7 @@ export const hydrateDisplayPreferences = async (): Promise<void> => {
   ) {
     return;
   }
-  cached = next;
-  writeCache(next);
+  snapshot = next;
   emit();
 };
 
@@ -206,8 +191,7 @@ export const writeDisplayPreferences = (
 ): void => {
   const previous = readDisplayPreferences();
   const next = { ...previous, ...patch };
-  cached = next;
-  writeCache(next);
+  snapshot = next;
   emit();
   const changed = [CURRENCY_SETTING_ID, WEEK_STARTS_ON_SETTING_ID].filter(
     (id) => settingValueFor(next, id) !== settingValueFor(previous, id),
@@ -230,10 +214,11 @@ export const subscribeToDisplayPreferences = (
   listener: () => void,
 ): (() => void) => {
   if (listeners.size === 0) {
+    // The initial read belongs to CalendarContext's load, which gates the
+    // first paint on it; this only has to catch changes made by other tabs.
     unsubscribeFromData = subscribeToDataChanges(() => {
       void hydrateDisplayPreferences();
     });
-    void hydrateDisplayPreferences();
   }
   listeners.add(listener);
   return () => {

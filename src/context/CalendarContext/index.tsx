@@ -117,9 +117,18 @@ export const CalendarProvider = ({
     [categories],
   );
 
+  // `loaded` covers every stored thing the first paint depends on, display
+  // preferences included: the week start decides the shape of the grid, so
+  // rendering before it is known would lay the month out wrong and reflow.
+  // hydrateDisplayPreferences swallows its own storage errors, so it can only
+  // resolve and never blocks this gate.
   useEffect(() => {
     let active = true;
-    Promise.all([getAllEvents(), getAllCategories()])
+    Promise.all([
+      getAllEvents(),
+      getAllCategories(),
+      hydrateDisplayPreferences(),
+    ])
       .then(([loadedEvents, loadedCategories]) => {
         if (!active) return;
         setEvents(loadedEvents);
