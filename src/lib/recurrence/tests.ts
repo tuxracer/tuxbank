@@ -272,11 +272,14 @@ describe("recurrence mutations", () => {
     expect(next.recurrence?.endsOn).toBe("2026-05-17");
   });
 
-  it("builds a following series carrying forward only on/after overrides", () => {
+  it("builds a following series carrying forward only strictly-after overrides", () => {
     const withOverrides = {
       ...series,
       overrides: [
         { occurrenceDate: "2026-05-11", cancelled: true },
+        // At the split point: superseded by the submitted input, must not
+        // ride into the new series and overrule the values just saved.
+        { occurrenceDate: "2026-05-18", patch: { amount: 150 } },
         { occurrenceDate: "2026-05-25", patch: { title: "keep" } },
       ],
     };

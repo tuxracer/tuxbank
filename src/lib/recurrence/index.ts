@@ -218,7 +218,10 @@ export const buildFollowingSeries = (
   amount: input.amount,
   direction: input.direction,
   recurrence: input.recurrence,
-  overrides: event.overrides.filter((o) => o.occurrenceDate >= fromDate),
+  // Strictly after the split: an override at fromDate is superseded by the
+  // submitted input (carrying it would silently overrule the values the user
+  // just saved for that occurrence).
+  overrides: event.overrides.filter((o) => o.occurrenceDate > fromDate),
   createdAt: nowISO,
   updatedAt: nowISO,
 });
