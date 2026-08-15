@@ -16,9 +16,115 @@
     />
     <meta name="repository" content="https://github.com/tuxracer/tuxbank" />
     <title>TuxBank Budget Calendar</title>
+    <!--
+      Boot fallback. The app ships as one non-split bundle, so if that script
+      never arrives nothing renders and the page is blank with no way for the
+      app itself to explain why. The likeliest cause is a browser cache holding
+      a hashed filename the server no longer has.
+
+      Driven by CSS alone, because the CSP allows no inline script (and an
+      external one is a second request that can fail the same way). #root is
+      empty only until React mounts, and React always renders at least the
+      <main> wrapper, so `:empty` here means the bundle never ran. The delayed
+      animation keeps the notice off a load that is merely slow, and it
+      retracts on its own the moment anything renders. Colors are repeated from
+      globals.css rather than read from its tokens, since that stylesheet is a
+      separate request that can be missing too. A browser with animations
+      disabled outright falls back to the blank page, which is the behavior
+      without this notice anyway.
+    -->
+    <style>
+      :root {
+        color-scheme: light dark;
+      }
+
+      #boot-fallback {
+        visibility: hidden;
+        position: fixed;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 16px;
+        background: #eff2f6;
+        color: #1b2430;
+        font-family: "JetBrains Mono", ui-monospace, monospace;
+        font-size: 12px;
+        line-height: 1.6;
+      }
+
+      #root:empty ~ #boot-fallback {
+        animation: boot-fallback-reveal 0s 10s forwards;
+      }
+
+      @keyframes boot-fallback-reveal {
+        to {
+          visibility: visible;
+        }
+      }
+
+      #boot-fallback div {
+        max-width: 460px;
+        border: 1px solid #d6dde6;
+        background: #ffffff;
+        padding: 16px;
+      }
+
+      #boot-fallback p {
+        margin: 0 0 12px;
+      }
+
+      #boot-fallback p:last-child {
+        margin-bottom: 0;
+      }
+
+      #boot-fallback .boot-fallback-title {
+        color: #0e7490;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+
+      #boot-fallback .boot-fallback-note {
+        color: #5c6d7f;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        #boot-fallback {
+          background: #0a0c11;
+          color: #c8d4e0;
+        }
+
+        #boot-fallback div {
+          border-color: #1b2431;
+          background: #0d1119;
+        }
+
+        #boot-fallback .boot-fallback-title {
+          color: #22d3ee;
+        }
+
+        #boot-fallback .boot-fallback-note {
+          color: #6b7c8f;
+        }
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>
+    <div id="boot-fallback">
+      <div>
+        <p class="boot-fallback-title">◢ TuxBank didn’t open</p>
+        <p>
+          Something went wrong while loading this page. Refreshing usually fixes
+          it.
+        </p>
+        <p>
+          Press Ctrl + Shift + R (Cmd + Shift + R on a Mac), or hold Shift and
+          click your browser’s reload button.
+        </p>
+        <p class="boot-fallback-note">Your saved events are safe.</p>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
