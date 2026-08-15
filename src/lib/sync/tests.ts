@@ -124,9 +124,20 @@ const backupOf = (events: CalendarEvent[]): string =>
   });
 
 /**
+ * How Postgres renders a `timestamptz` back to the client: ISO 8601 with a
+ * `+00:00` offset rather than the `Z` the client wrote, and no trailing zeros
+ * in the fraction (`.000` disappears entirely). Sync authenticates and
+ * compares these strings, so a fake backend that echoes the pushed spelling
+ * verbatim silently passes code the real backend breaks.
+ */
+const asTimestamptz = (iso: string): string =>
+  `${new Date(iso).toISOString().replace(/\.?0*Z$/, "")}+00:00`;
+
+/**
  * In-memory Supabase stand-in. Mirrors the real backend's shape: every push
- * (and seeded row) gets a monotonically increasing server_updated_at, and
- * pulls filter on that server stamp, never on the client updated_at.
+ * (and seeded row) gets a monotonically increasing server_updated_at, both
+ * timestamp columns come back in Postgres's rendering, and pulls filter on
+ * that server stamp, never on the client updated_at.
  */
 const makeFakeRemote = () => {
   // Derived from the registry, so adding a synced collection cannot leave the
@@ -140,13 +151,21 @@ const makeFakeRemote = () => {
       Date.parse("2026-06-09T12:00:00.000Z") + ++tick * 60_000,
     ).toISOString();
   const seed = (table: string, row: PushRow): RemoteRow => {
-    const stored: RemoteRow = { ...row, server_updated_at: nextServerStamp() };
+    const stored: RemoteRow = {
+      ...row,
+      updated_at: asTimestamptz(row.updated_at),
+      server_updated_at: asTimestamptz(nextServerStamp()),
+    };
     tables[table].set(row.id, stored);
     return stored;
   };
   const remote: SyncRemote = {
+    // Postgres compares instants, not strings: the cursor arrives in the
+    // client's spelling and the stored stamp is in the server's.
     pull: async (table, since) =>
-      [...tables[table].values()].filter((r) => r.server_updated_at > since),
+      [...tables[table].values()].filter(
+        (r) => Date.parse(r.server_updated_at) > Date.parse(since),
+      ),
     push: async (table, rows) => {
       for (const row of rows) seed(table, row);
     },
@@ -182,6 +201,22 @@ describe("runSync", () => {
     seed("events", await encryptRecord(event(), dek, "events"));
     const result = await runSync(dek, remote);
     expect(result.pulled).toBe(1);
+    expect(await getAllEvents()).toEqual([event()]);
+  });
+
+  // The metadata binding reconstructs its additional data from the pulled
+  // row's plaintext columns, which the server returns in its own timestamp
+  // spelling. A second device is where that bites: the first device holds
+  // every row already and never reaches the decrypt.
+  it("decrypts on a second device what the first device pushed", async () => {
+    const dek = await generateDek();
+    const { remote } = makeFakeRemote();
+    await putEvent(event());
+    await runSync(dek, remote);
+
+    await resetDbForTests(); // same account, fresh device
+    const result = await runSync(dek, remote);
+    expect(result.skipped).toBe(0);
     expect(await getAllEvents()).toEqual([event()]);
   });
 

@@ -708,10 +708,16 @@ the stored watermark (upserts stamp `now()` at transaction start, so a slow
 transaction can commit slightly below the watermark; re-applied overlap rows
 are idempotent no-ops) and paginates in server-stamp order, so it can never be
 silently truncated at PostgREST's row cap. Per pulled row, the merge is by the
-client `updated_at`: a strictly newer local copy wins (its outbox entry pushes
-it right after); otherwise the remote copy is applied, with an exact tie going
-to the server copy so divergent same-stamp content converges deterministically
-(a byte-identical echo of this device's own push is skipped). Deleted rows are
+client `updated_at`, normalized first: `updated_at` is a `timestamptz`, so
+Postgres returns it as `2026-08-15T07:12:33.456+00:00` (trailing zeros in the
+fraction trimmed, so `.000` returns with no fraction at all) rather than the
+`Z`-suffixed string the client wrote. Both the merge comparisons and the
+metadata binding below are exact string operations, so every timestamp passes
+through one canonical spelling before either uses it. A strictly newer local
+copy wins (its outbox entry pushes it right after); otherwise the remote copy
+is applied, with an exact tie going to the server copy so divergent same-stamp
+content converges deterministically (a byte-identical echo of this device's own
+push is skipped). Deleted rows are
 authenticated by decrypting their tombstone payload before anything is removed
 locally. A row that fails to decrypt or validate is **skipped and counted**
 (`SyncResult.skipped`, surfaced as a toast), never fatal: the watermark still

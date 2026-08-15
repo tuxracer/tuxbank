@@ -81,6 +81,22 @@ export const purgeAccountData = async (remote: SyncRemote): Promise<void> => {
 };
 
 /**
+ * One timestamp, one spelling. The same instant reaches this module in two
+ * renderings: a client writes `2026-08-15T07:12:33.456Z`, while Postgres hands
+ * the `timestamptz` column back as `2026-08-15T07:12:33.456+00:00`, trimming
+ * trailing zeros from the fraction (so `.000` returns with no fraction at
+ * all). Both the AEAD binding below and the merge's timestamp comparisons are
+ * exact string operations, so a pulled row would never match the local copy
+ * that produced it unless both sides run through here first. An unparseable
+ * stamp is passed through, which keeps the binding deterministic instead of
+ * throwing part-way through a sync.
+ */
+const canonicalStamp = (stamp: string): string => {
+  const ms = Date.parse(stamp);
+  return Number.isNaN(ms) ? stamp : new Date(ms).toISOString();
+};
+
+/**
  * The AEAD additional data binding a row's plaintext metadata to its
  * ciphertext. The server stores this metadata in the clear (it routes sync),
  * so without the binding a malicious or compromised backend could replay an
@@ -93,7 +109,8 @@ const rowAd = (
   id: string,
   updatedAt: string,
   deleted: boolean,
-): string => `tuxbank:${table}:${id}:${updatedAt}:${deleted ? "1" : "0"}`;
+): string =>
+  `tuxbank:${table}:${id}:${canonicalStamp(updatedAt)}:${deleted ? "1" : "0"}`;
 
 export const encryptRecord = async (
   record: SyncedRow,
@@ -223,9 +240,13 @@ export const runSync = async (
         cursor = row.server_updated_at;
       }
       try {
+        // Against the local stamp's spelling, not the server's: `+00:00`
+        // sorts below both `Z` and `.`, so an unnormalized compare reads every
+        // remote row as older than an identical local one.
+        const remoteUpdatedAt = canonicalStamp(row.updated_at);
         const localUpdatedAt =
           localById.get(row.id)?.updatedAt ?? tombById.get(row.id)?.updatedAt;
-        if (localUpdatedAt !== undefined && row.updated_at < localUpdatedAt) {
+        if (localUpdatedAt !== undefined && remoteUpdatedAt < localUpdatedAt) {
           continue; // local copy is strictly newer; the push below sends it
         }
         const record = await decryptRow(row, dek, table);
@@ -241,7 +262,7 @@ export const runSync = async (
         const local = localById.get(row.id);
         if (
           local !== undefined &&
-          row.updated_at === local.updatedAt &&
+          remoteUpdatedAt === local.updatedAt &&
           stableStringify(local) === stableStringify(record)
         ) {
           continue; // identical echo of our own earlier push
