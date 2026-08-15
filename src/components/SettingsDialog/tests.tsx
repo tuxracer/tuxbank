@@ -27,7 +27,6 @@ const syncValue: SyncContextValue = {
   confirmTotp: vi.fn(),
   finishCreate: vi.fn(),
   signIn: vi.fn(),
-  signInWithLink: vi.fn(),
   unlock: vi.fn(),
   changePassword: vi.fn(),
   recoverWithKey: vi.fn(),

@@ -1,4 +1,3 @@
-import type { DeviceLinkPayload } from "@/lib/deviceLink";
 import type { SignInConflict } from "@/lib/sync";
 
 export type SyncStatus =
@@ -49,13 +48,6 @@ export interface SyncContextValue {
   finishCreate: () => void;
   signIn: (email: string, password: string) => Promise<void>;
   unlock: (password: string) => Promise<void>;
-  /**
-   * Sign in from a scanned device-link payload: password sign-in with the
-   * carried authSecret, then the normal TOTP challenge (the carried KEK
-   * unlocks after aal2). Failures toast rather than set `error`, because the
-   * dialog is not open yet when a scan fails.
-   */
-  signInWithLink: (payload: DeviceLinkPayload) => Promise<void>;
   /**
    * Build a device-link URL for the QR code. Unlocked only. Re-derives the
    * link secrets from the password and validates it by test-unwrapping the

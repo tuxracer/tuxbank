@@ -578,25 +578,30 @@ describe("createDeviceLink", () => {
   });
 });
 
-describe("signInWithLink", () => {
+const setLinkHash = () => {
+  window.location.hash = new URL(
+    buildDeviceLinkUrl(linkPayload, "https://tuxbank.app"),
+  ).hash;
+};
+
+describe("device-link sign-in", () => {
   beforeEach(async () => {
     await resetDbForTests();
     // Clear call history left by other describes sharing these hoisted mocks
     // (their configured resolved values are untouched by clearAllMocks).
     vi.clearAllMocks();
     mocks.runSync.mockResolvedValue({ pulled: 0, pushed: 0 });
+    window.location.hash = "";
   });
 
   it("stages the TOTP challenge without deriving keys", async () => {
     mocks.getActiveSession.mockResolvedValue(null);
     mocks.signIn.mockResolvedValue(undefined);
     mocks.getTotpFactorId.mockResolvedValue("factor-1");
+    setLinkHash();
     const { result } = renderHook(() => useSync(), { wrapper });
-    await act(async () => {
-      await result.current.signInWithLink(linkPayload);
-    });
+    await waitFor(() => expect(result.current.step).toBe("signin-totp"));
     expect(mocks.signIn).toHaveBeenCalledWith("a@b.com", "auth-secret");
-    expect(result.current.step).toBe("signin-totp");
     expect(result.current.email).toBe("a@b.com");
     expect(mocks.deriveKeys).not.toHaveBeenCalled();
   });
@@ -608,10 +613,9 @@ describe("signInWithLink", () => {
     mocks.verifyTotp.mockResolvedValue(undefined);
     mocks.fetchKeyMaterial.mockResolvedValue(keyMaterial);
     mocks.unlockWithKek.mockResolvedValue(DEK);
+    setLinkHash();
     const { result } = renderHook(() => useSync(), { wrapper });
-    await act(async () => {
-      await result.current.signInWithLink(linkPayload);
-    });
+    await waitFor(() => expect(result.current.step).toBe("signin-totp"));
     await act(async () => {
       await result.current.confirmTotp("123456");
     });
@@ -624,21 +628,13 @@ describe("signInWithLink", () => {
   it("toasts instead of setting error when the sign-in is rejected", async () => {
     mocks.getActiveSession.mockResolvedValue(null);
     mocks.signIn.mockRejectedValue(new Error("SIGNIN_FAILED"));
+    setLinkHash();
     const { result } = renderHook(() => useSync(), { wrapper });
-    await act(async () => {
-      await result.current.signInWithLink(linkPayload);
-    });
-    expect(mocks.toastError).toHaveBeenCalled();
+    await waitFor(() => expect(mocks.toastError).toHaveBeenCalled());
     expect(result.current.error).toBeNull();
     expect(result.current.step).toBe("idle");
   });
 });
-
-const setLinkHash = () => {
-  window.location.hash = new URL(
-    buildDeviceLinkUrl(linkPayload, "https://tuxbank.app"),
-  ).hash;
-};
 
 describe("device-link hash at boot", () => {
   beforeEach(async () => {

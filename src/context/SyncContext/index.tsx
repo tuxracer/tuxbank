@@ -495,9 +495,10 @@ export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
     [remote, email, doSync, storeDek],
   );
 
-  // Sign in from a scanned device link: authSecret and KEK arrive in the
-  // payload, so no key derivation happens on this device. Failures toast
-  // because the dialog is not open when a scanned link fails.
+  // Sign in from a scanned device link (arrives via the URL hash at boot;
+  // not part of the public context value — no component calls it). authSecret
+  // and KEK travel in the payload, so no key derivation happens on this
+  // device. Failures toast because the dialog is not open when a scan fails.
   const signInWithLink = useCallback(
     async (payload: DeviceLinkPayload) => {
       if (!remote) return;
@@ -831,7 +832,6 @@ export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
       finishCreate,
       signIn,
       unlock,
-      signInWithLink,
       createDeviceLink,
       changePassword,
       recoverWithKey,
@@ -859,7 +859,6 @@ export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
       finishCreate,
       signIn,
       unlock,
-      signInWithLink,
       createDeviceLink,
       changePassword,
       recoverWithKey,
