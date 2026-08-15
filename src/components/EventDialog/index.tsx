@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, type CSSProperties } from "react";
 import { useForm, useWatch, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
@@ -12,12 +12,42 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
+import { cn } from "@/lib/utils";
 import { eventFormSchema, toEventInput, type EventFormValues } from "./schema";
 import CategoryCombobox from "@/components/CategoryCombobox";
 
 import type { EventDialogProps } from "./types";
 
 export * from "./types";
+
+/* Field labels speak in the HUD voice (mono, tracked, muted) so the boxes read
+   as the content and the labels as chrome. */
+const FIELD_LABEL =
+  "font-mono text-[10px] tracking-[0.18em] uppercase text-[color:var(--cy-muted)]";
+
+const HAIRLINE = "border-t border-[color:var(--cy-hairline)]";
+
+const DIRECTIONS = [
+  { value: "withdrawal", sign: "−", label: "Withdrawal" },
+  { value: "deposit", sign: "+", label: "Deposit" },
+] as const;
+
+/* The active segment borrows the calendar's own selection grammar: a 2px inset
+   cyan edge over the raised panel fill (see .cy-cell.selected). Inline styles
+   because .cy-btn's unlayered color/background win over Tailwind utilities. */
+const SEGMENT_ACTIVE: CSSProperties = {
+  background: "var(--cy-panel-2)",
+  color: "var(--cy-text-strong)",
+  boxShadow: "inset 2px 0 0 var(--cy-cyan)",
+};
+const SEGMENT_IDLE: CSSProperties = { color: "var(--cy-muted)" };
+
+const FieldError = ({ message }: { message?: string }) =>
+  message ? (
+    <p className="font-mono text-[11px] text-[color:var(--cy-magenta)]">
+      {message}
+    </p>
+  ) : null;
 
 const buildDefaults = (props: EventDialogProps): EventFormValues => {
   const { mode, defaultDate, initialOccurrence, sourceEvent, categories } =
@@ -40,7 +70,11 @@ const buildDefaults = (props: EventDialogProps): EventFormValues => {
     title: "",
     date: defaultDate,
     categoryId: categories[0]?.id ?? "",
-    amount: 0,
+    // NaN renders the number input empty (the browser drops the invalid value),
+    // so the field opens blank behind its 0.00 placeholder instead of holding a
+    // literal 0 the user has to delete. Submitting it blank still fails the
+    // schema's positive() check, same as 0 did.
+    amount: Number.NaN,
     direction: "withdrawal",
     repeat: "none",
     interval: 1,
@@ -81,6 +115,7 @@ const EventDialog = (props: EventDialogProps) => {
 
   const repeat = useWatch({ control, name: "repeat" });
   const categoryId = useWatch({ control, name: "categoryId" });
+  const direction = useWatch({ control, name: "direction" });
   // Per TRD: per-occurrence date moves are out of scope; lock the date when editing a recurring event.
   const lockDate = mode === "edit" && Boolean(sourceEvent?.recurrence);
 
@@ -102,86 +137,97 @@ const EventDialog = (props: EventDialogProps) => {
 
           <form
             id="event-form"
-            className="flex flex-col gap-3"
+            className="flex flex-col gap-4"
             onSubmit={handleSubmit((v) => onSubmit(toEventInput(v)))}
           >
-            <div className="flex flex-col gap-1">
-              <Label htmlFor="title">Title</Label>
-              <Input id="title" {...register("title")} />
-              {errors.title && (
-                <p className="text-xs text-[color:var(--cy-magenta)]">
-                  {errors.title.message}
-                </p>
-              )}
-            </div>
-
-            <div className="flex flex-col gap-1">
-              <Label htmlFor="date">Date</Label>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="title" className={FIELD_LABEL}>
+                Title
+              </Label>
               <Input
-                id="date"
-                type="date"
-                disabled={lockDate}
-                {...register("date")}
+                id="title"
+                placeholder="Rent, paycheck, groceries…"
+                {...register("title")}
               />
-              {errors.date && (
-                <p className="text-xs text-[color:var(--cy-magenta)]">
-                  {errors.date.message}
-                </p>
-              )}
+              <FieldError message={errors.title?.message} />
             </div>
 
-            <div className="flex flex-col gap-1">
-              <Label htmlFor="categoryId">Category</Label>
-              <CategoryCombobox
-                categories={categories}
-                value={categoryId}
-                onChange={(id) =>
-                  setValue("categoryId", id, { shouldValidate: true })
-                }
-                onCreateCategory={onCreateCategory}
-              />
-              {errors.categoryId && (
-                <p className="text-xs text-[color:var(--cy-magenta)]">
-                  {errors.categoryId.message}
-                </p>
-              )}
+            <div className="flex gap-3">
+              <div className="flex flex-1 flex-col gap-1.5">
+                <Label htmlFor="date" className={FIELD_LABEL}>
+                  Date
+                </Label>
+                <Input
+                  id="date"
+                  type="date"
+                  className="font-mono"
+                  disabled={lockDate}
+                  {...register("date")}
+                />
+                <FieldError message={errors.date?.message} />
+              </div>
+              <div className="flex flex-1 flex-col gap-1.5">
+                <Label htmlFor="categoryId" className={FIELD_LABEL}>
+                  Category
+                </Label>
+                <CategoryCombobox
+                  categories={categories}
+                  value={categoryId}
+                  onChange={(id) =>
+                    setValue("categoryId", id, { shouldValidate: true })
+                  }
+                  onCreateCategory={onCreateCategory}
+                />
+                <FieldError message={errors.categoryId?.message} />
+              </div>
             </div>
 
-            <div className="flex gap-2">
-              <div className="flex flex-1 flex-col gap-1">
-                <Label htmlFor="amount">Amount</Label>
+            <div className={cn("flex flex-col gap-1.5 pt-4", HAIRLINE)}>
+              <Label htmlFor="amount" className={FIELD_LABEL}>
+                Amount
+              </Label>
+              {/* One fused strip: the direction segments and the amount share
+                  borders (-ml-px / -mt-px collapse the doubles) so the sign
+                  choice and the figure read as a single instrument. */}
+              <div>
+                <div className="grid grid-cols-2">
+                  {DIRECTIONS.map((d, i) => (
+                    <Button
+                      key={d.value}
+                      type="button"
+                      variant="ghost"
+                      className={cn("cy-btn text-xs", i > 0 && "-ml-px")}
+                      style={
+                        direction === d.value ? SEGMENT_ACTIVE : SEGMENT_IDLE
+                      }
+                      onClick={() => setValue("direction", d.value)}
+                    >
+                      <span className="font-mono">{d.sign}</span>
+                      {d.label}
+                    </Button>
+                  ))}
+                </div>
                 <Input
                   id="amount"
                   type="number"
                   step="0.01"
                   min={0}
+                  placeholder="0.00"
+                  className="-mt-px font-mono"
                   {...register("amount")}
                 />
-                {errors.amount && (
-                  <p className="text-xs text-[color:var(--cy-magenta)]">
-                    {errors.amount.message}
-                  </p>
-                )}
               </div>
-              <div className="flex flex-1 flex-col gap-1">
-                <Label htmlFor="direction">Type</Label>
-                <NativeSelect
-                  id="direction"
-                  className="cy-btn text-sm"
-                  {...register("direction")}
-                >
-                  <option value="deposit">Deposit</option>
-                  <option value="withdrawal">Withdrawal</option>
-                </NativeSelect>
-              </div>
+              <FieldError message={errors.amount?.message} />
             </div>
 
-            <div className="flex gap-2">
-              <div className="flex flex-1 flex-col gap-1">
-                <Label htmlFor="repeat">Repeat</Label>
+            <div className={cn("flex gap-3 pt-4", HAIRLINE)}>
+              <div className="flex flex-1 flex-col gap-1.5">
+                <Label htmlFor="repeat" className={FIELD_LABEL}>
+                  Repeat
+                </Label>
                 <NativeSelect
                   id="repeat"
-                  className="cy-btn text-sm"
+                  className="cy-btn text-xs"
                   {...register("repeat")}
                 >
                   <option value="none">Does not repeat</option>
@@ -193,35 +239,42 @@ const EventDialog = (props: EventDialogProps) => {
               </div>
               {repeat !== "none" && (
                 <>
-                  <div className="flex w-20 flex-col gap-1">
-                    <Label htmlFor="interval">Every</Label>
+                  <div className="flex w-16 flex-col gap-1.5">
+                    <Label htmlFor="interval" className={FIELD_LABEL}>
+                      Every
+                    </Label>
                     <Input
                       id="interval"
                       type="number"
                       min={1}
+                      className="font-mono"
                       {...register("interval")}
                     />
                   </div>
-                  <div className="flex flex-col gap-1">
-                    <Label htmlFor="endsOn">Until</Label>
-                    <Input id="endsOn" type="date" {...register("endsOn")} />
+                  <div className="flex flex-1 flex-col gap-1.5">
+                    <Label htmlFor="endsOn" className={FIELD_LABEL}>
+                      Until
+                    </Label>
+                    <Input
+                      id="endsOn"
+                      type="date"
+                      className="font-mono"
+                      {...register("endsOn")}
+                    />
                   </div>
                 </>
               )}
             </div>
-            {errors.interval && (
-              <p className="text-xs text-[color:var(--cy-magenta)]">
-                {errors.interval.message}
-              </p>
-            )}
-            {errors.endsOn && (
-              <p className="text-xs text-[color:var(--cy-magenta)]">
-                {errors.endsOn.message}
-              </p>
-            )}
+            <FieldError message={errors.interval?.message} />
+            <FieldError message={errors.endsOn?.message} />
           </form>
         </div>
-        <DialogFooter className="mt-2 flex items-center justify-between sm:justify-between">
+        <DialogFooter
+          className={cn(
+            "flex items-center justify-between pt-4 sm:justify-between",
+            HAIRLINE,
+          )}
+        >
           {mode === "edit" ? (
             <Button
               type="button"
