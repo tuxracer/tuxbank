@@ -3,12 +3,10 @@ import { subscribeToDataChanges } from "@/lib/tabSync";
 import {
   CURRENCY_SETTING_ID,
   DEFAULT_DISPLAY_PREFERENCES,
-  LEGACY_DISPLAY_PREFERENCES_KEY,
   WEEK_STARTS_ON_SETTING_ID,
 } from "./consts";
 import {
   isCurrencyCode,
-  isDisplayPreferences,
   isWeekStartDay,
   type DisplayPreferences,
 } from "./types";
@@ -43,19 +41,6 @@ const runDeferredHydrate = (): void => {
 
 const emit = (): void => {
   for (const listener of listeners) listener();
-};
-
-/** The pre-sync localStorage blob, if this device still holds an un-migrated one. */
-const readLegacyPreferences = (): DisplayPreferences | null => {
-  try {
-    const raw = window.localStorage.getItem(LEGACY_DISPLAY_PREFERENCES_KEY);
-    if (raw === null) return null;
-    const parsed: unknown = JSON.parse(raw);
-    if (isDisplayPreferences(parsed)) return parsed;
-  } catch {
-    // Storage unavailable or unparseable JSON: behave as if unset.
-  }
-  return null;
 };
 
 /** The synchronous snapshot of what IndexedDB last reported. */
@@ -94,46 +79,6 @@ const toPreferences = (
 };
 
 /**
- * One-time move of this device's pre-sync localStorage preferences into the
- * synced settings store. Only an explicit override migrates: a null is
- * indistinguishable from "never chose anything" in the old format, and
- * seeding it as a real choice would broadcast this device's silence over
- * another device's actual pick. The legacy key is removed either way, so this
- * runs exactly once.
- */
-const migrateLegacyPreferences = async (
-  existingIds: ReadonlySet<string>,
-): Promise<boolean> => {
-  const legacy = readLegacyPreferences();
-  if (legacy === null) {
-    // Nothing stored, or unparseable; either way there is nothing to carry
-    // over. Clear the key so a corrupt value is not re-read every hydrate.
-    try {
-      window.localStorage.removeItem(LEGACY_DISPLAY_PREFERENCES_KEY);
-    } catch {
-      // Storage unavailable: nothing was migrated and nothing needs clearing.
-    }
-    return false;
-  }
-  const pending: [string, SettingValue][] = [
-    [CURRENCY_SETTING_ID, legacy.currency],
-    [WEEK_STARTS_ON_SETTING_ID, legacy.weekStartsOn],
-  ];
-  let migrated = false;
-  for (const [id, value] of pending) {
-    if (value === null || existingIds.has(id)) continue;
-    await putSetting(id, value);
-    migrated = true;
-  }
-  try {
-    window.localStorage.removeItem(LEGACY_DISPLAY_PREFERENCES_KEY);
-  } catch {
-    // Best effort; a re-run is idempotent because existingIds now covers it.
-  }
-  return migrated;
-};
-
-/**
  * Reload the snapshot from IndexedDB. Called once during the app's initial
  * load (which gates the first paint on it), whenever another tab changes
  * stored data, and after any path that rewrites storage behind this module's
@@ -152,14 +97,6 @@ export const hydrateDisplayPreferences = async (): Promise<void> => {
     // No IndexedDB, or it could not be read. Everything stays automatic, and
     // the storage banner tells the user why.
     return;
-  }
-  const ids = new Set(rows.map((row) => row.id));
-  if (await migrateLegacyPreferences(ids)) {
-    try {
-      rows = await getAllSettings();
-    } catch {
-      return;
-    }
   }
   if (generation !== writeGeneration || pendingWrites > 0) {
     // A write landed while this read was in flight, so these rows are already

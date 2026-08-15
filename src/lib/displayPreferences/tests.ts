@@ -4,9 +4,7 @@ import { resetDbForTests } from "@/lib/storage/testing";
 import {
   CURRENCY_SETTING_ID,
   hydrateDisplayPreferences,
-  LEGACY_DISPLAY_PREFERENCES_KEY,
   readDisplayPreferences,
-  resetDisplayPreferencesSnapshot,
   subscribeToDisplayPreferences,
   WEEK_STARTS_ON_SETTING_ID,
   writeDisplayPreferences,
@@ -68,25 +66,6 @@ describe("displayPreferences", () => {
       currency: null,
       weekStartsOn: null,
     });
-  });
-
-  it("migrates pre-sync localStorage preferences into settings rows once", async () => {
-    window.localStorage.setItem(
-      LEGACY_DISPLAY_PREFERENCES_KEY,
-      JSON.stringify({ currency: "JPY", weekStartsOn: null }),
-    );
-    resetDisplayPreferencesSnapshot();
-    await hydrateDisplayPreferences();
-
-    expect(readDisplayPreferences().currency).toBe("JPY");
-    // Only the explicit override migrates: a null in the old format cannot be
-    // told apart from "never chose anything", and seeding it as a real choice
-    // would overwrite another device's actual pick.
-    const rows = await getAllSettings();
-    expect(rows.map((row) => row.id)).toEqual([CURRENCY_SETTING_ID]);
-    expect(
-      window.localStorage.getItem(LEGACY_DISPLAY_PREFERENCES_KEY),
-    ).toBeNull();
   });
 
   it("does not let an in-flight hydrate revert a write that lands mid-read", async () => {

@@ -785,14 +785,6 @@ after the read closes the second, and either way the hydrate re-runs once the
 store goes quiet. Without this a sync pull landing next to a preference change
 silently reverts the change.
 
-**Migration.** A device upgrading from the pre-sync build moves its old
-localStorage key into settings rows once, on first hydrate. Only an explicit
-override migrates, because a `null` in the old format cannot be told apart from
-"never chose anything" and seeding it as a real choice would overwrite another
-device's actual pick. The legacy key is removed either way, so the migration
-runs exactly once; it is the only remaining localStorage involvement and can be
-dropped once no device is expected to still hold that key.
-
 Settings changes feed the same debounced push as edits (`SyncContext` watches
 the resolved preferences alongside events and categories).
 

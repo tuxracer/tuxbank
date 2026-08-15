@@ -1,5 +1,5 @@
 import type { Day } from "date-fns";
-import { isNumber, isPlainObject, isString } from "remeda";
+import { isNumber, isString } from "remeda";
 
 /**
  * Display overrides, each `null` when the app should follow the locale
@@ -24,10 +24,3 @@ export const isCurrencyCode = (value: unknown): value is string =>
 
 export const isWeekStartDay = (value: unknown): value is Day =>
   isNumber(value) && Number.isInteger(value) && value >= 0 && value <= 6;
-
-export const isDisplayPreferences = (
-  value: unknown,
-): value is DisplayPreferences =>
-  isPlainObject(value) &&
-  (value.currency === null || isCurrencyCode(value.currency)) &&
-  (value.weekStartsOn === null || isWeekStartDay(value.weekStartsOn));
