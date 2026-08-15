@@ -1,5 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { inMonthWeekCount, type DateCell } from "@/lib/dateGrid";
+import {
+  defaultFocusISO,
+  inMonthWeekCount,
+  type DateCell,
+} from "@/lib/dateGrid";
 import DayCell from "@/components/DayCell";
 import { useDisplayPreferences } from "@/hooks/useDisplayPreferences";
 import { useSwipeNavigation } from "@/hooks/useSwipeNavigation";
@@ -27,10 +31,10 @@ const dayLabeler = new Intl.DateTimeFormat(undefined, {
 });
 
 const initialActiveIndex = (cells: DateCell[], todayISO: string): number => {
-  const today = cells.findIndex((c) => c.iso === todayISO);
-  if (today >= 0) return today;
-  const firstInMonth = cells.findIndex((c) => c.inMonth);
-  return firstInMonth >= 0 ? firstInMonth : 0;
+  const index = cells.findIndex(
+    (c) => c.iso === defaultFocusISO(cells, todayISO),
+  );
+  return index >= 0 ? index : 0;
 };
 
 const chipsThatFit = (px: number): number =>

@@ -77,6 +77,19 @@ export const buildMonthGrid = (
   });
 };
 
+/**
+ * The day keyboard focus and the compact selection default to: today when the
+ * grid shows it in-month, otherwise the first in-month day. One shared policy
+ * so the focused cell and the compact selected day can never disagree.
+ */
+export const defaultFocusISO = (
+  cells: DateCell[],
+  todayISO: string,
+): string => {
+  if (cells.some((c) => c.iso === todayISO && c.inMonth)) return todayISO;
+  return cells.find((c) => c.inMonth)?.iso ?? todayISO;
+};
+
 // How many week-rows the visible month occupies (4-6). The 1st always lands in
 // the first week, so only trailing weeks that fall entirely in the next month
 // are dropped. Lets the desktop grid render just the weeks a month spans.

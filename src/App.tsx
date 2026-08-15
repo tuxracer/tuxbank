@@ -22,6 +22,7 @@ import {
 } from "@/context/CalendarContext";
 import { SyncProvider, useSync } from "@/context/SyncContext";
 import { trackEvent } from "@/lib/analytics";
+import { defaultFocusISO } from "@/lib/dateGrid";
 import { markLandingDismissed, shouldShowLanding } from "@/lib/landingGate";
 import { prefersReducedMotion } from "@/utils/prefersReducedMotion";
 import LandingPage from "@/components/LandingPage";
@@ -107,9 +108,7 @@ const CalendarScreen = ({ entrance = false }: { entrance?: boolean }) => {
   const resolvedSelectedDate = useMemo(() => {
     if (selectedDate && cal.cells.some((c) => c.iso === selectedDate))
       return selectedDate;
-    if (cal.cells.some((c) => c.iso === cal.todayISO && c.inMonth))
-      return cal.todayISO;
-    return cal.cells.find((c) => c.inMonth)?.iso ?? cal.todayISO;
+    return defaultFocusISO(cal.cells, cal.todayISO);
   }, [selectedDate, cal.cells, cal.todayISO]);
   const sensors = useSensors(
     useSensor(PointerSensor, {
