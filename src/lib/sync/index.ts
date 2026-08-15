@@ -76,11 +76,28 @@ export const isRemoteNewer = (
   localUpdatedAt: string | undefined,
 ): boolean => localUpdatedAt === undefined || remoteUpdatedAt > localUpdatedAt;
 
+/**
+ * The AEAD additional data binding a row's plaintext metadata to its
+ * ciphertext. The server stores this metadata in the clear (it routes sync),
+ * so without the binding a malicious or compromised backend could replay an
+ * old ciphertext under a bumped timestamp, relabel a row under another id or
+ * table, or flip `deleted` to fabricate a deletion. With it, any such edit
+ * fails decryption on every device.
+ */
+const rowAd = (
+  table: string,
+  id: string,
+  updatedAt: string,
+  deleted: boolean,
+): string => `tuxbank:${table}:${id}:${updatedAt}:${deleted ? "1" : "0"}`;
+
 export const encryptRecord = async (
   record: CalendarEvent | Category,
   dek: Uint8Array,
+  table: string,
 ): Promise<RemoteRow> => {
-  const box = await encryptPayload(record, dek);
+  const ad = rowAd(table, record.id, record.updatedAt, false);
+  const box = await encryptPayload(record, dek, ad);
   return {
     id: record.id,
     updated_at: record.updatedAt,
@@ -93,15 +110,39 @@ export const encryptTombstone = async (
   id: string,
   updatedAt: string,
   dek: Uint8Array,
+  table: string,
 ): Promise<RemoteRow> => {
-  const box = await encryptPayload({}, dek);
+  const box = await encryptPayload({}, dek, rowAd(table, id, updatedAt, true));
   return { id, updated_at: updatedAt, deleted: true, ...sealedBoxToRow(box) };
 };
 
+/**
+ * Decrypt and authenticate a pulled row (deleted rows included: a tombstone's
+ * `{}` payload exists exactly so its metadata can be verified). Falls back to
+ * a metadata-free decrypt for rows uploaded before the additional-data
+ * binding existed; every sync re-uploads rows it pushes with the binding, so
+ * the legacy surface only shrinks.
+ */
 export const decryptRow = async (
   row: RemoteRow,
   dek: Uint8Array,
-): Promise<unknown> => decryptPayload(rowToSealedBox(row), dek);
+  table: string,
+): Promise<unknown> => {
+  const box = rowToSealedBox(row);
+  try {
+    return await decryptPayload(
+      box,
+      dek,
+      rowAd(table, row.id, row.updated_at, row.deleted),
+    );
+  } catch (withAdError) {
+    try {
+      return await decryptPayload(box, dek);
+    } catch {
+      throw withAdError;
+    }
+  }
+};
 
 export const runSync = async (
   dek: Uint8Array,
@@ -136,9 +177,12 @@ export const runSync = async (
         localById.get(row.id)?.updatedAt ?? tombById.get(row.id)?.updatedAt;
       if (!isRemoteNewer(row.updated_at, localUpdatedAt)) continue;
       if (row.deleted) {
+        // Authenticate the tombstone (its metadata is bound into the AEAD)
+        // before destroying anything locally.
+        await decryptRow(row, dek, table);
         await applyRemoteDelete(row.id, type);
       } else {
-        const record = await decryptRow(row, dek);
+        const record = await decryptRow(row, dek, table);
         if (type === "event") {
           if (!isCalendarEvent(record)) throw new SyncError("DECRYPT_INVALID");
           await putEvent(record);
@@ -160,7 +204,7 @@ export const runSync = async (
         (firstSync || record.updatedAt > startCursor) &&
         !pulledIds.has(record.id)
       ) {
-        pushRows.push(await encryptRecord(record, dek));
+        pushRows.push(await encryptRecord(record, dek, table));
         if (record.updatedAt > maxCursor) maxCursor = record.updatedAt;
       }
     }
@@ -170,7 +214,7 @@ export const runSync = async (
         !pulledIds.has(tombstone.id)
       ) {
         pushRows.push(
-          await encryptTombstone(tombstone.id, tombstone.updatedAt, dek),
+          await encryptTombstone(tombstone.id, tombstone.updatedAt, dek, table),
         );
         if (tombstone.updatedAt > maxCursor) maxCursor = tombstone.updatedAt;
       }

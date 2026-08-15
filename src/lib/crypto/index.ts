@@ -53,13 +53,14 @@ const seal = (
   s: typeof sodium,
   message: Uint8Array | string,
   key: Uint8Array,
+  additionalData: string | null = null,
 ): SealedBox => {
   const nonce = s.randombytes_buf(
     s.crypto_aead_xchacha20poly1305_ietf_NPUBBYTES,
   );
   const ciphertext = s.crypto_aead_xchacha20poly1305_ietf_encrypt(
     message,
-    null,
+    additionalData,
     null,
     nonce,
     key,
@@ -67,29 +68,42 @@ const seal = (
   return { nonce, ciphertext };
 };
 
-const open = (s: typeof sodium, box: SealedBox, key: Uint8Array): Uint8Array =>
+const open = (
+  s: typeof sodium,
+  box: SealedBox,
+  key: Uint8Array,
+  additionalData: string | null = null,
+): Uint8Array =>
   s.crypto_aead_xchacha20poly1305_ietf_decrypt(
     null,
     box.ciphertext,
-    null,
+    additionalData,
     box.nonce,
     key,
   );
 
+/**
+ * AEAD-encrypt a JSON payload. `additionalData` is authenticated but not
+ * encrypted: pass the plaintext metadata that travels beside the ciphertext
+ * (row id, timestamps, flags) so the server cannot swap, replay, or relabel a
+ * ciphertext under different metadata without failing decryption.
+ */
 export const encryptPayload = async (
   value: unknown,
   dek: Uint8Array,
+  additionalData?: string,
 ): Promise<SealedBox> => {
   const s = await getSodium();
-  return seal(s, JSON.stringify(value), dek);
+  return seal(s, JSON.stringify(value), dek, additionalData ?? null);
 };
 
 export const decryptPayload = async (
   box: SealedBox,
   dek: Uint8Array,
+  additionalData?: string,
 ): Promise<unknown> => {
   const s = await getSodium();
-  return JSON.parse(s.to_string(open(s, box, dek)));
+  return JSON.parse(s.to_string(open(s, box, dek, additionalData ?? null)));
 };
 
 export const generateDek = async (): Promise<Uint8Array> => {

@@ -67,7 +67,7 @@ describe("isRemoteNewer", () => {
 describe("encryptRecord / decryptRow", () => {
   it("round-trips an event and exposes routing metadata in the clear", async () => {
     const dek = await generateDek();
-    const row = await encryptRecord(event(), dek);
+    const row = await encryptRecord(event(), dek, "events");
     expect(row.id).toBe("e1");
     expect(row.updated_at).toBe("2026-06-09T00:00:00.000Z");
     expect(row.deleted).toBe(false);
@@ -75,12 +75,50 @@ describe("encryptRecord / decryptRow", () => {
     // The sensitive fields are not in the plaintext columns.
     expect(JSON.stringify(row)).not.toContain("Rent");
     expect(JSON.stringify(row)).not.toContain("1500");
-    expect(await decryptRow(row, dek)).toEqual(event());
+    expect(await decryptRow(row, dek, "events")).toEqual(event());
   });
 
   it("fails to decrypt a row with the wrong key", async () => {
-    const row = await encryptRecord(event(), await generateDek());
-    await expect(decryptRow(row, await generateDek())).rejects.toThrow();
+    const row = await encryptRecord(event(), await generateDek(), "events");
+    await expect(
+      decryptRow(row, await generateDek(), "events"),
+    ).rejects.toThrow();
+  });
+
+  it("rejects a row whose plaintext metadata was tampered with", async () => {
+    const dek = await generateDek();
+    const row = await encryptRecord(event(), dek, "events");
+    // A malicious server bumps the timestamp to replay the old content...
+    await expect(
+      decryptRow(
+        { ...row, updated_at: "2027-01-01T00:00:00.000Z" },
+        dek,
+        "events",
+      ),
+    ).rejects.toThrow();
+    // ...or flips deleted to fabricate a deletion...
+    await expect(
+      decryptRow({ ...row, deleted: true }, dek, "events"),
+    ).rejects.toThrow();
+    // ...or relabels the ciphertext under another id or table.
+    await expect(
+      decryptRow({ ...row, id: "victim" }, dek, "events"),
+    ).rejects.toThrow();
+    await expect(decryptRow(row, dek, "categories")).rejects.toThrow();
+  });
+
+  it("authenticates tombstone metadata the same way", async () => {
+    const dek = await generateDek();
+    const row = await encryptTombstone(
+      "e1",
+      "2026-06-09T00:00:00.000Z",
+      dek,
+      "events",
+    );
+    expect(await decryptRow(row, dek, "events")).toEqual({});
+    await expect(
+      decryptRow({ ...row, id: "victim" }, dek, "events"),
+    ).rejects.toThrow();
   });
 });
 
@@ -122,15 +160,15 @@ describe("runSync", () => {
     const result = await runSync(dek, remote);
     expect(result.pushed).toBe(1);
     expect(tables.events.size).toBe(1);
-    expect(await decryptRow([...tables.events.values()][0], dek)).toEqual(
-      event(),
-    );
+    expect(
+      await decryptRow([...tables.events.values()][0], dek, "events"),
+    ).toEqual(event());
   });
 
   it("pulls remote events into empty local storage", async () => {
     const dek = await generateDek();
     const { tables, remote } = makeFakeRemote();
-    tables.events.set("e1", await encryptRecord(event(), dek));
+    tables.events.set("e1", await encryptRecord(event(), dek, "events"));
     const result = await runSync(dek, remote);
     expect(result.pulled).toBe(1);
     expect(await getAllEvents()).toEqual([event()]);
@@ -147,6 +185,7 @@ describe("runSync", () => {
       await encryptRecord(
         event({ title: "New", updatedAt: "2026-06-09T00:00:02.000Z" }),
         dek,
+        "events",
       ),
     );
     await runSync(dek, remote);
@@ -162,15 +201,16 @@ describe("runSync", () => {
       await encryptRecord(
         event({ title: "Old", updatedAt: "2026-06-09T00:00:01.000Z" }),
         dek,
+        "events",
       ),
     );
     await putEvent(
       event({ title: "New", updatedAt: "2026-06-09T00:00:02.000Z" }),
     );
     await runSync(dek, remote);
-    expect(await decryptRow([...tables.events.values()][0], dek)).toMatchObject(
-      { title: "New" },
-    );
+    expect(
+      await decryptRow([...tables.events.values()][0], dek, "events"),
+    ).toMatchObject({ title: "New" });
   });
 
   it("propagates a local deletion to the remote", async () => {
@@ -191,7 +231,7 @@ describe("runSync", () => {
     // Another device deletes it: a tombstone row with a newer timestamp.
     tables.events.set(
       "e1",
-      await encryptTombstone("e1", "2026-06-10T00:00:00.000Z", dek),
+      await encryptTombstone("e1", "2026-06-10T00:00:00.000Z", dek, "events"),
     );
     await runSync(dek, remote);
     expect(await getAllEvents()).toEqual([]);
@@ -265,7 +305,7 @@ describe("runSync", () => {
     const dek = await generateDek();
     const { tables, remote } = makeFakeRemote();
     // The account already has e1 in the cloud.
-    tables.events.set("e1", await encryptRecord(event(), dek));
+    tables.events.set("e1", await encryptRecord(event(), dek, "events"));
     // The signed-out device deleted e3 and then imported a backup of e2.
     await putEvent(event({ id: "e3" }));
     await deleteEvent("e3");
@@ -289,7 +329,7 @@ describe("runSync", () => {
     const dek = await generateDek();
     const { tables, remote } = makeFakeRemote();
     // The account already has data in the cloud.
-    tables.events.set("e1", await encryptRecord(event(), dek));
+    tables.events.set("e1", await encryptRecord(event(), dek, "events"));
     // This device had local data, including a tombstone, then reset signed out.
     await putEvent(event({ id: "e2" }));
     await deleteEvent("e2");
@@ -377,7 +417,7 @@ describe("detectSignInConflict", () => {
     await putEvent(event({ id: "local-2" }));
     tables.events.set(
       "remote-1",
-      await encryptRecord(event({ id: "remote-1" }), dek),
+      await encryptRecord(event({ id: "remote-1" }), dek, "events"),
     );
 
     expect(await detectSignInConflict(remote)).toEqual({ local: 2, remote: 1 });
@@ -388,7 +428,7 @@ describe("detectSignInConflict", () => {
     const { tables, remote } = makeFakeRemote();
     tables.events.set(
       "remote-1",
-      await encryptRecord(event({ id: "remote-1" }), dek),
+      await encryptRecord(event({ id: "remote-1" }), dek, "events"),
     );
 
     expect(await detectSignInConflict(remote)).toBeNull();
@@ -407,7 +447,12 @@ describe("detectSignInConflict", () => {
     await putEvent(event({ id: "local-1" }));
     tables.events.set(
       "remote-1",
-      await encryptTombstone("remote-1", "2026-06-10T00:00:00.000Z", dek),
+      await encryptTombstone(
+        "remote-1",
+        "2026-06-10T00:00:00.000Z",
+        dek,
+        "events",
+      ),
     );
 
     expect(await detectSignInConflict(remote)).toBeNull();
@@ -419,7 +464,7 @@ describe("detectSignInConflict", () => {
     await putEvent(event({ id: "local-1" }));
     tables.events.set(
       "remote-1",
-      await encryptRecord(event({ id: "remote-1" }), dek),
+      await encryptRecord(event({ id: "remote-1" }), dek, "events"),
     );
     await setSyncCursor("2026-06-01T00:00:00.000Z");
 
