@@ -10,17 +10,21 @@ import {
   DB_VERSION,
   DEK_KEY,
   DELETE_BLOCKED_TIMEOUT_MS,
+  OUTBOX_STORE,
   STORE,
   SYNC_CURSOR_KEY,
   SYNC_META_STORE,
+  SYNC_SERVER_CURSOR_KEY,
   TOMBSTONE_STORE,
 } from "./consts";
 import {
   isBackupFile,
+  isOutboxEntry,
   isTombstone,
   StorageError,
   type BackupFile,
   type ImportPreview,
+  type OutboxEntry,
   type StorageErrorCode,
   type Tombstone,
   type TombstoneType,
@@ -40,11 +44,16 @@ const getDb = (): Promise<IDBPDatabase> => {
   }
   if (!dbPromise) {
     const opening = openDB(DB_NAME, DB_VERSION, {
-      upgrade(db) {
-        db.createObjectStore(STORE, { keyPath: "id" });
-        db.createObjectStore(CATEGORY_STORE, { keyPath: "id" });
-        db.createObjectStore(TOMBSTONE_STORE, { keyPath: "id" });
-        db.createObjectStore(SYNC_META_STORE);
+      upgrade(db, oldVersion) {
+        if (oldVersion < 1) {
+          db.createObjectStore(STORE, { keyPath: "id" });
+          db.createObjectStore(CATEGORY_STORE, { keyPath: "id" });
+          db.createObjectStore(TOMBSTONE_STORE, { keyPath: "id" });
+          db.createObjectStore(SYNC_META_STORE);
+        }
+        if (oldVersion < 2) {
+          db.createObjectStore(OUTBOX_STORE, { keyPath: ["type", "id"] });
+        }
       },
       // Another tab is upgrading or deleting the database; close this tab's
       // connection so it can proceed (holding it open would block the other
@@ -107,10 +116,15 @@ const putRow = async (
 ): Promise<void> => {
   try {
     const db = await getDb();
-    const tx = db.transaction([storeFor(type), TOMBSTONE_STORE], "readwrite");
+    const tx = db.transaction(
+      [storeFor(type), TOMBSTONE_STORE, OUTBOX_STORE],
+      "readwrite",
+    );
+    const entry: OutboxEntry = { id: row.id, type, updatedAt: row.updatedAt };
     await Promise.all([
       tx.objectStore(storeFor(type)).put(row),
       tx.objectStore(TOMBSTONE_STORE).delete(row.id),
+      tx.objectStore(OUTBOX_STORE).put(entry),
     ]);
     await tx.done;
   } catch (error) {
@@ -122,11 +136,15 @@ const putRow = async (
 const deleteRow = async (type: TombstoneType, id: string): Promise<void> => {
   try {
     const db = await getDb();
-    const tx = db.transaction([storeFor(type), TOMBSTONE_STORE], "readwrite");
+    const tx = db.transaction(
+      [storeFor(type), TOMBSTONE_STORE, OUTBOX_STORE],
+      "readwrite",
+    );
     const tombstone: Tombstone = { id, type, updatedAt: nowISO() };
     await Promise.all([
       tx.objectStore(storeFor(type)).delete(id),
       tx.objectStore(TOMBSTONE_STORE).put(tombstone),
+      tx.objectStore(OUTBOX_STORE).put(tombstone satisfies OutboxEntry),
     ]);
     await tx.done;
   } catch (error) {
@@ -154,18 +172,34 @@ export const applyEventChanges = async (
 ): Promise<void> => {
   try {
     const db = await getDb();
-    const tx = db.transaction([STORE, TOMBSTONE_STORE], "readwrite");
+    const tx = db.transaction(
+      [STORE, TOMBSTONE_STORE, OUTBOX_STORE],
+      "readwrite",
+    );
     const events = tx.objectStore(STORE);
     const tombstones = tx.objectStore(TOMBSTONE_STORE);
+    const outbox = tx.objectStore(OUTBOX_STORE);
     const stamp = nowISO();
     await Promise.all([
-      ...puts.flatMap((event) => [
-        events.put(event),
-        tombstones.delete(event.id),
-      ]),
+      ...puts.flatMap((event) => {
+        const entry: OutboxEntry = {
+          id: event.id,
+          type: "event",
+          updatedAt: event.updatedAt,
+        };
+        return [
+          events.put(event),
+          tombstones.delete(event.id),
+          outbox.put(entry),
+        ];
+      }),
       ...deleteIds.flatMap((id) => {
         const tombstone: Tombstone = { id, type: "event", updatedAt: stamp };
-        return [events.delete(id), tombstones.put(tombstone)];
+        return [
+          events.delete(id),
+          tombstones.put(tombstone),
+          outbox.put(tombstone satisfies OutboxEntry),
+        ];
       }),
     ]);
     await tx.done;
@@ -223,7 +257,10 @@ export const getTombstones = async (): Promise<Tombstone[]> => {
 export const getSyncCursor = async (): Promise<string | undefined> => {
   try {
     const db = await getDb();
-    const value: unknown = await db.get(SYNC_META_STORE, SYNC_CURSOR_KEY);
+    const value: unknown = await db.get(
+      SYNC_META_STORE,
+      SYNC_SERVER_CURSOR_KEY,
+    );
     return isString(value) ? value : undefined;
   } catch (error) {
     throw toStorageError(error, "READ_FAILED");
@@ -233,7 +270,69 @@ export const getSyncCursor = async (): Promise<string | undefined> => {
 export const setSyncCursor = async (value: string): Promise<void> => {
   try {
     const db = await getDb();
-    await db.put(SYNC_META_STORE, value, SYNC_CURSOR_KEY);
+    const tx = db.transaction(SYNC_META_STORE, "readwrite");
+    // The legacy client-timestamp cursor is a different domain; retire it the
+    // first time a server watermark is written.
+    await Promise.all([
+      tx.store.put(value, SYNC_SERVER_CURSOR_KEY),
+      tx.store.delete(SYNC_CURSOR_KEY),
+    ]);
+    await tx.done;
+  } catch (error) {
+    throw toWriteError(error);
+  }
+};
+
+/**
+ * Whether this device has ever completed a sync against the account, under
+ * either cursor generation. Gates first-sync semantics (push everything) and
+ * the sign-in conflict prompt, so a client upgraded from the legacy cursor is
+ * not mistaken for a brand-new sign-in.
+ */
+export const hasEverSynced = async (): Promise<boolean> => {
+  try {
+    const db = await getDb();
+    const [server, legacy]: unknown[] = await Promise.all([
+      db.get(SYNC_META_STORE, SYNC_SERVER_CURSOR_KEY),
+      db.get(SYNC_META_STORE, SYNC_CURSOR_KEY),
+    ]);
+    return isString(server) || isString(legacy);
+  } catch (error) {
+    throw toStorageError(error, "READ_FAILED");
+  }
+};
+
+export const getOutboxEntries = async (): Promise<OutboxEntry[]> => {
+  try {
+    const db = await getDb();
+    const rows: unknown[] = await db.getAll(OUTBOX_STORE);
+    return rows.filter(isOutboxEntry);
+  } catch (error) {
+    throw toStorageError(error, "READ_FAILED");
+  }
+};
+
+/**
+ * Remove outbox entries whose change was pushed. Conditional per entry: one
+ * whose stored updatedAt no longer matches was re-dirtied by a concurrent
+ * local edit mid-sync and must survive for the next push.
+ */
+export const clearOutboxEntries = async (
+  entries: readonly OutboxEntry[],
+): Promise<void> => {
+  if (entries.length === 0) return;
+  try {
+    const db = await getDb();
+    const tx = db.transaction(OUTBOX_STORE, "readwrite");
+    await Promise.all(
+      entries.map(async (entry) => {
+        const stored: unknown = await tx.store.get([entry.type, entry.id]);
+        if (isOutboxEntry(stored) && stored.updatedAt === entry.updatedAt) {
+          await tx.store.delete([entry.type, entry.id]);
+        }
+      }),
+    );
+    await tx.done;
   } catch (error) {
     throw toWriteError(error);
   }
@@ -282,17 +381,39 @@ export const clearStoredDek = async (): Promise<void> => {
   }
 };
 
-export const applyRemoteDelete = async (
-  id: string,
+/**
+ * Apply one table's pulled sync changes in a single transaction: put every
+ * remote-won row, remove every remotely-deleted row, and drop the matching
+ * tombstones and outbox entries (a remote-applied write is not a pending
+ * local change). One change notification covers the whole batch, so a large
+ * pull costs one transaction and one cross-tab refresh instead of one per row.
+ */
+export const applyRemoteChanges = async (
   type: TombstoneType,
+  puts: readonly (CalendarEvent | Category)[],
+  deleteIds: readonly string[] = [],
 ): Promise<void> => {
+  if (puts.length === 0 && deleteIds.length === 0) return;
   try {
     const db = await getDb();
-    const storeName = type === "event" ? STORE : CATEGORY_STORE;
-    const tx = db.transaction([storeName, TOMBSTONE_STORE], "readwrite");
+    const tx = db.transaction(
+      [storeFor(type), TOMBSTONE_STORE, OUTBOX_STORE],
+      "readwrite",
+    );
+    const store = tx.objectStore(storeFor(type));
+    const tombstones = tx.objectStore(TOMBSTONE_STORE);
+    const outbox = tx.objectStore(OUTBOX_STORE);
     await Promise.all([
-      tx.objectStore(storeName).delete(id),
-      tx.objectStore(TOMBSTONE_STORE).delete(id),
+      ...puts.flatMap((row) => [
+        store.put(row),
+        tombstones.delete(row.id),
+        outbox.delete([type, row.id]),
+      ]),
+      ...deleteIds.flatMap((id) => [
+        store.delete(id),
+        tombstones.delete(id),
+        outbox.delete([type, id]),
+      ]),
     ]);
     await tx.done;
   } catch (error) {
@@ -333,7 +454,7 @@ export const commitImportLocal = async (text: string): Promise<void> => {
   try {
     const db = await getDb();
     const tx = db.transaction(
-      [STORE, CATEGORY_STORE, TOMBSTONE_STORE, SYNC_META_STORE],
+      [STORE, CATEGORY_STORE, TOMBSTONE_STORE, SYNC_META_STORE, OUTBOX_STORE],
       "readwrite",
     );
     // Accumulate request promises as they are queued so we can silence any
@@ -351,7 +472,9 @@ export const commitImportLocal = async (text: string): Promise<void> => {
         events.clear(),
         categories.clear(),
         tombstones.clear(),
+        tx.objectStore(OUTBOX_STORE).clear(),
         syncMeta.delete(SYNC_CURSOR_KEY),
+        syncMeta.delete(SYNC_SERVER_CURSOR_KEY),
       );
       for (const event of backup.events) {
         requests.push(events.put(event));
@@ -393,7 +516,7 @@ export const commitImportSynced = async (text: string): Promise<void> => {
   try {
     const db = await getDb();
     const tx = db.transaction(
-      [STORE, CATEGORY_STORE, TOMBSTONE_STORE],
+      [STORE, CATEGORY_STORE, TOMBSTONE_STORE, OUTBOX_STORE],
       "readwrite",
     );
     const requests: Promise<unknown>[] = [];
@@ -401,6 +524,7 @@ export const commitImportSynced = async (text: string): Promise<void> => {
       const events = tx.objectStore(STORE);
       const categories = tx.objectStore(CATEGORY_STORE);
       const tombstones = tx.objectStore(TOMBSTONE_STORE);
+      const outbox = tx.objectStore(OUTBOX_STORE);
       // Read the pre-import state first. Awaiting idb request promises keeps
       // the transaction alive; read sequentially, never via Promise.all,
       // which could let the transaction auto-commit before the writes (see
@@ -412,7 +536,8 @@ export const commitImportSynced = async (text: string): Promise<void> => {
       const importedEventIds = new Set(backup.events.map((e) => e.id));
       const importedCategoryIds = new Set(backup.categories.map((c) => c.id));
       // For every pre-import id: a fresh tombstone if the backup lacks it,
-      // otherwise drop any pending tombstone so the imported row wins.
+      // otherwise drop any pending tombstone so the imported row wins. Every
+      // resulting row and tombstone is a pending change for the next push.
       const entomb = (
         id: IDBValidKey,
         type: TombstoneType,
@@ -423,10 +548,14 @@ export const commitImportSynced = async (text: string): Promise<void> => {
           requests.push(tombstones.delete(id));
         } else {
           const row: Tombstone = { id, type, updatedAt: stamp };
+          // One request per push: a synchronous throw from the second call
+          // would otherwise drop the first call's already-created promise
+          // before it reaches `requests`, leaking an unswallowed AbortError.
           requests.push(tombstones.put(row));
+          requests.push(outbox.put(row));
         }
       };
-      requests.push(events.clear(), categories.clear());
+      requests.push(events.clear(), categories.clear(), outbox.clear());
       for (const id of eventIds) entomb(id, "event", importedEventIds);
       for (const id of categoryIds) entomb(id, "category", importedCategoryIds);
       for (const row of tombstoneRows.filter(isTombstone)) {
@@ -438,9 +567,15 @@ export const commitImportSynced = async (text: string): Promise<void> => {
       }
       for (const event of backup.events) {
         requests.push(events.put({ ...event, updatedAt: stamp }));
+        requests.push(
+          outbox.put({ id: event.id, type: "event", updatedAt: stamp }),
+        );
       }
       for (const category of backup.categories) {
         requests.push(categories.put({ ...category, updatedAt: stamp }));
+        requests.push(
+          outbox.put({ id: category.id, type: "category", updatedAt: stamp }),
+        );
       }
       await Promise.all(requests);
       await tx.done;
@@ -471,12 +606,13 @@ export const clearAllData = async (): Promise<void> => {
   try {
     const db = await getDb();
     const tx = db.transaction(
-      [STORE, CATEGORY_STORE, TOMBSTONE_STORE],
+      [STORE, CATEGORY_STORE, TOMBSTONE_STORE, OUTBOX_STORE],
       "readwrite",
     );
     const events = tx.objectStore(STORE);
     const categories = tx.objectStore(CATEGORY_STORE);
     const tombstones = tx.objectStore(TOMBSTONE_STORE);
+    const outbox = tx.objectStore(OUTBOX_STORE);
     // Read the existing ids first (awaiting idb request promises keeps the
     // transaction alive), then clear the stores and tombstone each id so the
     // deletions propagate. Read sequentially, never via a non-idb promise like
@@ -489,6 +625,7 @@ export const clearAllData = async (): Promise<void> => {
       if (isString(id)) {
         const row: Tombstone = { id, type, updatedAt: stamp };
         writes.push(tombstones.put(row));
+        writes.push(outbox.put(row));
       }
     };
     for (const id of eventIds) tombstone(id, "event");
@@ -509,7 +646,7 @@ export const clearLocalData = async (): Promise<void> => {
   try {
     const db = await getDb();
     const tx = db.transaction(
-      [STORE, CATEGORY_STORE, TOMBSTONE_STORE, SYNC_META_STORE],
+      [STORE, CATEGORY_STORE, TOMBSTONE_STORE, SYNC_META_STORE, OUTBOX_STORE],
       "readwrite",
     );
     await Promise.all([
@@ -517,6 +654,7 @@ export const clearLocalData = async (): Promise<void> => {
       tx.objectStore(CATEGORY_STORE).clear(),
       tx.objectStore(TOMBSTONE_STORE).clear(),
       tx.objectStore(SYNC_META_STORE).clear(),
+      tx.objectStore(OUTBOX_STORE).clear(),
     ]);
     await tx.done;
   } catch (error) {

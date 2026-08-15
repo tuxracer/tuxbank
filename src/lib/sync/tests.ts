@@ -4,7 +4,6 @@ import type { CalendarEvent } from "@/types";
 import {
   encryptRecord,
   decryptRow,
-  isRemoteNewer,
   runSync,
   encryptTombstone,
   createSupabaseRemote,
@@ -23,7 +22,12 @@ import {
   commitImportSynced,
 } from "@/lib/storage";
 import { resetDbForTests } from "@/lib/storage/testing";
-import { isRemoteRow, type RemoteRow, type SyncRemote } from "./types";
+import {
+  isRemoteRow,
+  type PushRow,
+  type RemoteRow,
+  type SyncRemote,
+} from "./types";
 
 // Stub out the Supabase client so createSupabaseRemote() returns null in tests,
 // matching production behaviour when env vars are absent. The crypto helpers
@@ -45,23 +49,6 @@ const event = (over: Partial<CalendarEvent> = {}): CalendarEvent => ({
   createdAt: "2026-06-09T00:00:00.000Z",
   updatedAt: "2026-06-09T00:00:00.000Z",
   ...over,
-});
-
-describe("isRemoteNewer", () => {
-  it("is true when there is no local record", () => {
-    expect(isRemoteNewer("2026-06-09T00:00:00.000Z", undefined)).toBe(true);
-  });
-  it("is true only when the remote timestamp is strictly greater", () => {
-    expect(
-      isRemoteNewer("2026-06-09T00:00:02.000Z", "2026-06-09T00:00:01.000Z"),
-    ).toBe(true);
-    expect(
-      isRemoteNewer("2026-06-09T00:00:01.000Z", "2026-06-09T00:00:01.000Z"),
-    ).toBe(false);
-    expect(
-      isRemoteNewer("2026-06-09T00:00:00.000Z", "2026-06-09T00:00:01.000Z"),
-    ).toBe(false);
-  });
 });
 
 describe("encryptRecord / decryptRow", () => {
@@ -122,6 +109,8 @@ describe("encryptRecord / decryptRow", () => {
   });
 });
 
+const nowStamp = (): string => new Date().toISOString();
+
 const backupOf = (events: CalendarEvent[]): string =>
   JSON.stringify({
     app: "tuxbank",
@@ -131,21 +120,36 @@ const backupOf = (events: CalendarEvent[]): string =>
     categories: [],
   });
 
+/**
+ * In-memory Supabase stand-in. Mirrors the real backend's shape: every push
+ * (and seeded row) gets a monotonically increasing server_updated_at, and
+ * pulls filter on that server stamp, never on the client updated_at.
+ */
 const makeFakeRemote = () => {
   const tables: Record<string, Map<string, RemoteRow>> = {
     events: new Map(),
     categories: new Map(),
   };
+  let tick = 0;
+  const nextServerStamp = () =>
+    new Date(
+      Date.parse("2026-06-09T12:00:00.000Z") + ++tick * 60_000,
+    ).toISOString();
+  const seed = (table: string, row: PushRow): RemoteRow => {
+    const stored: RemoteRow = { ...row, server_updated_at: nextServerStamp() };
+    tables[table].set(row.id, stored);
+    return stored;
+  };
   const remote: SyncRemote = {
     pull: async (table, since) =>
-      [...tables[table].values()].filter((r) => r.updated_at > since),
+      [...tables[table].values()].filter((r) => r.server_updated_at > since),
     push: async (table, rows) => {
-      for (const row of rows) tables[table].set(row.id, row);
+      for (const row of rows) seed(table, row);
     },
     count: async (table) =>
       [...tables[table].values()].filter((r) => !r.deleted).length,
   };
-  return { tables, remote };
+  return { tables, remote, seed };
 };
 
 describe("runSync", () => {
@@ -167,8 +171,8 @@ describe("runSync", () => {
 
   it("pulls remote events into empty local storage", async () => {
     const dek = await generateDek();
-    const { tables, remote } = makeFakeRemote();
-    tables.events.set("e1", await encryptRecord(event(), dek, "events"));
+    const { remote, seed } = makeFakeRemote();
+    seed("events", await encryptRecord(event(), dek, "events"));
     const result = await runSync(dek, remote);
     expect(result.pulled).toBe(1);
     expect(await getAllEvents()).toEqual([event()]);
@@ -176,12 +180,12 @@ describe("runSync", () => {
 
   it("lets the newer side win on a conflict (remote newer)", async () => {
     const dek = await generateDek();
-    const { tables, remote } = makeFakeRemote();
+    const { remote, seed } = makeFakeRemote();
     await putEvent(
       event({ title: "Old", updatedAt: "2026-06-09T00:00:01.000Z" }),
     );
-    tables.events.set(
-      "e1",
+    seed(
+      "events",
       await encryptRecord(
         event({ title: "New", updatedAt: "2026-06-09T00:00:02.000Z" }),
         dek,
@@ -195,9 +199,9 @@ describe("runSync", () => {
 
   it("lets the newer side win on a conflict (local newer)", async () => {
     const dek = await generateDek();
-    const { tables, remote } = makeFakeRemote();
-    tables.events.set(
-      "e1",
+    const { tables, remote, seed } = makeFakeRemote();
+    seed(
+      "events",
       await encryptRecord(
         event({ title: "Old", updatedAt: "2026-06-09T00:00:01.000Z" }),
         dek,
@@ -225,12 +229,12 @@ describe("runSync", () => {
 
   it("applies a remote deletion locally", async () => {
     const dek = await generateDek();
-    const { tables, remote } = makeFakeRemote();
+    const { remote, seed } = makeFakeRemote();
     await putEvent(event());
     await runSync(dek, remote); // upload so both sides agree
     // Another device deletes it: a tombstone row with a newer timestamp.
-    tables.events.set(
-      "e1",
+    seed(
+      "events",
       await encryptTombstone("e1", "2026-06-10T00:00:00.000Z", dek, "events"),
     );
     await runSync(dek, remote);
@@ -278,12 +282,125 @@ describe("runSync", () => {
     expect(result.pushed).toBe(1);
   });
 
-  it("advances the cursor to the newest timestamp seen", async () => {
+  it("advances the cursor to the newest server stamp pulled", async () => {
     const dek = await generateDek();
-    const { remote } = makeFakeRemote();
-    await putEvent(event({ updatedAt: "2026-06-09T08:00:00.000Z" }));
+    const { remote, seed } = makeFakeRemote();
+    const stored = seed("events", await encryptRecord(event(), dek, "events"));
     await runSync(dek, remote);
-    expect(await getSyncCursor()).toBe("2026-06-09T08:00:00.000Z");
+    expect(await getSyncCursor()).toBe(stored.server_updated_at);
+  });
+
+  it("pulls a row uploaded late with an old client stamp (offline-edit catch-up)", async () => {
+    // The core watermark regression: device B edits offline at 10:00, device A
+    // syncs at 10:05, B comes online at 10:20 and pushes its row stamped
+    // 10:00. A client-timestamp cursor (10:05) would never pull it; the
+    // server-stamp watermark must.
+    const dek = await generateDek();
+    const { remote, seed } = makeFakeRemote();
+    await putEvent(event({ id: "a1" }));
+    await runSync(dek, remote); // A's watermark now set
+    seed(
+      "events",
+      await encryptRecord(
+        event({ id: "b1", updatedAt: "2020-01-01T00:00:00.000Z" }),
+        dek,
+        "events",
+      ),
+    );
+    const result = await runSync(dek, remote);
+    expect(result.pulled).toBe(1);
+    expect((await getAllEvents()).map((e) => e.id).sort()).toEqual([
+      "a1",
+      "b1",
+    ]);
+  });
+
+  it("keeps a local edit made while a sync pushed (outbox survives mid-sync writes)", async () => {
+    const dek = await generateDek();
+    const { tables, remote } = makeFakeRemote();
+    await putEvent(event({ title: "v1" }));
+    // A local edit lands while the push is in flight: the outbox entry is
+    // re-stamped mid-sync, so the conditional clear must keep it.
+    const racingRemote: SyncRemote = {
+      ...remote,
+      push: async (table, rows) => {
+        await remote.push(table, rows);
+        await putEvent(event({ title: "v2", updatedAt: nowStamp() }));
+      },
+    };
+    await runSync(dek, racingRemote);
+    const second = await runSync(dek, remote);
+    expect(second.pushed).toBe(1);
+    expect(
+      await decryptRow(tables.events.get("e1")!, dek, "events"),
+    ).toMatchObject({ title: "v2" });
+  });
+
+  it("converges to the server copy when stamps tie but content differs", async () => {
+    const dek = await generateDek();
+    const { remote, seed } = makeFakeRemote();
+    const stamp = "2026-06-09T00:00:00.000Z";
+    await putEvent(event({ title: "mine", updatedAt: stamp }));
+    seed(
+      "events",
+      await encryptRecord(
+        event({ title: "theirs", updatedAt: stamp }),
+        dek,
+        "events",
+      ),
+    );
+    await runSync(dek, remote);
+    expect((await getAllEvents())[0].title).toBe("theirs");
+  });
+
+  it("skips a poison row without aborting the sync or wedging the cursor", async () => {
+    const dek = await generateDek();
+    const { remote, seed } = makeFakeRemote();
+    const good = seed(
+      "events",
+      await encryptRecord(event({ id: "good" }), dek, "events"),
+    );
+    // Undecryptable garbage next to it (wrong key).
+    seed(
+      "events",
+      await encryptRecord(event({ id: "bad" }), await generateDek(), "events"),
+    );
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const result = await runSync(dek, remote);
+      expect(result.skipped).toBe(1);
+      expect(result.pulled).toBe(1);
+      expect((await getAllEvents()).map((e) => e.id)).toEqual(["good"]);
+      // The watermark still advances past both rows.
+      const cursor = await getSyncCursor();
+      expect(cursor && cursor >= good.server_updated_at).toBe(true);
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it("refuses a forged deletion whose tombstone does not authenticate", async () => {
+    const dek = await generateDek();
+    const { remote, seed } = makeFakeRemote();
+    await putEvent(event());
+    await runSync(dek, remote); // upload
+    // A malicious server fabricates a deletion for e1 by relabeling another
+    // tombstone (its AEAD metadata binds a different id).
+    const forged = await encryptTombstone(
+      "other",
+      "2026-06-10T00:00:00.000Z",
+      dek,
+      "events",
+    );
+    seed("events", { ...forged, id: "e1" });
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const result = await runSync(dek, remote);
+      expect(result.skipped).toBe(1);
+      expect((await getAllEvents()).map((e) => e.id)).toEqual(["e1"]);
+    } finally {
+      warn.mockRestore();
+    }
   });
 
   it("pushes the backup and removal tombstones after a synced import", async () => {
@@ -303,9 +420,9 @@ describe("runSync", () => {
 
   it("merges without deletes when signing in after a local import", async () => {
     const dek = await generateDek();
-    const { tables, remote } = makeFakeRemote();
+    const { tables, remote, seed } = makeFakeRemote();
     // The account already has e1 in the cloud.
-    tables.events.set("e1", await encryptRecord(event(), dek, "events"));
+    seed("events", await encryptRecord(event(), dek, "events"));
     // The signed-out device deleted e3 and then imported a backup of e2.
     await putEvent(event({ id: "e3" }));
     await deleteEvent("e3");
@@ -327,9 +444,9 @@ describe("runSync", () => {
 
   it("pushes nothing after a signed-out reset: a later sign-in is a plain pull", async () => {
     const dek = await generateDek();
-    const { tables, remote } = makeFakeRemote();
+    const { tables, remote, seed } = makeFakeRemote();
     // The account already has data in the cloud.
-    tables.events.set("e1", await encryptRecord(event(), dek, "events"));
+    seed("events", await encryptRecord(event(), dek, "events"));
     // This device had local data, including a tombstone, then reset signed out.
     await putEvent(event({ id: "e2" }));
     await deleteEvent("e2");
@@ -355,11 +472,22 @@ describe("isRemoteRow", () => {
       isRemoteRow({
         id: "a",
         updated_at: "t",
+        server_updated_at: "s",
         deleted: false,
         nonce: "n",
         ciphertext: "c",
       }),
     ).toBe(true);
+    // A row without the server stamp is not pullable.
+    expect(
+      isRemoteRow({
+        id: "a",
+        updated_at: "t",
+        deleted: false,
+        nonce: "n",
+        ciphertext: "c",
+      }),
+    ).toBe(false);
     expect(isRemoteRow({ id: "a" })).toBe(false);
     expect(isRemoteRow(null)).toBe(false);
   });
@@ -389,18 +517,18 @@ describe("countPendingChanges", () => {
     expect(await countPendingChanges()).toBe(3);
   });
 
-  it("counts only rows newer than the cursor once synced", async () => {
-    await putEvent(event({ id: "old", updatedAt: "2026-06-01T00:00:00.000Z" }));
-    await putEvent(event({ id: "new", updatedAt: "2026-06-09T00:00:00.000Z" }));
-    await setSyncCursor("2026-06-05T00:00:00.000Z");
+  it("counts exactly the unpushed changes once synced, and a pushed sync drains it", async () => {
+    const dek = await generateDek();
+    const { remote } = makeFakeRemote();
+    await putEvent(event());
+    await runSync(dek, remote);
+    expect(await countPendingChanges()).toBe(0);
 
+    // A local edit counts even when its stamp is older than anything synced —
+    // pending means "written and not yet pushed", not a timestamp comparison.
+    await putEvent(event({ updatedAt: "2020-01-01T00:00:00.000Z" }));
     expect(await countPendingChanges()).toBe(1);
-  });
-
-  it("excludes rows stamped exactly at the cursor", async () => {
-    await putEvent(event({ id: "e1", updatedAt: "2026-06-05T00:00:00.000Z" }));
-    await setSyncCursor("2026-06-05T00:00:00.000Z");
-
+    await runSync(dek, remote);
     expect(await countPendingChanges()).toBe(0);
   });
 });
@@ -412,11 +540,11 @@ describe("detectSignInConflict", () => {
 
   it("reports both counts when this device and the account both have events", async () => {
     const dek = await generateDek();
-    const { tables, remote } = makeFakeRemote();
+    const { remote, seed } = makeFakeRemote();
     await putEvent(event({ id: "local-1" }));
     await putEvent(event({ id: "local-2" }));
-    tables.events.set(
-      "remote-1",
+    seed(
+      "events",
       await encryptRecord(event({ id: "remote-1" }), dek, "events"),
     );
 
@@ -425,9 +553,9 @@ describe("detectSignInConflict", () => {
 
   it("returns null when this device has no events", async () => {
     const dek = await generateDek();
-    const { tables, remote } = makeFakeRemote();
-    tables.events.set(
-      "remote-1",
+    const { remote, seed } = makeFakeRemote();
+    seed(
+      "events",
       await encryptRecord(event({ id: "remote-1" }), dek, "events"),
     );
 
@@ -443,10 +571,10 @@ describe("detectSignInConflict", () => {
 
   it("treats an account holding only tombstones as empty", async () => {
     const dek = await generateDek();
-    const { tables, remote } = makeFakeRemote();
+    const { remote, seed } = makeFakeRemote();
     await putEvent(event({ id: "local-1" }));
-    tables.events.set(
-      "remote-1",
+    seed(
+      "events",
       await encryptTombstone(
         "remote-1",
         "2026-06-10T00:00:00.000Z",
@@ -460,10 +588,10 @@ describe("detectSignInConflict", () => {
 
   it("returns null once this device has synced, however much data both sides have", async () => {
     const dek = await generateDek();
-    const { tables, remote } = makeFakeRemote();
+    const { remote, seed } = makeFakeRemote();
     await putEvent(event({ id: "local-1" }));
-    tables.events.set(
-      "remote-1",
+    seed(
+      "events",
       await encryptRecord(event({ id: "remote-1" }), dek, "events"),
     );
     await setSyncCursor("2026-06-01T00:00:00.000Z");

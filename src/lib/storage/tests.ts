@@ -18,7 +18,9 @@ import {
   getStoredDek,
   setStoredDek,
   clearStoredDek,
-  applyRemoteDelete,
+  applyRemoteChanges,
+  getOutboxEntries,
+  clearOutboxEntries,
   clearLocalData,
   clearAllData,
   deleteDatabase,
@@ -532,12 +534,12 @@ describe("stored data-encryption key (DEK)", () => {
   });
 });
 
-describe("applyRemoteDelete", () => {
+describe("applyRemoteChanges", () => {
   beforeEach(async () => {
     await resetDbForTests();
   });
 
-  it("removes the row without leaving a tombstone", async () => {
+  it("removes deleted rows without leaving a tombstone or a pending change", async () => {
     await putEvent({
       id: "e1",
       title: "t",
@@ -550,9 +552,10 @@ describe("applyRemoteDelete", () => {
       createdAt: "2026-06-09T00:00:00.000Z",
       updatedAt: "2026-06-09T00:00:00.000Z",
     });
-    await applyRemoteDelete("e1", "event");
+    await applyRemoteChanges("event", [], ["e1"]);
     expect(await getAllEvents()).toEqual([]);
     expect(await getTombstones()).toEqual([]);
+    expect(await getOutboxEntries()).toEqual([]);
   });
 
   it("clears an existing local tombstone for the same id", async () => {
@@ -564,8 +567,71 @@ describe("applyRemoteDelete", () => {
     });
     await deleteCategory("k1"); // writes a local tombstone
     expect(await getTombstones()).toHaveLength(1);
-    await applyRemoteDelete("k1", "category");
+    await applyRemoteChanges("category", [], ["k1"]);
     expect(await getTombstones()).toEqual([]);
+  });
+
+  it("applies pulled rows without enqueuing them for push", async () => {
+    await applyRemoteChanges(
+      "event",
+      [
+        {
+          id: "e1",
+          title: "t",
+          date: "2026-06-09",
+          categoryId: "work",
+          amount: 1,
+          direction: "deposit",
+          recurrence: null,
+          overrides: [],
+          createdAt: "2026-06-09T00:00:00.000Z",
+          updatedAt: "2026-06-09T00:00:00.000Z",
+        },
+      ],
+      [],
+    );
+    expect(await getAllEvents()).toHaveLength(1);
+    expect(await getOutboxEntries()).toEqual([]);
+  });
+});
+
+describe("outbox", () => {
+  beforeEach(async () => {
+    await resetDbForTests();
+  });
+
+  const evt = (updatedAt: string) => ({
+    id: "e1",
+    title: "t",
+    date: "2026-06-09",
+    categoryId: "work",
+    amount: 1,
+    direction: "deposit" as const,
+    recurrence: null,
+    overrides: [],
+    createdAt: updatedAt,
+    updatedAt,
+  });
+
+  it("every local write enqueues an entry; a matching clear drains it", async () => {
+    await putEvent(evt("2026-06-09T00:00:00.000Z"));
+    const entries = await getOutboxEntries();
+    expect(entries).toEqual([
+      { id: "e1", type: "event", updatedAt: "2026-06-09T00:00:00.000Z" },
+    ]);
+    await clearOutboxEntries(entries);
+    expect(await getOutboxEntries()).toEqual([]);
+  });
+
+  it("keeps an entry that was re-stamped by a concurrent edit", async () => {
+    await putEvent(evt("2026-06-09T00:00:00.000Z"));
+    const pushedSnapshot = await getOutboxEntries();
+    // A newer local edit lands before the push finishes clearing.
+    await putEvent(evt("2026-06-09T00:01:00.000Z"));
+    await clearOutboxEntries(pushedSnapshot);
+    expect(await getOutboxEntries()).toEqual([
+      { id: "e1", type: "event", updatedAt: "2026-06-09T00:01:00.000Z" },
+    ]);
   });
 });
 

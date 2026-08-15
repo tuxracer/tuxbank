@@ -1,25 +1,31 @@
+import { isPlainObject } from "remeda";
 import { encryptPayload, decryptPayload } from "@/lib/crypto";
 import { sealedBoxToRow, rowToSealedBox, supabase } from "@/lib/supabase";
 import {
+  applyRemoteChanges,
+  clearOutboxEntries,
   getAllEvents,
   getAllCategories,
+  getOutboxEntries,
   getTombstones,
   getSyncCursor,
+  hasEverSynced,
   setSyncCursor,
-  putEvent,
-  putCategory,
-  applyRemoteDelete,
 } from "@/lib/storage";
+import type { OutboxEntry, Tombstone } from "@/lib/storage";
 import { isCalendarEvent, isCategory } from "@/types";
 import type { CalendarEvent, Category } from "@/types";
 import {
   EPOCH_CURSOR,
   EVENT_TABLE,
+  SYNC_PULL_LOOKBACK_MS,
+  SYNC_PULL_PAGE_SIZE,
   SYNC_TABLES,
   SYNC_REQUEST_TIMEOUT_MS,
 } from "./consts";
 import { isRemoteRow, SyncError } from "./types";
 import type {
+  PushRow,
   RemoteRow,
   SyncRemote,
   SyncResult,
@@ -30,51 +36,38 @@ export * from "./consts";
 export * from "./types";
 
 /**
- * How many local rows the next push would send: before the first sync every
- * row counts; afterwards rows and tombstones newer than the cursor (the same
- * predicate runSync uses). Storage reads only, so it works offline. The count
- * is a pre-pull upper bound: runSync also skips rows it just pulled, which
- * cannot be known without the network.
+ * How many local changes the next push would send: before the first sync
+ * every row and tombstone counts; afterwards exactly the outbox (every local
+ * write enqueues an entry, every successful push clears it). Storage reads
+ * only, so it works offline.
  */
 export const countPendingChanges = async (): Promise<number> => {
-  const storedCursor = await getSyncCursor();
-  const firstSync = storedCursor === undefined;
-  const cursor = storedCursor ?? EPOCH_CURSOR;
-  const isPending = (updatedAt: string) => firstSync || updatedAt > cursor;
-
-  const events = await getAllEvents();
-  const categories = await getAllCategories();
-  const tombstones = await getTombstones();
-  return (
-    events.filter((e) => isPending(e.updatedAt)).length +
-    categories.filter((c) => isPending(c.updatedAt)).length +
-    tombstones.filter((t) => isPending(t.updatedAt)).length
-  );
+  if (!(await hasEverSynced())) {
+    const events = await getAllEvents();
+    const categories = await getAllCategories();
+    const tombstones = await getTombstones();
+    return events.length + categories.length + tombstones.length;
+  }
+  return (await getOutboxEntries()).length;
 };
 
 /**
  * Whether a first sync would silently merge two populated sides. Returns the
- * two event counts when no sync cursor is stored on this device and both
- * sides hold events, otherwise null. Short-circuits on the stored cursor, so
- * the account is queried at most once per device (until the cursor is
+ * two event counts when this device has never synced the account and both
+ * sides hold events, otherwise null. Short-circuits on the has-synced check,
+ * so the account is queried at most once per device (until the cursor is
  * cleared again, e.g. by a sign-out that wipes local data).
  */
 export const detectSignInConflict = async (
   remote: SyncRemote,
 ): Promise<SignInConflict | null> => {
-  if ((await getSyncCursor()) !== undefined) return null;
+  if (await hasEverSynced()) return null;
   const local = (await getAllEvents()).length;
   if (local === 0) return null;
   const remoteCount = await remote.count(EVENT_TABLE);
   if (remoteCount === 0) return null;
   return { local, remote: remoteCount };
 };
-
-/** A remote row counts as newer only when strictly greater (so equal = skip). */
-export const isRemoteNewer = (
-  remoteUpdatedAt: string,
-  localUpdatedAt: string | undefined,
-): boolean => localUpdatedAt === undefined || remoteUpdatedAt > localUpdatedAt;
 
 /**
  * The AEAD additional data binding a row's plaintext metadata to its
@@ -95,7 +88,7 @@ export const encryptRecord = async (
   record: CalendarEvent | Category,
   dek: Uint8Array,
   table: string,
-): Promise<RemoteRow> => {
+): Promise<PushRow> => {
   const ad = rowAd(table, record.id, record.updatedAt, false);
   const box = await encryptPayload(record, dek, ad);
   return {
@@ -111,7 +104,7 @@ export const encryptTombstone = async (
   updatedAt: string,
   dek: Uint8Array,
   table: string,
-): Promise<RemoteRow> => {
+): Promise<PushRow> => {
   const box = await encryptPayload({}, dek, rowAd(table, id, updatedAt, true));
   return { id, updated_at: updatedAt, deleted: true, ...sealedBoxToRow(box) };
 };
@@ -124,7 +117,7 @@ export const encryptTombstone = async (
  * the legacy surface only shrinks.
  */
 export const decryptRow = async (
-  row: RemoteRow,
+  row: PushRow,
   dek: Uint8Array,
   table: string,
 ): Promise<unknown> => {
@@ -144,21 +137,61 @@ export const decryptRow = async (
   }
 };
 
+/** JSON with recursively sorted keys, for content (not identity) comparison. */
+const sortKeysDeep = (value: unknown): unknown => {
+  if (Array.isArray(value)) return value.map(sortKeysDeep);
+  if (isPlainObject(value)) {
+    return Object.fromEntries(
+      Object.keys(value)
+        .sort()
+        .map((key) => [key, sortKeysDeep(value[key])]),
+    );
+  }
+  return value;
+};
+
+const stableStringify = (value: unknown): string =>
+  JSON.stringify(sortKeysDeep(value));
+
+/**
+ * Where a pull starts: a small overlap behind the stored watermark (see
+ * SYNC_PULL_LOOKBACK_MS), or the epoch when this device has no watermark yet.
+ */
+const pullSince = (cursor: string | undefined): string => {
+  if (cursor === undefined) return EPOCH_CURSOR;
+  const ms = Date.parse(cursor);
+  if (Number.isNaN(ms)) return EPOCH_CURSOR;
+  return new Date(Math.max(0, ms - SYNC_PULL_LOOKBACK_MS)).toISOString();
+};
+
+/**
+ * One full sync: per table, pull every row uploaded since the stored server
+ * watermark and apply the last-write-wins merge, then push this device's
+ * pending changes (the outbox; on a first sync, everything).
+ *
+ * Merge rules per pulled row, by client updated_at: a strictly newer local
+ * copy wins (its outbox entry pushes it right after); otherwise the remote
+ * copy is applied — on an exact tie the server copy wins so devices converge
+ * deterministically, except that a byte-identical echo of this device's own
+ * push is skipped. A row that fails to decrypt or validate is skipped and
+ * counted, never fatal: the cursor still advances, so one poison row cannot
+ * brick the account (it is retried when the row is next re-uploaded).
+ */
 export const runSync = async (
   dek: Uint8Array,
   remote: SyncRemote,
 ): Promise<SyncResult> => {
-  // No stored cursor means this account has never synced, so every local row
-  // must be uploaded regardless of its timestamp. Relying on `updatedAt >
-  // startCursor` alone would skip a row stamped at EPOCH_CURSOR (e.g. an old
-  // backup that predates per-row timestamps), which would never reach the
-  // cloud (never-edited categories were the original such victim).
   const storedCursor = await getSyncCursor();
-  const firstSync = storedCursor === undefined;
-  const startCursor = storedCursor ?? EPOCH_CURSOR;
-  let maxCursor = startCursor;
+  // Never synced (under either cursor generation): push every local row and
+  // tombstone regardless of the outbox, so old backups, pre-outbox data, and
+  // legacy-cursor clients all reach the cloud (re-encrypted with the current
+  // metadata binding).
+  const firstSync = !(await hasEverSynced());
+  let cursor = storedCursor;
   let pulled = 0;
   let pushed = 0;
+  let skipped = 0;
+  const outbox = await getOutboxEntries();
 
   for (const { table, type } of SYNC_TABLES) {
     const localRecords: (CalendarEvent | Category)[] =
@@ -169,81 +202,134 @@ export const runSync = async (
     const tombstones = (await getTombstones()).filter((t) => t.type === type);
     const tombById = new Map(tombstones.map((t) => [t.id, t]));
 
-    // Pull: apply remote rows that are newer than our local copy.
-    const remoteRows = await remote.pull(table, startCursor);
+    // Pull: decide each remote row's fate, then apply the batch in one
+    // transaction (and one cross-tab notification).
+    const remoteRows = await remote.pull(table, pullSince(storedCursor));
+    const puts: (CalendarEvent | Category)[] = [];
+    const deleteIds: string[] = [];
     const pulledIds = new Set<string>();
     for (const row of remoteRows) {
-      const localUpdatedAt =
-        localById.get(row.id)?.updatedAt ?? tombById.get(row.id)?.updatedAt;
-      if (!isRemoteNewer(row.updated_at, localUpdatedAt)) continue;
-      if (row.deleted) {
-        // Authenticate the tombstone (its metadata is bound into the AEAD)
-        // before destroying anything locally.
-        await decryptRow(row, dek, table);
-        await applyRemoteDelete(row.id, type);
-      } else {
-        const record = await decryptRow(row, dek, table);
-        if (type === "event") {
-          if (!isCalendarEvent(record)) throw new SyncError("DECRYPT_INVALID");
-          await putEvent(record);
-        } else {
-          if (!isCategory(record)) throw new SyncError("DECRYPT_INVALID");
-          await putCategory(record);
+      if (cursor === undefined || row.server_updated_at > cursor) {
+        cursor = row.server_updated_at;
+      }
+      try {
+        const localUpdatedAt =
+          localById.get(row.id)?.updatedAt ?? tombById.get(row.id)?.updatedAt;
+        if (localUpdatedAt !== undefined && row.updated_at < localUpdatedAt) {
+          continue; // local copy is strictly newer; the push below sends it
         }
+        const record = await decryptRow(row, dek, table);
+        if (row.deleted) {
+          if (localById.has(row.id)) {
+            deleteIds.push(row.id);
+            pulledIds.add(row.id);
+            pulled += 1;
+          }
+          continue;
+        }
+        const guard = type === "event" ? isCalendarEvent : isCategory;
+        if (!guard(record)) throw new SyncError("DECRYPT_INVALID");
+        const local = localById.get(row.id);
+        if (
+          local !== undefined &&
+          row.updated_at === local.updatedAt &&
+          stableStringify(local) === stableStringify(record)
+        ) {
+          continue; // identical echo of our own earlier push
+        }
+        puts.push(record);
+        pulledIds.add(row.id);
+        pulled += 1;
+      } catch (caught) {
+        skipped += 1;
+        console.warn(`sync: skipped undecryptable ${table} row`, caught);
       }
-      pulledIds.add(row.id);
-      pulled += 1;
-      if (row.updated_at > maxCursor) maxCursor = row.updated_at;
     }
+    await applyRemoteChanges(type, puts, deleteIds);
 
-    // Push: on the first sync every local row; otherwise rows and tombstones
-    // newer than the cursor. Either way skip anything we just pulled.
-    const pushRows: RemoteRow[] = [];
-    for (const record of localRecords) {
-      if (
-        (firstSync || record.updatedAt > startCursor) &&
-        !pulledIds.has(record.id)
-      ) {
-        pushRows.push(await encryptRecord(record, dek, table));
-        if (record.updatedAt > maxCursor) maxCursor = record.updatedAt;
+    // Push. Clearing an outbox entry is conditional on the updatedAt actually
+    // pushed, so an edit landing mid-sync keeps its entry for the next sync.
+    const pushRows: PushRow[] = [];
+    const clearable: OutboxEntry[] = [];
+    const pushRecord = async (record: CalendarEvent | Category) => {
+      pushRows.push(await encryptRecord(record, dek, table));
+    };
+    const pushTombstone = async (t: Tombstone) => {
+      pushRows.push(await encryptTombstone(t.id, t.updatedAt, dek, table));
+    };
+    if (firstSync) {
+      for (const record of localRecords) {
+        if (!pulledIds.has(record.id)) await pushRecord(record);
       }
-    }
-    for (const tombstone of tombstones) {
-      if (
-        (firstSync || tombstone.updatedAt > startCursor) &&
-        !pulledIds.has(tombstone.id)
-      ) {
-        pushRows.push(
-          await encryptTombstone(tombstone.id, tombstone.updatedAt, dek, table),
-        );
-        if (tombstone.updatedAt > maxCursor) maxCursor = tombstone.updatedAt;
+      for (const t of tombstones) {
+        if (!pulledIds.has(t.id)) await pushTombstone(t);
+      }
+      for (const entry of outbox) {
+        if (entry.type !== type || pulledIds.has(entry.id)) continue;
+        const stamp =
+          localById.get(entry.id)?.updatedAt ??
+          tombById.get(entry.id)?.updatedAt;
+        if (stamp !== undefined) clearable.push({ ...entry, updatedAt: stamp });
+      }
+    } else {
+      for (const entry of outbox) {
+        if (entry.type !== type) continue;
+        if (pulledIds.has(entry.id)) continue; // remote won; entry already gone
+        const record = localById.get(entry.id);
+        if (record !== undefined) {
+          await pushRecord(record);
+          clearable.push({ ...entry, updatedAt: record.updatedAt });
+          continue;
+        }
+        const t = tombById.get(entry.id);
+        if (t !== undefined) {
+          await pushTombstone(t);
+          clearable.push({ ...entry, updatedAt: t.updatedAt });
+        }
+        // Neither found: the row appeared after our snapshot; next sync sends it.
       }
     }
     if (pushRows.length > 0) {
       await remote.push(table, pushRows);
       pushed += pushRows.length;
     }
+    await clearOutboxEntries(clearable);
   }
 
-  // Always persist a cursor after the first sync (even if nothing advanced
-  // maxCursor past the epoch) so later syncs are incremental rather than
-  // re-pushing every row each time.
-  if (firstSync || maxCursor !== startCursor) await setSyncCursor(maxCursor);
-  return { pulled, pushed, cursor: maxCursor };
+  // Persist the watermark; on a first sync against an empty account, persist
+  // the epoch so later syncs are incremental and the conflict gate stays shut.
+  if (cursor !== undefined) {
+    if (cursor !== storedCursor) await setSyncCursor(cursor);
+  } else if (firstSync) {
+    cursor = EPOCH_CURSOR;
+    await setSyncCursor(cursor);
+  }
+  return { pulled, pushed, skipped, cursor: cursor ?? EPOCH_CURSOR };
 };
 
 export const createSupabaseRemote = (): SyncRemote | null => {
   if (!supabase) return null;
   const client = supabase;
   return {
+    // Keyed on the server-assigned upload stamp and paginated by offset:
+    // ordering is ascending, and rows changing mid-pull only ever move to
+    // later positions (their stamp bumps), so pages never skip a row.
     pull: async (table, since) => {
-      const { data, error } = await client
-        .from(table)
-        .select("*")
-        .gt("updated_at", since)
-        .abortSignal(AbortSignal.timeout(SYNC_REQUEST_TIMEOUT_MS));
-      if (error) throw new SyncError("REMOTE_FAILED", error);
-      return (data ?? []).filter(isRemoteRow);
+      const rows: RemoteRow[] = [];
+      for (let offset = 0; ; offset += SYNC_PULL_PAGE_SIZE) {
+        const { data, error } = await client
+          .from(table)
+          .select("*")
+          .gt("server_updated_at", since)
+          .order("server_updated_at", { ascending: true })
+          .order("id", { ascending: true })
+          .range(offset, offset + SYNC_PULL_PAGE_SIZE - 1)
+          .abortSignal(AbortSignal.timeout(SYNC_REQUEST_TIMEOUT_MS));
+        if (error) throw new SyncError("REMOTE_FAILED", error);
+        const page = data ?? [];
+        rows.push(...page.filter(isRemoteRow));
+        if (page.length < SYNC_PULL_PAGE_SIZE) return rows;
+      }
     },
     push: async (table, rows) => {
       const { error } = await client

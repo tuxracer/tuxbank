@@ -140,6 +140,9 @@ export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
   const dekRef = useRef<Uint8Array | null>(null);
   const pendingRef = useRef<PendingAuth | null>(null);
   const syncingRef = useRef(false);
+  // How many undecryptable rows the previous sync skipped, so the warning
+  // toast fires when the number changes rather than on every debounced sync.
+  const skippedRef = useRef(0);
 
   // Whether the first-sync conflict question has been settled for this session.
   // "unknown" means it has not been asked yet, "pending" means the user is
@@ -236,6 +239,16 @@ export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       const result = await runSync(dekRef.current, remote);
       if (result.pulled > 0) await refreshFromStorage();
+      // Poison rows are skipped rather than bricking the sync; tell the user
+      // once per change in count instead of failing forever.
+      if (result.skipped > 0 && result.skipped !== skippedRef.current) {
+        toast.error(
+          result.skipped === 1
+            ? "1 synced item could not be decrypted and was skipped."
+            : `${result.skipped} synced items could not be decrypted and were skipped.`,
+        );
+      }
+      skippedRef.current = result.skipped;
       // Record when the sync finished (wall clock), not the data cursor, and as
       // a real UTC ISO string so the UI can render it in the local time zone.
       setLastSyncedAt(new Date().toISOString());

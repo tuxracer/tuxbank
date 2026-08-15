@@ -80,3 +80,18 @@ export const isTombstone = (value: unknown): value is Tombstone =>
   isString(value.id) &&
   (value.type === "event" || value.type === "category") &&
   isString(value.updatedAt);
+
+/**
+ * A pending local change awaiting a sync push. Every local write enqueues an
+ * entry (remote-applied writes do not), and a successful push removes it only
+ * while its updatedAt still matches, so an edit made mid-sync survives to be
+ * pushed by the next sync instead of being skipped by cursor math.
+ */
+export interface OutboxEntry {
+  id: string;
+  type: TombstoneType;
+  updatedAt: string;
+}
+
+export const isOutboxEntry = (value: unknown): value is OutboxEntry =>
+  isTombstone(value);

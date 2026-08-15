@@ -1,13 +1,25 @@
 /** IndexedDB database + object store identity. Fresh DB name = fresh start. */
 export const DB_NAME = "tuxbank";
-export const DB_VERSION = 1;
+export const DB_VERSION = 2;
 export const STORE = "events";
 export const CATEGORY_STORE = "categories";
 export const TOMBSTONE_STORE = "tombstones";
 export const SYNC_META_STORE = "syncMeta";
+/** Pending local changes awaiting a sync push (added in DB v2). */
+export const OUTBOX_STORE = "outbox";
 
-/** Key for the single sync-cursor value held in the syncMeta store. */
+/**
+ * Legacy (pre-server-watermark) sync-cursor key. Never written anymore; its
+ * presence still marks a device as having synced so the upgrade does not
+ * re-trigger the first-sign-in conflict prompt.
+ */
 export const SYNC_CURSOR_KEY = "cursor";
+
+/**
+ * Key for the sync pull watermark in the syncMeta store: the highest
+ * server-assigned upload stamp this device has pulled through.
+ */
+export const SYNC_SERVER_CURSOR_KEY = "serverCursor";
 
 /**
  * Key for the cached data-encryption key (DEK) held in the syncMeta store.

@@ -10,6 +10,8 @@ import {
   getTombstones,
   getSyncCursor,
   setSyncCursor,
+  getOutboxEntries,
+  clearOutboxEntries,
 } from "@/lib/storage";
 import type { CalendarEvent } from "@/types";
 import { CalendarProvider, useCalendar } from "@/context/CalendarContext";
@@ -475,10 +477,12 @@ describe("SyncContext offline awareness", () => {
     async () => {
       await setStoredDek(new Uint8Array([1, 2, 3, 4, 5]));
       await seedLocalData();
-      // Simulate a successful push by advancing the cursor past every row.
+      // Simulate a successful push the way the real engine records one:
+      // advance the cursor and drain the pushed changes from the outbox.
       mocks.runSync.mockImplementation(async () => {
         await setSyncCursor("2099-01-01T00:00:00.000Z");
-        return { pushed: 2, pulled: 0 };
+        await clearOutboxEntries(await getOutboxEntries());
+        return { pushed: 2, pulled: 0, skipped: 0 };
       });
 
       const { result } = renderHook(() => useSync(), { wrapper });
