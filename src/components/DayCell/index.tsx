@@ -1,5 +1,6 @@
 import { memo } from "react";
 import { useDroppable } from "@dnd-kit/core";
+import { isSameOccurrence, type Occurrence } from "@/types";
 import DraggableEventChip from "@/components/DraggableEventChip";
 import DayEventsPopover from "@/components/DayEventsPopover";
 import { formatCurrency } from "@/utils/formatCurrency";
@@ -115,7 +116,21 @@ const DayCell = ({
   );
 };
 
+const sameOccurrenceList = (a: Occurrence[], b: Occurrence[]): boolean =>
+  a === b ||
+  (a.length === b.length && a.every((o, i) => isSameOccurrence(o, b[i])));
+
 // Memoized: MonthGrid re-renders all 42 cells on every focus move, slide
 // animation tick, and row-height measurement; with stable props only the
-// cells whose tabIndex/selection actually changed re-render.
-export default memo(DayCell);
+// cells whose tabIndex/selection actually changed re-render. Occurrences
+// compare by value, not identity: expansion rebuilds every day's array on any
+// data recompute, so a single-event edit would otherwise re-render all 42
+// cells instead of just the affected days.
+const arePropsEqual = (prev: DayCellProps, next: DayCellProps): boolean =>
+  (Object.keys(next) as (keyof DayCellProps)[]).every((key) =>
+    key === "occurrences"
+      ? sameOccurrenceList(prev.occurrences, next.occurrences)
+      : prev[key] === next[key],
+  );
+
+export default memo(DayCell, arePropsEqual);

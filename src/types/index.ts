@@ -101,4 +101,21 @@ export const isOccurrence = (value: unknown): value is Occurrence =>
   (value.direction === "deposit" || value.direction === "withdrawal") &&
   isBoolean(value.isRecurring);
 
+/**
+ * Whether two occurrences render identically. Expansion rebuilds every
+ * occurrence object on each recompute, so memoized cells compare by value to
+ * tell an actual change from a fresh-but-equal copy. The category compares by
+ * its rendered fields (not identity or updatedAt) for the same reason.
+ */
+export const isSameOccurrence = (a: Occurrence, b: Occurrence): boolean =>
+  a.eventId === b.eventId &&
+  a.date === b.date &&
+  a.title === b.title &&
+  a.amount === b.amount &&
+  a.direction === b.direction &&
+  a.isRecurring === b.isRecurring &&
+  a.category.id === b.category.id &&
+  a.category.name === b.category.name &&
+  a.category.color === b.category.color;
+
 export * from "./consts";
