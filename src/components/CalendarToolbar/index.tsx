@@ -5,7 +5,7 @@ import {
   SyncAttentionBadge,
   SyncAttentionDot,
 } from "@/components/SyncAttentionBadge";
-import { MONTH_NAMES } from "./consts";
+import { MONTH_NAMES, MONTH_NAMES_SHORT } from "./consts";
 
 import type { CalendarToolbarProps } from "./types";
 
@@ -61,7 +61,7 @@ const CalendarToolbar = ({
           <option key={name} value={index}>
             {/* Full month names overrun a phone-width nav row and flex-shrink
                 the year select into truncation, so compact abbreviates. */}
-            {compact ? name.slice(0, 3) : name}
+            {compact ? MONTH_NAMES_SHORT[index] : name}
           </option>
         ))}
       </NativeSelect>
