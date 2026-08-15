@@ -6,8 +6,7 @@ import reactHooks from "eslint-plugin-react-hooks";
 import reactRefresh from "eslint-plugin-react-refresh";
 import globals from "globals";
 
-// No jsx-a11y: accessibility lint is intentionally off — see CLAUDE.md
-// ("No accessibility (a11y) lint" under Coding Standards).
+// No jsx-a11y: accessibility lint is intentionally off for this project.
 const eslintConfig = defineConfig([
   globalIgnores(["dist/**"]),
   js.configs.recommended,
@@ -29,9 +28,9 @@ const eslintConfig = defineConfig([
     },
   },
   {
-    // The repo's module convention (`export * from "./consts"` — see CLAUDE.md)
-    // is invisible to react-refresh's export analysis and would warn on every
-    // feature component forever. Keep the rule for entry/top-level files only.
+    // The repo's module convention (`export * from "./consts"`) is invisible
+    // to react-refresh's export analysis and would warn on every feature
+    // component forever. Keep the rule for entry/top-level files only.
     files: ["src/components/**", "src/context/**"],
     rules: { "react-refresh/only-export-components": "off" },
   },
