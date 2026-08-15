@@ -41,7 +41,7 @@ const CategoryCombobox = ({
 
   const selected = categories.find((c) => c.id === value);
 
-  const choose = (id: string) => {
+  const choose = (id: string | null) => {
     onChange(id);
     setOpen(false);
     reset();
@@ -71,9 +71,7 @@ const CategoryCombobox = ({
               {selected.name}
             </>
           ) : (
-            <span className="text-[color:var(--cy-muted)]">
-              Select category…
-            </span>
+            <span className="text-[color:var(--cy-muted)]">No category</span>
           )}
         </Button>
       </PopoverTrigger>
@@ -92,6 +90,13 @@ const CategoryCombobox = ({
           />
           <CommandList>
             <CommandGroup>
+              {query.trim() === "" && (
+                <CommandItem value="__none__" onSelect={() => choose(null)}>
+                  {/* hollow dot: the uncategorized state has no color of its own */}
+                  <span className="inline-block h-2.5 w-2.5 shrink-0 rounded-full border border-[color:var(--cy-muted)]" />{" "}
+                  No category
+                </CommandItem>
+              )}
               {filtered.map((c) => (
                 <CommandItem
                   key={c.id}

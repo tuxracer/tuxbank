@@ -7,6 +7,7 @@ import type { DateCell } from "@/lib/dateGrid";
 import {
   dayBeforeISO,
   forEachOccurrence,
+  patchedCategoryId,
   type CategoryResolver,
 } from "@/lib/recurrence";
 
@@ -42,9 +43,7 @@ export const computeRunningBalances = (
       (iso: string, patch: OccurrenceOverride["patch"] | undefined) => {
         // The resolved category id (a deleted category resolves to the
         // "unknown" sentinel, which is itself hideable via the filter bar).
-        const categoryId = getCategory(
-          patch?.categoryId ?? event.categoryId,
-        ).id;
+        const categoryId = getCategory(patchedCategoryId(patch, event)).id;
         if (hiddenCategoryIds.has(categoryId)) return;
         onAmount(
           signedAmount(

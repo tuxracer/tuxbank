@@ -29,8 +29,24 @@ export const makeCategoryResolver = (
   categories: readonly Category[],
 ): CategoryResolver => {
   const byId = new Map(categories.map((c) => [c.id, c]));
-  return (categoryId) => byId.get(categoryId) ?? UNKNOWN_CATEGORY;
+  return (categoryId) =>
+    (categoryId === null ? undefined : byId.get(categoryId)) ??
+    UNKNOWN_CATEGORY;
 };
+
+/**
+ * The stored categoryId an occurrence carries: the override patch's when the
+ * patch sets one (null = explicitly uncategorized), else the event's own.
+ * `patch?.categoryId ?? event.categoryId` is wrong here: `??` would fall
+ * through an explicit null and resurrect the series' category.
+ */
+export const patchedCategoryId = (
+  patch: OccurrenceOverride["patch"] | undefined,
+  event: CalendarEvent,
+): string | null =>
+  patch === undefined || patch.categoryId === undefined
+    ? event.categoryId
+    : patch.categoryId;
 
 const indexOverrides = (
   overrides: OccurrenceOverride[],
@@ -154,7 +170,7 @@ export const expandEvent = (
       eventId: event.id,
       date: iso,
       title: patch?.title ?? event.title,
-      category: getCategory(patch?.categoryId ?? event.categoryId),
+      category: getCategory(patchedCategoryId(patch, event)),
       amount: patch?.amount ?? event.amount,
       direction: patch?.direction ?? event.direction,
       isRecurring: event.recurrence !== null,

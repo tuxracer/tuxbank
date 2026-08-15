@@ -33,6 +33,8 @@ describe("domain guards", () => {
       updatedAt: "y",
     };
     expect(isCalendarEvent(ok)).toBe(true);
+    expect(isCalendarEvent({ ...ok, categoryId: null })).toBe(true); // uncategorized
+    expect(isCalendarEvent({ ...ok, categoryId: 7 })).toBe(false);
     expect(isCalendarEvent({ ...ok, date: 20260514 })).toBe(false);
     expect(isCalendarEvent(null)).toBe(false);
   });

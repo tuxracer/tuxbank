@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { CalendarEvent, OccurrenceOverride } from "@/types";
-import { PRESET_CATEGORIES } from "@/types";
+import { PRESET_CATEGORIES, UNKNOWN_CATEGORY } from "@/types";
 import {
   expandEvent,
   expandEvents,
@@ -182,6 +182,27 @@ describe("expandEvent — additional coverage", () => {
     const occ = expandEvent(ev, "2026-05-01", "2026-05-31", getCategory);
     expect(occ.find((o) => o.date === "2026-05-11")?.category.id).toBe(
       "health",
+    );
+    expect(occ.find((o) => o.date === "2026-05-04")?.category.id).toBe("work");
+  });
+
+  it("resolves an uncategorized event to the Uncategorized sentinel", () => {
+    const ev = { ...base, categoryId: null };
+    const occ = expandEvent(ev, "2026-05-01", "2026-05-31", getCategory);
+    expect(occ[0]?.category).toEqual(UNKNOWN_CATEGORY);
+  });
+
+  it("honors an override that clears the category (null must not fall back to the series base)", () => {
+    const ev = {
+      ...base,
+      recurrence: { freq: "weekly" as const, interval: 1, endsOn: null },
+      overrides: [
+        { occurrenceDate: "2026-05-11", patch: { categoryId: null } },
+      ],
+    };
+    const occ = expandEvent(ev, "2026-05-01", "2026-05-31", getCategory);
+    expect(occ.find((o) => o.date === "2026-05-11")?.category.id).toBe(
+      UNKNOWN_CATEGORY.id,
     );
     expect(occ.find((o) => o.date === "2026-05-04")?.category.id).toBe("work");
   });

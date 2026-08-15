@@ -37,6 +37,7 @@ describe("EventDialog", () => {
     expect(onSubmit.mock.calls[0][0]).toMatchObject({
       title: "Dentist",
       date: "2026-05-14",
+      categoryId: null, // category is optional; a new event defaults to none
       amount: 50,
       direction: "withdrawal",
       recurrence: null,

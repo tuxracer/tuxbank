@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
+import { patchedCategoryId } from "@/lib/recurrence";
 import { cn } from "@/lib/utils";
 import { eventFormSchema, toEventInput, type EventFormValues } from "./schema";
 import CategoryCombobox from "@/components/CategoryCombobox";
@@ -50,8 +51,7 @@ const FieldError = ({ message }: { message?: string }) =>
   ) : null;
 
 const buildDefaults = (props: EventDialogProps): EventFormValues => {
-  const { mode, defaultDate, initialOccurrence, sourceEvent, categories } =
-    props;
+  const { mode, defaultDate, initialOccurrence, sourceEvent } = props;
   if (mode === "edit" && initialOccurrence && sourceEvent) {
     // The stored categoryId (occurrence patch, else the series base), not the
     // resolved initialOccurrence.category.id: a deleted category resolves to
@@ -63,7 +63,7 @@ const buildDefaults = (props: EventDialogProps): EventFormValues => {
       title: initialOccurrence.title,
       // anchor date, not the clicked occurrence — so whole-series ("all") edits don't shift the series
       date: sourceEvent.date,
-      categoryId: override?.patch?.categoryId ?? sourceEvent.categoryId,
+      categoryId: patchedCategoryId(override?.patch, sourceEvent),
       // resolved occurrence values (carry any per-occurrence patch), not the series base
       amount: initialOccurrence.amount,
       direction: initialOccurrence.direction,
@@ -75,7 +75,7 @@ const buildDefaults = (props: EventDialogProps): EventFormValues => {
   return {
     title: "",
     date: defaultDate,
-    categoryId: categories[0]?.id ?? "",
+    categoryId: null,
     // NaN renders the number input empty (the browser drops the invalid value),
     // so the field opens blank behind its 0.00 placeholder instead of holding a
     // literal 0 the user has to delete. Submitting it blank still fails the
@@ -184,7 +184,6 @@ const EventDialog = (props: EventDialogProps) => {
                   }
                   onCreateCategory={onCreateCategory}
                 />
-                <FieldError message={errors.categoryId?.message} />
               </div>
             </div>
 

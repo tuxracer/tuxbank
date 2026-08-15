@@ -68,7 +68,7 @@ A single person managing their own schedule of **all-day, date-based events**: m
 - A **HUD status line** shows decorative/real system context (e.g., app name, `LOCAL_DB::INDEXEDDB`, record count).
 
 ### 4.2 Events
-- An event has: **title** (required), **date** (required, single all-day date), **category** (required; its color comes from a preset 5-color palette), an **amount** (required, > 0) with a **deposit/withdrawal direction** (required), and an optional **recurrence** rule.
+- An event has: **title** (required), **date** (required, single all-day date), an optional **category** (its color comes from a preset 5-color palette; a new event defaults to none, and uncategorized events render as **Uncategorized**), an **amount** (required, > 0) with a **deposit/withdrawal direction** (required), and an optional **recurrence** rule.
 - Events are **all-day and single-day**: no times, no multi-day spans.
 - Day cells render events as **color-coded event chips**. Recurring occurrences show a **↻** marker.
 - When a day has more chips than fit, it collapses to **"+N more"**, which opens a **day popover** listing all of that day's events.
@@ -79,7 +79,7 @@ A single person managing their own schedule of **all-day, date-based events**: m
 - Each category has an opaque **GUID** `id` (`crypto.randomUUID()`), generated at creation and stable across renames. Categories live in their own object store (see §4.6); events reference a category by id, so renaming or recoloring propagates to every event that uses it.
 - **Names are unique, case-insensitively** (`categoryKey(name) = name.trim().toLowerCase()` is the match key): creating a name that already exists selects the existing category instead of duplicating it, and renaming to a name another category already uses is rejected inline in the Manage dialog.
 - **Deleting an in-use category** prompts a confirm noting how many events use it; on delete its events keep the now-missing id and render as **Uncategorized** (a neutral cyan fallback) until re-categorized.
-- The toolbar **category filter** is **per category**: a toggle per category currently in use (plus an **Uncategorized** toggle when orphaned events exist); each can be turned on/off independently, all shown by default. The filter affects both which event chips display and the running balance (§4.7), so the visible events always sum to the balances shown beside them.
+- The toolbar **category filter** is **per category**: a toggle per category currently in use (plus an **Uncategorized** toggle when uncategorized or orphaned events exist); each can be turned on/off independently, all shown by default. The filter affects both which event chips display and the running balance (§4.7), so the visible events always sum to the balances shown beside them.
 
 ### 4.4 Create / edit / delete / move (CRUD)
 - **Create:** clicking **+ New Event** or an empty day opens the **Event editor** (shadcn Dialog). Clicking a day prefills its date.
@@ -139,7 +139,7 @@ type OccurrenceOverride = {
   cancelled?: boolean;     // true => "this occurrence" deleted
   patch?: {                // "this occurrence" edited
     title?: string;
-    categoryId?: string;
+    categoryId?: string | null;  // null => explicitly uncategorized
     amount?: number;
     direction?: TransactionDirection;
   };
@@ -151,7 +151,7 @@ type CalendarEvent = {
   id: string;
   title: string;
   date: string;                    // "YYYY-MM-DD"; for recurring events this is the series anchor/start
-  categoryId: string;
+  categoryId: string | null;       // null => uncategorized
   amount: number;
   direction: TransactionDirection;
   recurrence: Recurrence | null;   // null => one-off

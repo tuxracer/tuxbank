@@ -7,7 +7,7 @@ export const eventFormSchema = z
   .object({
     title: z.string().trim().min(1, "Title is required"),
     date: z.string().regex(ISO_DATE, "Pick a date"),
-    categoryId: z.string().min(1, "Pick a category"),
+    categoryId: z.string().nullable(),
     repeat: z.enum(["none", "daily", "weekly", "monthly", "yearly"]),
     interval: z.coerce.number().int().min(1, "Must be at least 1"),
     endsOn: z.string().regex(ISO_DATE).optional().or(z.literal("")),

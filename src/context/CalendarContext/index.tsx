@@ -24,6 +24,7 @@ import {
   daysBetweenISO,
   expandEvents,
   makeCategoryResolver,
+  patchedCategoryId,
   patchOccurrence,
   shiftSeries,
   truncateBefore,
@@ -415,7 +416,7 @@ export const CalendarProvider = ({
           id: newId(),
           title: occurrence.title,
           date: toDate,
-          categoryId: override?.patch?.categoryId ?? current.categoryId,
+          categoryId: patchedCategoryId(override?.patch, current),
           amount: occurrence.amount,
           direction: occurrence.direction,
           recurrence: null,
@@ -495,8 +496,10 @@ export const CalendarProvider = ({
 
   const categoryUsageCount = useMemo(() => {
     const counts: Record<string, number> = {};
-    for (const e of events)
+    for (const e of events) {
+      if (e.categoryId === null) continue; // uncategorized counts toward nothing
       counts[e.categoryId] = (counts[e.categoryId] ?? 0) + 1;
+    }
     return counts;
   }, [events]);
 

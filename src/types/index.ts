@@ -24,7 +24,7 @@ export type OccurrenceOverride = {
   cancelled?: boolean;
   patch?: {
     title?: string;
-    categoryId?: string;
+    categoryId?: string | null; // null = explicitly uncategorized
     amount?: number;
     direction?: TransactionDirection;
   };
@@ -34,7 +34,7 @@ export type CalendarEvent = {
   id: string;
   title: string;
   date: string; // YYYY-MM-DD; series anchor for recurring events
-  categoryId: string;
+  categoryId: string | null; // null = uncategorized
   amount: number;
   direction: TransactionDirection;
   recurrence: Recurrence | null;
@@ -87,7 +87,7 @@ export const isCalendarEvent = (value: unknown): value is CalendarEvent =>
   isString(value.id) &&
   isString(value.title) &&
   isString(value.date) &&
-  isString(value.categoryId) &&
+  (isString(value.categoryId) || value.categoryId === null) &&
   isArray(value.overrides) &&
   (value.recurrence === null || isPlainObject(value.recurrence));
 

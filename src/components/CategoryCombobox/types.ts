@@ -2,8 +2,8 @@ import type { Category, CategoryColor } from "@/types";
 
 export type CategoryComboboxProps = {
   categories: readonly Category[];
-  value: string; // selected categoryId, "" if none
-  onChange: (categoryId: string) => void;
+  value: string | null; // selected categoryId, null = no category
+  onChange: (categoryId: string | null) => void;
   onCreateCategory: (
     name: string,
     color: CategoryColor,
