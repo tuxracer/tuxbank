@@ -14,7 +14,10 @@ export const eventFormSchema = z
     amount: z.coerce.number().positive("Amount must be greater than 0"),
     direction: z.enum(["deposit", "withdrawal"]),
   })
-  .refine((v) => !v.endsOn || v.endsOn >= v.date, {
+  // A stale endsOn can survive in form state after the Until input unmounts
+  // (switching repeat back to "none" keeps registered values), so only enforce
+  // the ordering while the field is actually in play.
+  .refine((v) => v.repeat === "none" || !v.endsOn || v.endsOn >= v.date, {
     message: "End date must be on or after the start date",
     path: ["endsOn"],
   });
