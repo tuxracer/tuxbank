@@ -1,11 +1,5 @@
-import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { NativeSelect } from "@/components/ui/native-select";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import { catColorVar } from "@/utils/categoryColor";
 import {
   SyncAttentionBadge,
@@ -32,12 +26,9 @@ const CalendarToolbar = ({
   onNext,
   onToday,
   onToggleCategory,
-  onManageCategories,
-  onManageData,
-  onSync,
+  onOpenSettings,
   onNewEvent,
 }: CalendarToolbarProps) => {
-  const [menuOpen, setMenuOpen] = useState(false);
   // Years descending from maxYear down to minYear (inclusive).
   const yearOptions = Array.from(
     { length: maxYear - minYear + 1 },
@@ -47,11 +38,6 @@ const CalendarToolbar = ({
   // <NativeSelect>s, so the 32px box comes from the primitive either way. Only
   // the type size flexes with the breakpoint.
   const selectClasses = compact ? "cy-btn text-xs" : "cy-btn text-sm";
-
-  const closeMenuAnd = (action: () => void) => () => {
-    setMenuOpen(false);
-    action();
-  };
 
   const navControls = (
     <>
@@ -145,51 +131,17 @@ const CalendarToolbar = ({
         <div className="cy-toolbar flex flex-col gap-2 px-3 py-2.5">
           <div className="flex items-center gap-2">
             {navControls}
-            <Popover open={menuOpen} onOpenChange={setMenuOpen}>
-              <PopoverTrigger asChild>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  title="More actions"
-                  className="cy-btn ml-auto gap-1.5 px-2 text-xs"
-                >
-                  ☰
-                  <SyncAttentionDot />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent
-                align="end"
-                className="cy-dialog w-48 border-0 p-2"
-              >
-                <div className="flex flex-col gap-1">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    className="cy-btn justify-start gap-2 px-3 text-xs"
-                    onClick={closeMenuAnd(() => onSync?.())}
-                  >
-                    ◢ SYNC
-                    <SyncAttentionBadge />
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    className="cy-btn justify-start px-3 text-xs"
-                    onClick={closeMenuAnd(onManageData)}
-                  >
-                    ◢ DATA
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    className="cy-btn justify-start px-3 text-xs"
-                    onClick={closeMenuAnd(onManageCategories)}
-                  >
-                    ◢ CATEGORIES
-                  </Button>
-                </div>
-              </PopoverContent>
-            </Popover>
+            <Button
+              type="button"
+              variant="ghost"
+              title="Settings"
+              className="cy-btn ml-auto gap-1.5 px-2 text-xs"
+              onClick={onOpenSettings}
+            >
+              {/* U+FE0E keeps the gear a glyph, not an emoji, on mobile. */}
+              {"⚙︎"}
+              <SyncAttentionDot />
+            </Button>
           </div>
           {legend}
         </div>
@@ -208,26 +160,10 @@ const CalendarToolbar = ({
             type="button"
             variant="ghost"
             className="cy-btn gap-2 px-3 text-xs"
-            onClick={onSync}
+            onClick={onOpenSettings}
           >
-            ◢ SYNC
+            ◢ SETTINGS
             <SyncAttentionBadge />
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            className="cy-btn px-3 text-xs"
-            onClick={onManageData}
-          >
-            ◢ DATA
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            className="cy-btn px-3 text-xs"
-            onClick={onManageCategories}
-          >
-            ◢ CATEGORIES
           </Button>
           <Button
             type="button"

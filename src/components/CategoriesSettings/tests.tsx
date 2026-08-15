@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { Category } from "@/types";
-import ManageCategoriesDialog from "./index";
+import CategoriesSettings from "./index";
 
 const cats: Category[] = [
   {
@@ -19,20 +19,18 @@ const cats: Category[] = [
   },
 ];
 const base = {
-  open: true,
   categories: cats,
   usageCountById: { work: 2, rent: 0 },
   onRename: vi.fn(),
   onRecolor: vi.fn(),
   onDelete: vi.fn(),
   onCreate: vi.fn(),
-  onOpenChange: vi.fn(),
 };
 
-describe("ManageCategoriesDialog", () => {
+describe("CategoriesSettings", () => {
   it("renames a category", async () => {
     const onRename = vi.fn();
-    render(<ManageCategoriesDialog {...base} onRename={onRename} />);
+    render(<CategoriesSettings {...base} onRename={onRename} />);
     const input = screen.getByDisplayValue("Rent");
     await userEvent.clear(input);
     await userEvent.type(input, "Mortgage");
@@ -42,7 +40,7 @@ describe("ManageCategoriesDialog", () => {
 
   it("recolors a category", async () => {
     const onRecolor = vi.fn();
-    render(<ManageCategoriesDialog {...base} onRecolor={onRecolor} />);
+    render(<CategoriesSettings {...base} onRecolor={onRecolor} />);
     // each category row exposes 5 color swatches titled by color
     const greenSwatches = screen.getAllByTitle("green");
     await userEvent.click(greenSwatches[0]); // recolor "Work" -> green
@@ -51,7 +49,7 @@ describe("ManageCategoriesDialog", () => {
 
   it("confirms deletion and reports usage count", async () => {
     const onDelete = vi.fn();
-    render(<ManageCategoriesDialog {...base} onDelete={onDelete} />);
+    render(<CategoriesSettings {...base} onDelete={onDelete} />);
     await userEvent.click(
       screen.getAllByRole("button", { name: /delete/i })[0],
     ); // delete "Work" (used by 2)
@@ -66,7 +64,7 @@ describe("ManageCategoriesDialog", () => {
 
   it("shows an inline error and does not call onRename when renaming to a colliding name", async () => {
     const onRename = vi.fn();
-    render(<ManageCategoriesDialog {...base} onRename={onRename} />);
+    render(<CategoriesSettings {...base} onRename={onRename} />);
     // Rename "Rent" to "Work" (case-insensitive collision)
     const input = screen.getByDisplayValue("Rent");
     await userEvent.clear(input);
@@ -77,7 +75,7 @@ describe("ManageCategoriesDialog", () => {
   });
 
   it("filters the rows by the search query", async () => {
-    render(<ManageCategoriesDialog {...base} />);
+    render(<CategoriesSettings {...base} />);
     await userEvent.type(
       screen.getByPlaceholderText(/search or create/i),
       "rent",
@@ -88,7 +86,7 @@ describe("ManageCategoriesDialog", () => {
 
   it("creates a new category with the typed name and chosen color", async () => {
     const onCreate = vi.fn();
-    render(<ManageCategoriesDialog {...base} onCreate={onCreate} />);
+    render(<CategoriesSettings {...base} onCreate={onCreate} />);
     await userEvent.type(
       screen.getByPlaceholderText(/search or create/i),
       "Food",
@@ -101,7 +99,7 @@ describe("ManageCategoriesDialog", () => {
   });
 
   it("does not offer create when the name matches an existing category", async () => {
-    render(<ManageCategoriesDialog {...base} />);
+    render(<CategoriesSettings {...base} />);
     await userEvent.type(
       screen.getByPlaceholderText(/search or create/i),
       "work",

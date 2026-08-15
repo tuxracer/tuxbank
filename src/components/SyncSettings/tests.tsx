@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import { SyncDialog } from "./index";
+import { SyncSettings } from "./index";
 import { LANDING_DISMISSED_KEY } from "@/lib/landingGate";
 import type { SyncContextValue } from "@/context/SyncContext";
 
@@ -41,7 +41,7 @@ vi.mock("@/context/SyncContext", () => ({
   useSync: () => syncValue,
 }));
 
-describe("SyncDialog device linking", () => {
+describe("SyncSettings device linking", () => {
   beforeEach(() => {
     mocks.createDeviceLink.mockReset();
   });
@@ -50,7 +50,7 @@ describe("SyncDialog device linking", () => {
     mocks.createDeviceLink.mockResolvedValue(
       "https://tuxbank.app/#device-link=abc",
     );
-    render(<SyncDialog open onOpenChange={() => {}} />);
+    render(<SyncSettings />);
     fireEvent.click(
       screen.getByRole("button", { name: /link another device/i }),
     );
@@ -67,7 +67,7 @@ describe("SyncDialog device linking", () => {
 
   it("stays on the password prompt when generation fails", async () => {
     mocks.createDeviceLink.mockResolvedValue(null);
-    render(<SyncDialog open onOpenChange={() => {}} />);
+    render(<SyncSettings />);
     fireEvent.click(
       screen.getByRole("button", { name: /link another device/i }),
     );
@@ -80,7 +80,7 @@ describe("SyncDialog device linking", () => {
   });
 });
 
-describe("SyncDialog sign-in conflict", () => {
+describe("SyncSettings sign-in conflict", () => {
   beforeEach(() => {
     syncValue.status = "choice";
     syncValue.step = "signin-choice";
@@ -95,14 +95,14 @@ describe("SyncDialog sign-in conflict", () => {
   });
 
   it("shows both counts", () => {
-    render(<SyncDialog open onOpenChange={() => {}} />);
+    render(<SyncSettings />);
 
     expect(screen.getByText(/12/)).toBeInTheDocument();
     expect(screen.getByText(/34/)).toBeInTheDocument();
   });
 
   it("merges immediately, with no confirm step", () => {
-    render(<SyncDialog open onOpenChange={() => {}} />);
+    render(<SyncSettings />);
 
     fireEvent.click(screen.getByRole("button", { name: /merge both/i }));
 
@@ -110,7 +110,7 @@ describe("SyncDialog sign-in conflict", () => {
   });
 
   it("requires the confirm word before deleting the account's events", () => {
-    render(<SyncDialog open onOpenChange={() => {}} />);
+    render(<SyncSettings />);
     fireEvent.click(screen.getByRole("button", { name: /keep this device/i }));
 
     const confirm = screen.getByTestId("signin-choice-confirm-button");
@@ -126,7 +126,7 @@ describe("SyncDialog sign-in conflict", () => {
   });
 
   it("requires the confirm word before deleting this device's events", () => {
-    render(<SyncDialog open onOpenChange={() => {}} />);
+    render(<SyncSettings />);
     fireEvent.click(screen.getByRole("button", { name: /keep the account/i }));
 
     fireEvent.change(screen.getByTestId("signin-choice-confirm"), {
@@ -138,7 +138,7 @@ describe("SyncDialog sign-in conflict", () => {
   });
 
   it("accepts the confirm word with stray case and whitespace", () => {
-    render(<SyncDialog open onOpenChange={() => {}} />);
+    render(<SyncSettings />);
     fireEvent.click(screen.getByRole("button", { name: /keep the account/i }));
 
     fireEvent.change(screen.getByTestId("signin-choice-confirm"), {
@@ -149,7 +149,7 @@ describe("SyncDialog sign-in conflict", () => {
   });
 
   it("goes back to the three choices without resolving", () => {
-    render(<SyncDialog open onOpenChange={() => {}} />);
+    render(<SyncSettings />);
     fireEvent.click(screen.getByRole("button", { name: /keep this device/i }));
     fireEvent.click(screen.getByRole("button", { name: /^back$/i }));
 
@@ -160,7 +160,7 @@ describe("SyncDialog sign-in conflict", () => {
   });
 });
 
-describe("SyncDialog sign out", () => {
+describe("SyncSettings sign out", () => {
   const reload = vi.fn();
   const confirm = vi.fn();
 
@@ -201,7 +201,7 @@ describe("SyncDialog sign out", () => {
   // Reach the confirm panel: the account-active section's ghost "Sign out"
   // button is what reveals it.
   const openSignOutPanel = () => {
-    render(<SyncDialog open onOpenChange={() => {}} />);
+    render(<SyncSettings />);
     fireEvent.click(screen.getByRole("button", { name: /^sign out$/i }));
   };
 

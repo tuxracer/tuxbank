@@ -7,7 +7,7 @@ export type CalendarToolbarProps = {
   maxYear: number;
   usedCategories: Category[];
   activeCategoryIds: Set<string>;
-  /** Compact (small-screen) layout: two rows with an overflow menu. */
+  /** Compact (small-screen) layout: two rows with a lone settings button. */
   compact?: boolean;
   onSelectMonth: (monthIndex: number) => void;
   onSelectYear: (year: number) => void;
@@ -15,8 +15,6 @@ export type CalendarToolbarProps = {
   onNext: () => void;
   onToday: () => void;
   onToggleCategory: (id: string) => void;
-  onManageCategories: () => void;
-  onManageData: () => void;
-  onSync?: () => void;
+  onOpenSettings: () => void;
   onNewEvent: () => void;
 };

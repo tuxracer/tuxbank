@@ -25,8 +25,7 @@ const baseProps = (
   onNext: vi.fn(),
   onToday: vi.fn(),
   onToggleCategory: vi.fn(),
-  onManageCategories: vi.fn(),
-  onManageData: vi.fn(),
+  onOpenSettings: vi.fn(),
   onNewEvent: vi.fn(),
   ...over,
 });
@@ -56,28 +55,20 @@ describe("CalendarToolbar month/year selects", () => {
   });
 });
 
-describe("CalendarToolbar compact mode", () => {
-  it("hides + New Event and the inline SYNC/DATA/CATEGORIES buttons", () => {
-    render(<CalendarToolbar {...baseProps()} compact />);
+describe("CalendarToolbar settings button", () => {
+  it("compact mode hides + New Event and fires onOpenSettings from the icon button", async () => {
+    const onOpenSettings = vi.fn();
+    render(<CalendarToolbar {...baseProps({ onOpenSettings })} compact />);
     expect(screen.queryByText("+ New Event")).not.toBeInTheDocument();
-    expect(screen.queryByText("◢ SYNC")).not.toBeInTheDocument();
-    expect(screen.getByTitle("More actions")).toBeInTheDocument();
+    await userEvent.click(screen.getByTitle("Settings"));
+    expect(onOpenSettings).toHaveBeenCalled();
   });
 
-  it("opens the menu and fires actions, closing afterwards", async () => {
-    const onManageData = vi.fn();
-    render(<CalendarToolbar {...baseProps({ onManageData })} compact />);
-    await userEvent.click(screen.getByTitle("More actions"));
-    expect(screen.getByText("◢ SYNC")).toBeInTheDocument();
-    expect(screen.getByText("◢ CATEGORIES")).toBeInTheDocument();
-    await userEvent.click(screen.getByText("◢ DATA"));
-    expect(onManageData).toHaveBeenCalled();
-    expect(screen.queryByText("◢ DATA")).not.toBeInTheDocument();
-  });
-
-  it("does not render a menu trigger on desktop", () => {
-    render(<CalendarToolbar {...baseProps()} />);
-    expect(screen.queryByTitle("More actions")).not.toBeInTheDocument();
+  it("desktop fires onOpenSettings from the labeled button", async () => {
+    const onOpenSettings = vi.fn();
+    render(<CalendarToolbar {...baseProps({ onOpenSettings })} />);
     expect(screen.getByText("+ New Event")).toBeInTheDocument();
+    await userEvent.click(screen.getByText("◢ SETTINGS"));
+    expect(onOpenSettings).toHaveBeenCalled();
   });
 });

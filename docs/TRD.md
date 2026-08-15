@@ -337,15 +337,16 @@ src/
     DayPanel/               # compact-mode selected-day detail: event chips, running balance, Add button
     DayEventsPopover/       # overflow list (shadcn Popover)
     CategoryCombobox/       # creatable combobox (shadcn Command + Popover); uses useCategorySearch + CategoryCreateRow
-    ManageCategoriesDialog/ # rename / recolor / delete categories; search field + CategoryCreateRow for in-dialog creation
+    SettingsDialog/         # one dialog for the three settings panes: tab rail on desktop, full-screen drill-down menu on compact
+    CategoriesSettings/     # settings pane: rename / recolor / delete categories; search field + CategoryCreateRow for in-pane creation
     CategoryCreateRow/      # "Create <name>" row with CategoryColorPicker; exports useCategorySearch hook
-    CategoryColorPicker/    # row of selectable color swatches (used by CategoryCreateRow and ManageCategoriesDialog)
+    CategoryColorPicker/    # row of selectable color swatches (used by CategoryCreateRow and CategoriesSettings)
     CategoryDot/            # shared color swatch used by the picker and chips
     EventDialog/            # create/edit form (shadcn Form + react-hook-form/zod, Dialog/Select/Textarea + date picker)
     RecurrenceScopeDialog/  # This / This & following / All (shadcn Dialog + RadioGroup)
-    DataDialog/             # JSON backup export/import (validate -> confirm -> swap) + guarded clear-all
+    DataSettings/           # settings pane: JSON backup export/import (validate -> confirm -> swap) + guarded clear-all
     StorageUnavailableBanner/ # shown when storage fails; offers a reset when the DB is unopenable
-    SyncDialog/             # optional account sync: create / sign-in / TOTP / recovery-key / change-password
+    SyncSettings/           # settings pane: optional account sync: create / sign-in / TOTP / recovery-key / change-password
     LandingPage/            # first-visit entry screen; Try Now CTA dismisses it via landingGate
   context/
     CalendarContext/        # visible month, events, CRUD actions (including moveEvent), filter state
@@ -548,7 +549,8 @@ Sync is **optional and additive**. With no account the app is exactly as
 described above: local-only, offline, no password. Signing in turns on an
 encrypted cloud mirror, and IndexedDB stays the source of truth. The feature
 spans `src/lib/{crypto,account,sync,supabase}`, `src/context/SyncContext`
-(`useSync()`), and `src/components/SyncDialog`. The full design rationale is in
+(`useSync()`), and `src/components/SyncSettings` (the Sync pane of
+`SettingsDialog`). The full design rationale is in
 [the design spec](superpowers/specs/2026-06-08-optional-supabase-e2ee-sync-design.md).
 
 ### Backend (Supabase)
@@ -717,7 +719,7 @@ re-syncs instead of re-prompting. The cache is cleared only on sign-out
 session finds no cached key (a new device, or after sign-out), the app falls back
 to a **locked** state until the user re-enters their password.
 
-### Auth, onboarding, and recovery flows (`SyncContext`, `SyncDialog`)
+### Auth, onboarding, and recovery flows (`SyncContext`, `SyncSettings`)
 
 - **Create account:** sign up, then (email confirmation is required) a "confirm
   your email" screen. The first sign-in completes setup: enroll TOTP, reach
@@ -811,7 +813,8 @@ carry no user content (no titles, amounts, dates, categories, or emails).
 | `landing-viewed` | The first-visit landing page renders | |
 | `try-now-clicked` | The landing page's Try Now CTA enters the app | |
 | `new-event-clicked` | The New Event button (full toolbar) or + Add (compact day panel) opens the editor | `layout` |
-| `sync-opened` / `data-opened` / `categories-opened` | The matching toolbar button or compact menu item opens its dialog | `layout` |
+| `settings-opened` | The toolbar's Settings button opens the settings dialog | `layout` |
+| `sync-opened` / `data-opened` / `categories-opened` | The matching settings pane becomes visible (a rail tab on desktop, a drilled-in section on compact) | `layout` |
 | `data-exported` | A backup download finishes | |
 | `data-imported` | A backup replaces the current data | `synced` |
 | `data-cleared` | A confirmed "clear all data" finishes | `synced` |
@@ -820,7 +823,9 @@ carry no user content (no titles, amounts, dates, categories, or emails).
 
 `layout` is `compact` or `full`; `synced` says whether the action also rewrote
 the account's data on every device; `method` is `password` or `device-link`.
-Dialog opens are tracked in `src/App.tsx`, data actions in `DataDialog` (on
-success, not on click), and the account events in `SyncContext`, which is the
-only place the outcome is observable (`createAccount` / `signIn` record errors
-in state rather than throwing).
+`settings-opened` is tracked in `src/App.tsx` where the toolbar button opens
+the dialog; pane opens in `SettingsDialog` (the same event names its three
+standalone predecessor dialogs sent, so the funnels stay comparable), data
+actions in `DataSettings` (on success, not on click), and the account events in
+`SyncContext`, which is the only place the outcome is observable
+(`createAccount` / `signIn` record errors in state rather than throwing).

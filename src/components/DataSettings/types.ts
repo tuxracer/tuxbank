@@ -1,7 +1,6 @@
 import type { ImportPreview } from "@/lib/storage";
 
-export type DataDialogProps = {
-  open: boolean;
+export type DataSettingsProps = {
   currentEventCount: number;
   currentCategoryCount: number;
   storageAvailable: boolean;
@@ -11,5 +10,6 @@ export type DataDialogProps = {
   onPreviewImport: (file: File) => Promise<ImportPreview>;
   onCommitImport: (file: File) => Promise<void>;
   onClearAllData: () => Promise<void>;
-  onOpenChange: (open: boolean) => void;
+  /** Called after a completed import or reset, to dismiss the settings dialog. */
+  onClose: () => void;
 };

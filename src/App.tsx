@@ -31,10 +31,8 @@ import { useIsCompact } from "@/hooks/useIsCompact";
 import EventChip from "@/components/EventChip";
 import EventDialog from "@/components/EventDialog";
 import RecurrenceScopeDialog from "@/components/RecurrenceScopeDialog";
-import ManageCategoriesDialog from "@/components/ManageCategoriesDialog";
-import DataDialog from "@/components/DataDialog";
+import SettingsDialog, { type SettingsTab } from "@/components/SettingsDialog";
 import StorageUnavailableBanner from "@/components/StorageUnavailableBanner";
-import { SyncDialog } from "@/components/SyncDialog";
 import { Toaster } from "@/components/ui/sonner";
 
 const noop = () => {};
@@ -74,25 +72,27 @@ type ScopeState =
 const CalendarScreen = ({ entrance = false }: { entrance?: boolean }) => {
   const cal = useCalendar();
   const sync = useSync();
-  const [syncOpen, setSyncOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  // Which settings tab is showing; null is the compact root menu (and the
+  // default tab on wide screens).
+  const [settingsTab, setSettingsTab] = useState<SettingsTab | null>(null);
   // Two onboarding steps can arrive with the dialog closed: a scanned device
   // link lands on the TOTP challenge, and a conflict detected on a
   // cached-key resume (page reload, window focus, network reconnect) lands
-  // on the sign-in data choice. Open the dialog so either prompt is visible.
-  // (No-op for normal sign-ins: the dialog is already open when step
-  // changes.)
+  // on the sign-in data choice. Open settings on the Sync tab so either
+  // prompt is visible. (No-op for normal sign-ins: the pane is already
+  // showing when step changes.)
   useEffect(() => {
     if (sync.step === "signin-totp" || sync.step === "signin-choice") {
       // eslint-disable-next-line react-hooks/set-state-in-effect
-      setSyncOpen(true);
+      setSettingsTab("sync");
+      setSettingsOpen(true);
     }
   }, [sync.step]);
   const selectedYear = cal.visibleMonth.getFullYear();
   const selectedMonth = cal.visibleMonth.getMonth();
   const [editor, setEditor] = useState<EditorState | null>(null);
   const [scope, setScope] = useState<ScopeState | null>(null);
-  const [manageOpen, setManageOpen] = useState(false);
-  const [dataOpen, setDataOpen] = useState(false);
   const [activeOccurrence, setActiveOccurrence] = useState<Occurrence | null>(
     null,
   );
@@ -125,8 +125,9 @@ const CalendarScreen = ({ entrance = false }: { entrance?: boolean }) => {
 
   const openCreate = (date: string) => setEditor({ mode: "create", date });
 
-  // Which toolbar the surface was reached from; the compact layout puts these
-  // behind a menu and swaps the New Event button for the day panel's + Add.
+  // Which layout the action came from; the compact layout swaps the New Event
+  // button for the day panel's + Add. (SettingsDialog reports its own
+  // per-tab open events.)
   const layout = isCompact ? "compact" : "full";
 
   const openNewEvent = (date: string) => {
@@ -134,12 +135,10 @@ const CalendarScreen = ({ entrance = false }: { entrance?: boolean }) => {
     openCreate(date);
   };
 
-  const openSurface = (
-    name: "sync-opened" | "data-opened" | "categories-opened",
-    show: (open: boolean) => void,
-  ) => {
-    trackEvent(name, { layout });
-    show(true);
+  const openSettings = () => {
+    trackEvent("settings-opened", { layout });
+    setSettingsTab(null);
+    setSettingsOpen(true);
   };
 
   // Recover from an unopenable local database by deleting it and reloading, so
@@ -291,11 +290,7 @@ const CalendarScreen = ({ entrance = false }: { entrance?: boolean }) => {
           onNext={cal.goToNextMonth}
           onToday={cal.goToToday}
           onToggleCategory={cal.toggleCategory}
-          onManageCategories={() =>
-            openSurface("categories-opened", setManageOpen)
-          }
-          onManageData={() => openSurface("data-opened", setDataOpen)}
-          onSync={() => openSurface("sync-opened", setSyncOpen)}
+          onOpenSettings={openSettings}
           onNewEvent={() => openNewEvent(cal.todayISO)}
           compact={isCompact}
         />
@@ -391,29 +386,34 @@ const CalendarScreen = ({ entrance = false }: { entrance?: boolean }) => {
         />
       )}
 
-      <ManageCategoriesDialog
-        open={manageOpen}
-        categories={cal.categories}
-        usageCountById={cal.categoryUsageCount}
-        onRename={(id, name) => void cal.updateCategory(id, { name })}
-        onRecolor={(id, color) => void cal.updateCategory(id, { color })}
-        onDelete={(id) => void cal.deleteCategory(id)}
-        onCreate={(name, color) => void cal.createCategory(name, color)}
-        onOpenChange={setManageOpen}
+      <SettingsDialog
+        open={settingsOpen}
+        tab={settingsTab}
+        onTabChange={setSettingsTab}
+        onOpenChange={(open) => {
+          setSettingsOpen(open);
+          // Reopening always starts from the root menu / default tab.
+          if (!open) setSettingsTab(null);
+        }}
+        data={{
+          currentEventCount: cal.events.length,
+          currentCategoryCount: cal.categories.length,
+          storageAvailable: cal.storageAvailable,
+          includesCloud: sync.unlocked,
+          onExport: cal.exportData,
+          onPreviewImport: cal.previewImport,
+          onCommitImport: sync.importData,
+          onClearAllData: sync.resetAllData,
+        }}
+        categories={{
+          categories: cal.categories,
+          usageCountById: cal.categoryUsageCount,
+          onRename: (id, name) => void cal.updateCategory(id, { name }),
+          onRecolor: (id, color) => void cal.updateCategory(id, { color }),
+          onDelete: (id) => void cal.deleteCategory(id),
+          onCreate: (name, color) => void cal.createCategory(name, color),
+        }}
       />
-      <DataDialog
-        open={dataOpen}
-        currentEventCount={cal.events.length}
-        currentCategoryCount={cal.categories.length}
-        storageAvailable={cal.storageAvailable}
-        includesCloud={sync.unlocked}
-        onExport={cal.exportData}
-        onPreviewImport={cal.previewImport}
-        onCommitImport={sync.importData}
-        onClearAllData={sync.resetAllData}
-        onOpenChange={setDataOpen}
-      />
-      <SyncDialog open={syncOpen} onOpenChange={setSyncOpen} />
       <Toaster />
     </main>
   );
