@@ -59,7 +59,7 @@ const pwa = () =>
       ],
     },
     workbox: {
-      globPatterns: ["**/*.{js,css,html,svg,png,woff2}"],
+      globPatterns: ["**/*.{js,css,html,svg,png,ico,woff2}"],
       maximumFileSizeToCacheInBytes: PRECACHE_MAX_FILE_SIZE,
       // Two workbox defaults answer a navigation from the precache before
       // anything in `runtimeCaching` is consulted, which is what kept online
