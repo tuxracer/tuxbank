@@ -1,4 +1,5 @@
 import { useLayoutEffect, useRef } from "react";
+import { Button } from "@/components/ui/button";
 import { COLS, weekdayLabels } from "@/components/MonthGrid";
 import { WEEK_STARTS_ON } from "@/lib/dateGrid";
 import { RUNTIME_LOCALE } from "@/utils/runtimeLocale";
@@ -369,13 +370,15 @@ const LandingPage = ({
             day ahead.
           </p>
           <div className="flex flex-wrap items-center gap-4">
-            <button
+            {/* Hero-scale on purpose: h-auto opts out of the 32px control row. */}
+            <Button
               type="button"
-              className="cy-cta px-10 py-3.5 text-lg"
+              variant="ghost"
+              className="cy-cta h-auto px-10 py-3.5 text-lg"
               onClick={onTryNow}
             >
               Try now
-            </button>
+            </Button>
             <span className="cy-mono text-xs text-[color:var(--cy-muted)]">
               opens straight into the calendar
             </span>

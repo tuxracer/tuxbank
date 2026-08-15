@@ -1,4 +1,5 @@
 import { catColorVar, PALETTE } from "@/utils/categoryColor";
+import { Button } from "@/components/ui/button";
 import { CategoryDot } from "@/components/CategoryDot";
 
 import type { CategoryColorPickerProps } from "./types";
@@ -17,18 +18,19 @@ export const CategoryColorPicker = ({
       </span>
     )}
     {PALETTE.map((color) => (
-      <button
+      <Button
         key={color}
         type="button"
+        variant="ghost"
         title={color}
         onClick={() => onChange(color)}
-        className="rounded-full p-0.5"
+        className="h-auto rounded-full border-0 p-0.5"
         style={{
           outline: value === color ? `2px solid ${catColorVar(color)}` : "none",
         }}
       >
         <CategoryDot color={color} />
-      </button>
+      </Button>
     ))}
   </div>
 );

@@ -2,6 +2,7 @@ import { useCallback, useState } from "react";
 import type { Category } from "@/types";
 import { categoryKey } from "@/types";
 import { DEFAULT_CATEGORY_COLOR } from "@/utils/categoryColor";
+import { Button } from "@/components/ui/button";
 import { CategoryDot } from "@/components/CategoryDot";
 import { CategoryColorPicker } from "@/components/CategoryColorPicker";
 
@@ -48,13 +49,14 @@ export const CategoryCreateRow = ({
   onCreate,
 }: CategoryCreateRowProps) => (
   <div className="flex flex-col gap-2 border-t border-[color:var(--cy-line)] p-2">
-    <button
+    <Button
       type="button"
+      variant="ghost"
       onClick={onCreate}
-      className="flex items-center gap-2 text-left text-sm"
+      className="h-auto justify-start gap-2 border-0 p-0 text-left text-sm font-normal"
     >
       <CategoryDot color={color} /> Create &quot;{query}&quot;
-    </button>
+    </Button>
     <CategoryColorPicker value={color} onChange={onPickColor} label="Color" />
   </div>
 );

@@ -1,4 +1,5 @@
 import { parseISO } from "date-fns";
+import { Button } from "@/components/ui/button";
 import EventChip from "@/components/EventChip";
 import { formatCurrency } from "@/utils/formatCurrency";
 import { RUNTIME_LOCALE } from "@/utils/runtimeLocale";
@@ -53,13 +54,14 @@ const DayPanel = ({
           ))
         )}
       </div>
-      <button
+      <Button
         type="button"
-        className="cy-cta self-end px-4 py-1.5 text-xs"
+        variant="ghost"
+        className="cy-cta self-end px-4 text-xs"
         onClick={onAddEvent}
       >
         + Add
-      </button>
+      </Button>
     </section>
   );
 };

@@ -3,6 +3,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { Button } from "@/components/ui/button";
 import EventChip from "@/components/EventChip";
 
 import type { DayEventsPopoverProps } from "./types";
@@ -17,13 +18,16 @@ const DayEventsPopover = ({
 }: DayEventsPopoverProps) => (
   <Popover>
     <PopoverTrigger asChild>
-      <button
+      {/* h-auto/p-0/border-0 keep the trigger's text-sized box: its height is
+          mirrored in MonthGrid's MORE_LINE_HEIGHT_PX chip-capacity constant. */}
+      <Button
         type="button"
-        className="cy-mono mt-1 text-[10px] tracking-widest text-[color:var(--cy-cyan)]"
+        variant="ghost"
+        className="cy-mono mt-1 h-auto border-0 p-0 text-[10px] font-normal tracking-widest text-[color:var(--cy-cyan)]"
         onClick={(e) => e.stopPropagation()}
       >
         {label}
-      </button>
+      </Button>
     </PopoverTrigger>
     <PopoverContent className="cy-dialog w-56 border-0 p-3">
       <p className="cy-mono mb-2 text-[10px] uppercase tracking-widest text-[color:var(--cy-cyan)]">
