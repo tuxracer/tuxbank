@@ -112,6 +112,18 @@ const applyAuthSecret = async (
   }
 };
 
+/** Fetch the account's key material, tolerating its absence (first setup). */
+const fetchMaterialIfAny = async (): Promise<KeyMaterial | null> => {
+  try {
+    return await fetchKeyMaterial();
+  } catch (caught) {
+    if (isAccountError(caught) && caught.code === "NO_KEY_MATERIAL") {
+      return null;
+    }
+    throw caught;
+  }
+};
+
 // What confirmTotp needs to finish an unlock after aal2: the password flow
 // re-derives the KEK; the device-link flow carries it directly.
 type PendingAuth =
@@ -386,6 +398,22 @@ export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
     [remote, beginEnrollment],
   );
 
+  // First-time setup on a verified session: provision keys, upload them, and
+  // show the recovery key. Shared by confirmTotp (fresh sign-up) and unlock
+  // (a resumed session whose setup never finished).
+  const provisionFirstTime = useCallback(
+    async (password: string, emailInput: string) => {
+      const provisioned = await provisionAccountKeys(password, emailInput);
+      await uploadKeyMaterial(provisioned.keyMaterial);
+      storeDek(provisioned.dek);
+      setRecoveryKey(provisioned.recoveryKey);
+      setStep("create-recovery");
+      setError(null);
+      void doSync(); // initial push
+    },
+    [doSync, storeDek],
+  );
+
   // Verify the TOTP code (completing enrollment or a challenge) to reach aal2,
   // then either unlock existing key material or provision it on first setup.
   const confirmTotp = useCallback(
@@ -394,16 +422,7 @@ export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
       if (!pending) return;
       try {
         await verifyTotp(pending.factorId, code); // reaches aal2
-
-        let material: KeyMaterial | null = null;
-        try {
-          material = await fetchKeyMaterial();
-        } catch (caught) {
-          if (!(isAccountError(caught) && caught.code === "NO_KEY_MATERIAL")) {
-            throw caught;
-          }
-        }
-
+        const material = await fetchMaterialIfAny();
         if (material) {
           // Existing account: unlock the data key (password re-derives the
           // KEK; a device link carries it).
@@ -427,25 +446,15 @@ export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
           // missing key material means this link cannot proceed.
           setError("NO_KEY_MATERIAL");
         } else {
-          // First-time setup: provision keys, upload them, show the recovery key.
-          const provisioned = await provisionAccountKeys(
-            pending.password,
-            pending.email,
-          );
-          await uploadKeyMaterial(provisioned.keyMaterial);
-          storeDek(provisioned.dek);
+          await provisionFirstTime(pending.password, pending.email);
           pendingRef.current = null;
           setEnrollment(null);
-          setRecoveryKey(provisioned.recoveryKey);
-          setStep("create-recovery");
-          setError(null);
-          void doSync(); // initial push
         }
       } catch (caught) {
         setError(describeError(caught));
       }
     },
-    [doSync, storeDek],
+    [doSync, storeDek, provisionFirstTime],
   );
 
   const finishCreate = useCallback(() => {
@@ -463,14 +472,7 @@ export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
         return;
       }
       try {
-        let material: KeyMaterial | null = null;
-        try {
-          material = await fetchKeyMaterial();
-        } catch (caught) {
-          if (!(isAccountError(caught) && caught.code === "NO_KEY_MATERIAL")) {
-            throw caught;
-          }
-        }
+        const material = await fetchMaterialIfAny();
         if (material) {
           // Existing data: unlock the data key with the password.
           storeDek(await unlockWithPassword(password, email, material));
@@ -480,19 +482,13 @@ export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
         } else {
           // No data yet: first-time setup on an already-verified session.
           // Provision keys and show the recovery key instead of erroring.
-          const provisioned = await provisionAccountKeys(password, email);
-          await uploadKeyMaterial(provisioned.keyMaterial);
-          storeDek(provisioned.dek);
-          setRecoveryKey(provisioned.recoveryKey);
-          setStep("create-recovery");
-          setError(null);
-          void doSync();
+          await provisionFirstTime(password, email);
         }
       } catch (caught) {
         setError(describeError(caught));
       }
     },
-    [remote, email, doSync, storeDek],
+    [remote, email, doSync, storeDek, provisionFirstTime],
   );
 
   // Sign in from a scanned device link (arrives via the URL hash at boot;
