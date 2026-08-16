@@ -17,6 +17,7 @@ import {
   daysBetweenISO,
   shiftSeries,
   buildMovedFollowing,
+  hasOccurrenceAfter,
 } from "./index";
 
 const getCategory = makeCategoryResolver(PRESET_CATEGORIES);
@@ -604,5 +605,58 @@ describe("forEachOccurrence with visitUnoverridden", () => {
       recurrence: { freq: "yearly", interval: 1, endsOn: null },
     };
     expectEquivalent(yearly, "2024-01-01", "2029-12-31");
+  });
+});
+
+describe("hasOccurrenceAfter", () => {
+  it("is false for a non-recurring event and true for an open-ended rule", () => {
+    expect(hasOccurrenceAfter(base, base.date)).toBe(false);
+    const daily = {
+      ...base,
+      recurrence: { freq: "daily" as const, interval: 1, endsOn: null },
+    };
+    expect(hasOccurrenceAfter(daily, "2099-12-31")).toBe(true);
+  });
+
+  it("is false on the last occurrence of a bounded series", () => {
+    const weekly = {
+      ...base,
+      recurrence: {
+        freq: "weekly" as const,
+        interval: 1,
+        endsOn: "2026-05-31",
+      },
+    };
+    // Occurrences: May 4, 11, 18, 25 — endsOn falls after the last one.
+    expect(hasOccurrenceAfter(weekly, "2026-05-18")).toBe(true);
+    expect(hasOccurrenceAfter(weekly, "2026-05-25")).toBe(false);
+  });
+
+  it("ignores cancelled occurrences after the date", () => {
+    const weekly = {
+      ...base,
+      recurrence: {
+        freq: "weekly" as const,
+        interval: 1,
+        endsOn: "2026-05-31",
+      },
+      overrides: [{ occurrenceDate: "2026-05-25", cancelled: true }],
+    };
+    expect(hasOccurrenceAfter(weekly, "2026-05-18")).toBe(false);
+  });
+
+  it("skips a clamped monthly candidate rather than counting it", () => {
+    // A day-31 monthly series: after Jan 31 the next real occurrence is Mar 31,
+    // so an endsOn inside February leaves nothing following.
+    const monthly31 = {
+      ...base,
+      date: "2026-01-31",
+      recurrence: {
+        freq: "monthly" as const,
+        interval: 1,
+        endsOn: "2026-02-28",
+      },
+    };
+    expect(hasOccurrenceAfter(monthly31, "2026-01-31")).toBe(false);
   });
 });

@@ -13,7 +13,7 @@ import {
 import { toast } from "sonner";
 import { isOccurrence } from "@/types";
 import type { CalendarEvent, Occurrence } from "@/types";
-import { isSameRecurrence } from "@/lib/recurrence";
+import { hasOccurrenceAfter, isSameRecurrence } from "@/lib/recurrence";
 import type { EventInput } from "@/lib/recurrence";
 import {
   CalendarProvider,
@@ -75,7 +75,13 @@ type EditorState =
   | { mode: "create"; date: string }
   | { mode: "edit"; occurrence: Occurrence; event: CalendarEvent };
 
-type ScopeState =
+type ScopeState = {
+  /**
+   * False when nothing follows this occurrence and "this event" is on offer,
+   * which makes the split a second spelling of that same choice.
+   */
+  allowFollowing: boolean;
+} & (
   | {
       action: "edit";
       input: EventInput;
@@ -85,7 +91,8 @@ type ScopeState =
       allowThis: boolean;
     }
   | { action: "delete"; event: CalendarEvent; occurrenceDate: string }
-  | { action: "move"; occurrence: Occurrence; toDate: string };
+  | { action: "move"; occurrence: Occurrence; toDate: string }
+);
 
 const CalendarScreen = ({ entrance = false }: { entrance?: boolean }) => {
   const cal = useCalendar();
@@ -213,12 +220,21 @@ const CalendarScreen = ({ entrance = false }: { entrance?: boolean }) => {
       setEditor(null);
       return;
     }
+    const sameRecurrence = isSameRecurrence(
+      input.recurrence,
+      editor.event.recurrence,
+    );
     setScope({
       action: "edit",
       input,
       event: editor.event,
       occurrenceDate: editor.occurrence.date,
-      allowThis: isSameRecurrence(input.recurrence, editor.event.recurrence),
+      allowThis: sameRecurrence,
+      // A rule change re-anchors the series at this occurrence, so the split
+      // still carries the new schedule forward even from the old last one.
+      allowFollowing:
+        !sameRecurrence ||
+        hasOccurrenceAfter(editor.event, editor.occurrence.date),
     });
     setEditor(null);
   };
@@ -234,6 +250,7 @@ const CalendarScreen = ({ entrance = false }: { entrance?: boolean }) => {
       action: "delete",
       event: editor.event,
       occurrenceDate: editor.occurrence.date,
+      allowFollowing: hasOccurrenceAfter(editor.event, editor.occurrence.date),
     });
     setEditor(null);
   };
@@ -268,7 +285,12 @@ const CalendarScreen = ({ entrance = false }: { entrance?: boolean }) => {
       void runMove(occurrence, toDate, "all");
       return;
     }
-    setScope({ action: "move", occurrence, toDate });
+    setScope({
+      action: "move",
+      occurrence,
+      toDate,
+      allowFollowing: hasOccurrenceAfter(event, occurrence.date),
+    });
   };
 
   // Entrance choreography for the Try Now handoff; both collapse to no-ops on
@@ -429,6 +451,7 @@ const CalendarScreen = ({ entrance = false }: { entrance?: boolean }) => {
           open
           action={scope.action}
           allowThis={scope.action === "edit" ? scope.allowThis : true}
+          allowFollowing={scope.allowFollowing}
           onConfirm={confirmScope}
           onOpenChange={(open) => !open && setScope(null)}
         />

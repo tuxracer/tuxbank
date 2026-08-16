@@ -198,6 +198,38 @@ export const shiftISO = (iso: string, days: number): string =>
 export const daysBetweenISO = (from: string, to: string): number =>
   differenceInCalendarDays(parseISO(to), parseISO(from));
 
+/**
+ * Whether the series has another occurrence strictly after `afterISO`. An
+ * open-ended rule always does: overrides are a finite list, so cancellations
+ * can never exhaust an unbounded series. A bounded one is walked from the day
+ * after to its `endsOn`.
+ */
+export const hasOccurrenceAfter = (
+  event: CalendarEvent,
+  afterISO: string,
+): boolean => {
+  const { recurrence } = event;
+  if (!recurrence) return false;
+  if (!recurrence.endsOn) return true;
+
+  const from = shiftISO(afterISO, 1);
+  if (from > recurrence.endsOn) return false;
+
+  let found = false;
+  forEachOccurrence(
+    event,
+    from,
+    recurrence.endsOn,
+    () => {
+      found = true;
+    },
+    (count) => {
+      if (count > 0) found = true;
+    },
+  );
+  return found;
+};
+
 export const buildMovedFollowing = (
   event: CalendarEvent,
   fromDate: string,

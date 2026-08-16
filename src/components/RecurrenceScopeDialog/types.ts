@@ -9,6 +9,12 @@ export type RecurrenceScopeDialogProps = {
    * the option instead of silently discarding part of the submitted form.
    */
   allowThis?: boolean;
+  /**
+   * Whether the "this and following" scope is offered. On the last occurrence
+   * of a series nothing follows it, so the split would land on that one
+   * occurrence and the option only repeats "this event".
+   */
+  allowFollowing?: boolean;
   onConfirm: (scope: EditScope) => void;
   onOpenChange: (open: boolean) => void;
 };

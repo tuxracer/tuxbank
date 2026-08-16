@@ -22,15 +22,18 @@ const RecurrenceScopeDialog = ({
   open,
   action,
   allowThis = true,
+  allowFollowing = true,
   onConfirm,
   onOpenChange,
 }: RecurrenceScopeDialogProps) => {
   const [scope, setScope] = useState<EditScope>(
-    allowThis ? "this" : "following",
+    allowThis ? "this" : allowFollowing ? "following" : "all",
   );
-  const options = allowThis
-    ? OPTIONS
-    : OPTIONS.filter((o) => o.value !== "this");
+  const options = OPTIONS.filter(
+    (o) =>
+      (o.value !== "this" || allowThis) &&
+      (o.value !== "following" || allowFollowing),
+  );
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
