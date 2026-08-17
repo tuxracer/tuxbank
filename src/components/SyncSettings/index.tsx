@@ -6,7 +6,6 @@ import { toast } from "sonner";
 import { renderSVG } from "uqr";
 import { useSync } from "@/context/SyncContext";
 import type { SyncContextValue } from "@/context/SyncContext";
-import { markLandingDismissed } from "@/lib/landingGate";
 
 type Mode = "choose" | "create" | "signin";
 
@@ -152,9 +151,12 @@ export const SyncSettings = () => {
 
   // Finish a deliberate sign-out: confirm, revoke the session and clear this
   // browser's data, then wipe web storage and reload so nothing from the
-  // signed-in session survives in this tab. Only the sign-out button uses
-  // this. The onboarding cancels call sync.signOut directly to abort a
-  // half-finished sign-in, and must not wipe a local-only user's calendar.
+  // signed-in session survives in this tab. The wipe takes the landing-page
+  // flag with it, so the reload lands on the landing page: the browser is back
+  // to the state it was in before anyone used the app here. Only the sign-out
+  // button uses this. The onboarding cancels call sync.signOut directly to
+  // abort a half-finished sign-in, and must not wipe a local-only user's
+  // calendar.
   const finishSignOut = async () => {
     // The confirmingSignOut section already asked "Sign out of {email}?";
     // only the pending-changes warning below adds new information.
@@ -186,10 +188,6 @@ export const SyncSettings = () => {
     try {
       window.localStorage.clear();
       window.sessionStorage.clear();
-      // The wipe also removed the landing-page flag. Whoever just signed out
-      // is not a first-time visitor, so restore it: the reload should land on
-      // the calendar, not the marketing page.
-      markLandingDismissed();
     } catch {
       // Web storage can be unavailable (private mode, blocked cookies). The
       // session is already revoked, so reload regardless.
