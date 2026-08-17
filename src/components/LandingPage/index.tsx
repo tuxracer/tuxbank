@@ -4,7 +4,11 @@ import { COLS, weekdayLabels } from "@/components/MonthGrid";
 import { WEEK_STARTS_ON } from "@/lib/dateGrid";
 import { RUNTIME_LOCALE } from "@/utils/runtimeLocale";
 import { catColorVar } from "@/utils/categoryColor";
-import { formatCurrency, formatSignedCompact } from "@/utils/formatCurrency";
+import {
+  formatCurrency,
+  formatCurrencyShort,
+  formatSignedCompact,
+} from "@/utils/formatCurrency";
 import { fullDateLabel } from "@/utils/fullDateLabel";
 import { prefersReducedMotion } from "@/utils/prefersReducedMotion";
 import {
@@ -111,11 +115,15 @@ const CountUpBalance = ({
   delayMs,
   from,
   to,
+  format = formatCurrency,
 }: {
   className: string;
   delayMs: number;
   from: number;
   to: number;
+  // The compact cells carry the same figure abbreviated, exactly as the real
+  // grid does, so the formatter comes from the call site.
+  format?: (amount: number) => string;
 }) => {
   const ref = useRef<HTMLSpanElement>(null);
 
@@ -129,24 +137,24 @@ const CountUpBalance = ({
     const tick = (now: number) => {
       const elapsed = Math.max(now - startAt, 0);
       const progress = Math.min(elapsed / LANDING_COUNT_MS, 1);
-      node.textContent = formatCurrency(
+      node.textContent = format(
         Math.round(from + (to - from) * easeOutCubic(progress)),
       );
       if (progress < 1) frame = requestAnimationFrame(tick);
     };
 
-    node.textContent = formatCurrency(from);
+    node.textContent = format(from);
     frame = requestAnimationFrame(tick);
 
     return () => {
       cancelAnimationFrame(frame);
-      node.textContent = formatCurrency(to);
+      node.textContent = format(to);
     };
-  }, [delayMs, from, to]);
+  }, [delayMs, format, from, to]);
 
   return (
     <span ref={ref} className={className}>
-      {formatCurrency(to)}
+      {format(to)}
     </span>
   );
 };
@@ -270,10 +278,10 @@ const PreviewPanel = () => (
 /**
  * Phone-width preview. The app does not fall back to a list below `sm` — it
  * keeps the month grid and drops what will not fit, so the cells carry a dot
- * per event instead of chips and balances, the grid always fills six weeks
- * rather than the five March spans, and the detail moves to the day panel
- * underneath. Anything friendlier here would be advertising a screen the
- * visitor is never going to see.
+ * per event instead of chips, the running balance stays but abbreviates, the
+ * grid always fills six weeks rather than the five March spans, and the rest
+ * of the detail moves to the day panel underneath. Anything friendlier here
+ * would be advertising a screen the visitor is never going to see.
  */
 const PreviewCompact = () => (
   <div className="flex flex-col gap-2 p-1.5 sm:hidden">
@@ -281,19 +289,21 @@ const PreviewCompact = () => (
       <PreviewWeekHead />
       <div className="grid grid-cols-7 gap-1.5">
         {PREVIEW_DAYS.map((day, index) => {
-          const classes = ["cy-cell", "cy-land", "flex", "flex-col", "gap-1"];
-          classes.push("min-h-11", "p-1.5");
+          const classes = ["cy-cell", "cy-land", "flex", "flex-col", "gap-0.5"];
+          // The real compact cell runs at this padding and gap because three
+          // stacked lines have to clear a ~43px row on a small phone.
+          classes.push("min-h-11", "p-1");
           if (!day.inMonth) classes.push("out");
           if (day.inMonth && day.label === LANDING_PREVIEW_TODAY)
             classes.push("today");
+
+          const delayMs = LANDING_ENTRANCE_MS.grid + index * LANDING_STAGGER_MS;
 
           return (
             <div
               key={index}
               className={classes.join(" ")}
-              style={{
-                animationDelay: `${LANDING_ENTRANCE_MS.grid + index * LANDING_STAGGER_MS}ms`,
-              }}
+              style={{ animationDelay: `${delayMs}ms` }}
             >
               <span className="cy-cell-num">{day.label}</span>
               <div className="flex flex-wrap items-center gap-1">
@@ -304,6 +314,13 @@ const PreviewCompact = () => (
                   />
                 )}
               </div>
+              <CountUpBalance
+                className={`cy-balance cy-balance-sm mt-auto self-end ${day.balance < 0 ? "cy-balance-neg" : ""}`}
+                delayMs={delayMs}
+                from={day.prevBalance}
+                to={day.balance}
+                format={formatCurrencyShort}
+              />
             </div>
           );
         })}
