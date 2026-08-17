@@ -16,6 +16,7 @@
     />
     <meta name="repository" content="https://github.com/tuxracer/tuxbank" />
     <title>TuxBank Budget Calendar</title>
+    <script defer src="/boot-refresh.js"></script>
     <style>
       :root {
         color-scheme: light dark;
@@ -64,6 +65,18 @@
         margin-bottom: 0;
       }
 
+      .boot-notice button {
+        margin: 0 0 12px;
+        padding: 8px 20px;
+        border: 1px solid #0e7490;
+        background: #ffffff;
+        color: #0e7490;
+        font: inherit;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        cursor: pointer;
+      }
+
       .boot-notice-title {
         color: #0e7490;
         letter-spacing: 0.12em;
@@ -92,6 +105,12 @@
         .boot-notice-note {
           color: #6b7c8f;
         }
+
+        .boot-notice button {
+          border-color: #22d3ee;
+          background: #0d1119;
+          color: #22d3ee;
+        }
       }
     </style>
     <noscript>
@@ -111,9 +130,10 @@
           Something went wrong while loading this page. Refreshing usually fixes
           it.
         </p>
+        <button id="boot-refresh" type="button">Refresh</button>
         <p>
-          Press Ctrl + Shift + R (Cmd + Shift + R on a Mac), or hold Shift and
-          click your browser’s reload button.
+          If that doesn’t help, press Ctrl + Shift + R (Cmd + Shift + R on a
+          Mac), or hold Shift and click your browser’s reload button.
         </p>
         <p class="boot-notice-note">Your saved events are safe.</p>
       </div>
