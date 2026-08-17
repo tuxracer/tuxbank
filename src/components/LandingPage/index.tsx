@@ -1,4 +1,5 @@
 import { useLayoutEffect, useRef } from "react";
+import { renderSVG } from "uqr";
 import { Button } from "@/components/ui/button";
 import { COLS, weekdayLabels } from "@/components/MonthGrid";
 import { WEEK_STARTS_ON } from "@/lib/dateGrid";
@@ -12,6 +13,7 @@ import {
 import { fullDateLabel } from "@/utils/fullDateLabel";
 import { prefersReducedMotion } from "@/utils/prefersReducedMotion";
 import {
+  APP_URL,
   LANDING_COUNT_MS,
   LANDING_ENTRANCE_MS,
   LANDING_PREVIEW_CARRY_IN,
@@ -79,6 +81,19 @@ const buildPreviewMonth = (): {
 };
 
 const { days: PREVIEW_DAYS, totals: PREVIEW_TOTALS } = buildPreviewMonth();
+
+/**
+ * The hero QR, rendered once at module scope since the URL never changes.
+ * Modules are currentColor over a transparent ground, so it prints as bare
+ * ink on the page background in either theme. In the dark theme that makes it
+ * an inverted code (light modules on dark); modern phone cameras read those,
+ * and ECC M buys some margin on top.
+ */
+const APP_QR_SVG = renderSVG(APP_URL, {
+  ecc: "M",
+  whiteColor: "transparent",
+  blackColor: "currentColor",
+});
 
 /**
  * The wide grid drops the sixth week, the way MonthGrid renders only the weeks
@@ -394,6 +409,15 @@ const LandingPage = ({
             <span className="cy-mono text-xs text-[color:var(--cy-muted)]">
               opens straight into the calendar
             </span>
+            {/* Desktop only: a phone scanning its own screen is pointless, and
+                below lg the hero column has no room for it anyway. */}
+            <div className="hidden flex-col items-center gap-1.5 lg:flex">
+              <div
+                className="h-20 w-20 text-[color:var(--cy-text-strong)] [&_svg]:h-full [&_svg]:w-full"
+                dangerouslySetInnerHTML={{ __html: APP_QR_SVG }}
+              />
+              <span className="cy-hud">on your phone</span>
+            </div>
           </div>
         </div>
       </section>

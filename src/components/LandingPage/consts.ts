@@ -6,6 +6,13 @@ import type { LandingPreviewEvent, LandingSpec } from "./types";
  */
 export const REPO_URL = "https://github.com/tuxracer/tuxbank";
 
+/**
+ * Canonical public URL, encoded into the hero QR code. Deliberately a constant
+ * rather than the deploy's own origin: a preview deploy or localhost should
+ * still send a scanned phone to the real app.
+ */
+export const APP_URL = "https://tuxbank.app";
+
 /** Month label above the preview console. */
 export const LANDING_PREVIEW_MONTH = "March 2026";
 
