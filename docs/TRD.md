@@ -197,7 +197,7 @@ Five pure helpers support moving events to a different day and answering what a 
 
 ## 7. Recurring Edit / Delete / Move Semantics
 
-When the user saves, deletes, or drags a recurring event (`recurrence !== null`), a **scope prompt** (shadcn Dialog + RadioGroup, `src/components/RecurrenceScopeDialog`) asks which occurrences to affect. Non-recurring events skip the prompt.
+When the user saves, deletes, or drags a recurring event (`recurrence !== null`), a **scope prompt** (shadcn Dialog + RadioGroup, `src/components/RecurrenceScopeDialog`) asks which occurrences to affect. Non-recurring events skip the prompt, and so does a bounded series whose anchor is its only occurrence (`needsScopeChoice` in `App.tsx`): with one occurrence, every scope spans it, so mutations apply to the whole event without asking (edits go through the collapsed "following" path below so an override at the occurrence is superseded by the submitted input; delete and move apply as "all").
 
 The scope dialog supports three actions: `"edit"`, `"delete"`, and `"move"`. The title adjusts to match (`"Edit recurring event"`, `"Delete recurring event"`, `"Move recurring event"`). The scope options (This event / This and following / All events) are the same for all three actions, minus any the situation makes meaningless:
 

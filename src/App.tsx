@@ -67,9 +67,12 @@ const SLOW_LOAD_NOTICE_MS = 1_000;
 
 // One owner for the "does this mutation need the recurrence-scope dialog?"
 // policy: a non-recurring event has exactly one occurrence, so every mutation
-// applies to the whole event ("all") without asking.
+// applies to the whole event ("all") without asking. A bounded series whose
+// anchor is its only occurrence gets the same treatment: every scope spans
+// that one occurrence, so the dialog would offer one choice in three
+// spellings.
 const needsScopeChoice = (event: CalendarEvent): boolean =>
-  event.recurrence !== null;
+  event.recurrence !== null && hasOccurrenceAfter(event, event.date);
 
 // "All events" is redundant when the split is offered from the series' first
 // occurrence: "this and following" already spans every occurrence.
@@ -228,7 +231,10 @@ const CalendarScreen = ({ entrance = false }: { entrance?: boolean }) => {
       void cal.updateEvent(
         editor.event.id,
         input,
-        "all",
+        // A single-occurrence series edits as "following" so an override at
+        // the occurrence is superseded by the submitted input; "all" would
+        // keep the patch and let it overrule the values just saved.
+        editor.event.recurrence ? "following" : "all",
         editor.occurrence.date,
       );
       setEditor(null);
