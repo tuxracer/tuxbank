@@ -13,7 +13,7 @@ import {
 import { fullDateLabel } from "@/utils/fullDateLabel";
 import { prefersReducedMotion } from "@/utils/prefersReducedMotion";
 import {
-  APP_URL,
+  APP_QR_URL,
   LANDING_COUNT_MS,
   LANDING_ENTRANCE_MS,
   LANDING_PREVIEW_CARRY_IN,
@@ -89,7 +89,7 @@ const { days: PREVIEW_DAYS, totals: PREVIEW_TOTALS } = buildPreviewMonth();
  * an inverted code (light modules on dark); modern phone cameras read those,
  * and ECC M buys some margin on top.
  */
-const APP_QR_SVG = renderSVG(APP_URL, {
+const APP_QR_SVG = renderSVG(APP_QR_URL, {
   ecc: "M",
   whiteColor: "transparent",
   blackColor: "currentColor",
@@ -412,8 +412,11 @@ const LandingPage = ({
             {/* Desktop only: a phone scanning its own screen is pointless, and
                 below lg the hero column has no room for it anyway. */}
             <div className="hidden flex-col items-center gap-1.5 lg:flex">
+              {/* h-24 rather than h-20: the UTM query pushes the code up a QR
+                  version, and the extra 16px keeps the denser modules at a
+                  scannable size. */}
               <div
-                className="h-20 w-20 text-[color:var(--cy-text-strong)] [&_svg]:h-full [&_svg]:w-full"
+                className="h-24 w-24 text-[color:var(--cy-text-strong)] [&_svg]:h-full [&_svg]:w-full"
                 dangerouslySetInnerHTML={{ __html: APP_QR_SVG }}
               />
               <span className="cy-hud">on your phone</span>

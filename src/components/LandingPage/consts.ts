@@ -7,11 +7,19 @@ import type { LandingPreviewEvent, LandingSpec } from "./types";
 export const REPO_URL = "https://github.com/tuxracer/tuxbank";
 
 /**
- * Canonical public URL, encoded into the hero QR code. Deliberately a constant
- * rather than the deploy's own origin: a preview deploy or localhost should
- * still send a scanned phone to the real app.
+ * Canonical public URL. Deliberately a constant rather than the deploy's own
+ * origin: a preview deploy or localhost should still send a scanned phone to
+ * the real app.
  */
 export const APP_URL = "https://tuxbank.app";
+
+/**
+ * What the hero QR actually encodes: the app URL tagged so a scan is
+ * attributable in Vercel Web Analytics (which picks UTM params off the
+ * pageview). Two tags only, since every character raises the QR version and
+ * shrinks the modules at a fixed rendered size.
+ */
+export const APP_QR_URL = `${APP_URL}/?utm_source=landing&utm_medium=qr`;
 
 /** Month label above the preview console. */
 export const LANDING_PREVIEW_MONTH = "March 2026";
