@@ -15,6 +15,12 @@ export type RecurrenceScopeDialogProps = {
    * occurrence and the option only repeats "this event".
    */
   allowFollowing?: boolean;
+  /**
+   * Whether the "all events" scope is offered. On the first occurrence of a
+   * series "this and following" already spans every occurrence, so "all
+   * events" only repeats it.
+   */
+  allowAll?: boolean;
   onConfirm: (scope: EditScope) => void;
   onOpenChange: (open: boolean) => void;
 };

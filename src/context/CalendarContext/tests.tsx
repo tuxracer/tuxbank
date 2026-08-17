@@ -513,7 +513,7 @@ describe("recurring edits bump updatedAt so they sync to other devices", () => {
           recurrence: { freq: "monthly", interval: 1, endsOn: null },
         },
         "following",
-        "2026-06-01",
+        "2026-07-01",
       );
     });
 
@@ -568,6 +568,103 @@ describe("recurring edits bump updatedAt so they sync to other devices", () => {
     });
 
     expectBumped(await storedById("rent-1"));
+  });
+});
+
+describe("'this and following' from the series' first occurrence", () => {
+  // From the first occurrence the split spans the whole series. Splitting
+  // anyway would truncate the head to zero occurrences: a ghost row that
+  // never renders but syncs and exports forever. These mutations must rewrite
+  // or remove the one series row instead.
+  const seedMonthly = async (): Promise<void> => {
+    await putEvent({
+      id: "rent-1",
+      title: "Rent",
+      date: "2026-06-01",
+      categoryId: "work",
+      amount: 1000,
+      direction: "withdrawal",
+      recurrence: { freq: "monthly", interval: 1, endsOn: null },
+      overrides: [
+        // At the split date: superseded by the submitted input.
+        { occurrenceDate: "2026-06-01", patch: { amount: 500 } },
+        // After the split date: survives the edit.
+        { occurrenceDate: "2026-08-01", patch: { amount: 750 } },
+      ],
+      createdAt: "2020-01-01T00:00:00.000Z",
+      updatedAt: "2020-01-01T00:00:00.000Z",
+    });
+  };
+
+  beforeEach(async () => {
+    await resetDbForTests();
+  });
+
+  it("rewrites the series in place on edit, keeping only later overrides", async () => {
+    await seedMonthly();
+    const { result } = renderHook(() => useCalendar(), { wrapper });
+    await waitFor(() => expect(result.current.events).toHaveLength(1));
+
+    await act(async () => {
+      await result.current.updateEvent(
+        "rent-1",
+        {
+          title: "Lease",
+          date: "2026-06-01",
+          categoryId: "work",
+          amount: 1200,
+          direction: "withdrawal",
+          recurrence: { freq: "monthly", interval: 1, endsOn: null },
+        },
+        "following",
+        "2026-06-01",
+      );
+    });
+
+    const stored = await getAllEvents();
+    expect(stored).toHaveLength(1);
+    expect(stored[0]?.id).toBe("rent-1");
+    expect(stored[0]?.title).toBe("Lease");
+    expect(stored[0]?.amount).toBe(1200);
+    expect(stored[0]?.overrides).toEqual([
+      { occurrenceDate: "2026-08-01", patch: { amount: 750 } },
+    ]);
+  });
+
+  it("removes the series row entirely on delete", async () => {
+    await seedMonthly();
+    const { result } = renderHook(() => useCalendar(), { wrapper });
+    await waitFor(() => expect(result.current.events).toHaveLength(1));
+
+    await act(async () => {
+      await result.current.deleteEvent("rent-1", "following", "2026-06-01");
+    });
+
+    expect(await getAllEvents()).toHaveLength(0);
+  });
+
+  it("shifts the whole series as one row on move", async () => {
+    await seedMonthly();
+    const { result } = renderHook(() => useCalendar(), { wrapper });
+    await waitFor(() => expect(result.current.events).toHaveLength(1));
+
+    await act(async () => {
+      result.current.goToDate(new Date(2026, 5, 1));
+    });
+    await waitFor(() =>
+      expect(result.current.occurrencesByDate["2026-06-01"]?.[0]).toBeDefined(),
+    );
+    const occurrence = result.current.occurrencesByDate["2026-06-01"]?.[0];
+    if (!occurrence) throw new Error("occurrence not expanded");
+
+    await act(async () => {
+      await result.current.moveEvent(occurrence, "2026-06-03", "following");
+    });
+
+    const stored = await getAllEvents();
+    expect(stored).toHaveLength(1);
+    expect(stored[0]?.id).toBe("rent-1");
+    expect(stored[0]?.date).toBe("2026-06-03");
   });
 });
 

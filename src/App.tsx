@@ -71,6 +71,14 @@ const SLOW_LOAD_NOTICE_MS = 1_000;
 const needsScopeChoice = (event: CalendarEvent): boolean =>
   event.recurrence !== null;
 
+// "All events" is redundant when the split is offered from the series' first
+// occurrence: "this and following" already spans every occurrence.
+const allowAllScope = (
+  event: CalendarEvent,
+  occurrenceDate: string,
+  allowFollowing: boolean,
+): boolean => !(allowFollowing && occurrenceDate === event.date);
+
 type EditorState =
   | { mode: "create"; date: string }
   | { mode: "edit"; occurrence: Occurrence; event: CalendarEvent };
@@ -81,6 +89,12 @@ type ScopeState = {
    * which makes the split a second spelling of that same choice.
    */
   allowFollowing: boolean;
+  /**
+   * False on the series' first occurrence while the split is offered:
+   * "this and following" already spans every occurrence there, so "all
+   * events" would be a second spelling of that same choice.
+   */
+  allowAll: boolean;
 } & (
   | {
       action: "edit";
@@ -224,17 +238,36 @@ const CalendarScreen = ({ entrance = false }: { entrance?: boolean }) => {
       input.recurrence,
       editor.event.recurrence,
     );
+    // A rule change re-anchors the series at this occurrence, so the split
+    // still carries the new schedule forward even from the old last one.
+    const allowFollowing =
+      !sameRecurrence ||
+      hasOccurrenceAfter(editor.event, editor.occurrence.date);
+    const allowAll = allowAllScope(
+      editor.event,
+      editor.occurrence.date,
+      allowFollowing,
+    );
+    if (!sameRecurrence && !allowAll) {
+      // A rule change on the first occurrence leaves "this and following" as
+      // the only scope on offer; apply it without asking.
+      void cal.updateEvent(
+        editor.event.id,
+        input,
+        "following",
+        editor.occurrence.date,
+      );
+      setEditor(null);
+      return;
+    }
     setScope({
       action: "edit",
       input,
       event: editor.event,
       occurrenceDate: editor.occurrence.date,
       allowThis: sameRecurrence,
-      // A rule change re-anchors the series at this occurrence, so the split
-      // still carries the new schedule forward even from the old last one.
-      allowFollowing:
-        !sameRecurrence ||
-        hasOccurrenceAfter(editor.event, editor.occurrence.date),
+      allowFollowing,
+      allowAll,
     });
     setEditor(null);
   };
@@ -246,11 +279,20 @@ const CalendarScreen = ({ entrance = false }: { entrance?: boolean }) => {
       setEditor(null);
       return;
     }
+    const allowFollowing = hasOccurrenceAfter(
+      editor.event,
+      editor.occurrence.date,
+    );
     setScope({
       action: "delete",
       event: editor.event,
       occurrenceDate: editor.occurrence.date,
-      allowFollowing: hasOccurrenceAfter(editor.event, editor.occurrence.date),
+      allowFollowing,
+      allowAll: allowAllScope(
+        editor.event,
+        editor.occurrence.date,
+        allowFollowing,
+      ),
     });
     setEditor(null);
   };
@@ -285,11 +327,13 @@ const CalendarScreen = ({ entrance = false }: { entrance?: boolean }) => {
       void runMove(occurrence, toDate, "all");
       return;
     }
+    const allowFollowing = hasOccurrenceAfter(event, occurrence.date);
     setScope({
       action: "move",
       occurrence,
       toDate,
-      allowFollowing: hasOccurrenceAfter(event, occurrence.date),
+      allowFollowing,
+      allowAll: allowAllScope(event, occurrence.date, allowFollowing),
     });
   };
 
@@ -452,6 +496,7 @@ const CalendarScreen = ({ entrance = false }: { entrance?: boolean }) => {
           action={scope.action}
           allowThis={scope.action === "edit" ? scope.allowThis : true}
           allowFollowing={scope.allowFollowing}
+          allowAll={scope.allowAll}
           onConfirm={confirmScope}
           onOpenChange={(open) => !open && setScope(null)}
         />

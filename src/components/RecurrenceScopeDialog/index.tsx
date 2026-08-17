@@ -23,6 +23,7 @@ const RecurrenceScopeDialog = ({
   action,
   allowThis = true,
   allowFollowing = true,
+  allowAll = true,
   onConfirm,
   onOpenChange,
 }: RecurrenceScopeDialogProps) => {
@@ -32,7 +33,8 @@ const RecurrenceScopeDialog = ({
   const options = OPTIONS.filter(
     (o) =>
       (o.value !== "this" || allowThis) &&
-      (o.value !== "following" || allowFollowing),
+      (o.value !== "following" || allowFollowing) &&
+      (o.value !== "all" || allowAll),
   );
 
   return (

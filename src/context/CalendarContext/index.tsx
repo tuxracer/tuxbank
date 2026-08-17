@@ -335,6 +335,27 @@ export const CalendarProvider = ({
         return;
       }
 
+      // "This and following" from the first occurrence spans the whole
+      // series. Splitting would truncate the head to zero occurrences, a
+      // ghost row that syncs and exports forever, so rewrite the series in
+      // place instead (keeping its id). The override at the split date is
+      // dropped, superseded by the submitted input, matching
+      // buildFollowingSeries.
+      if (occurrenceDate <= current.date) {
+        const next: CalendarEvent = {
+          ...current,
+          ...input,
+          date: occurrenceDate,
+          overrides: current.overrides.filter(
+            (o) => o.occurrenceDate > occurrenceDate,
+          ),
+          updatedAt: nowISO(),
+        };
+        setEvents((prev) => prev.map((e) => (e.id === id ? next : e)));
+        await persist(() => putEvent(next));
+        return;
+      }
+
       const truncated = {
         ...truncateBefore(current, occurrenceDate),
         updatedAt: nowISO(),
@@ -362,7 +383,13 @@ export const CalendarProvider = ({
       const current = events.find((e) => e.id === id);
       if (!current) return;
 
-      if (!current.recurrence || scope === "all") {
+      if (
+        !current.recurrence ||
+        scope === "all" ||
+        // "Following" from the first occurrence leaves nothing behind;
+        // truncating would keep a ghost row with zero occurrences.
+        (scope === "following" && occurrenceDate <= current.date)
+      ) {
         setEvents((prev) => prev.filter((e) => e.id !== id));
         await persist(() => dbDelete(id));
         return;
@@ -395,7 +422,13 @@ export const CalendarProvider = ({
       const snapshot: { id: string; prev: CalendarEvent | null }[] = [];
       const writes: CalendarEvent[] = [];
 
-      if (!current.recurrence || scope === "all") {
+      if (
+        !current.recurrence ||
+        scope === "all" ||
+        // "Following" from the first occurrence moves the whole series;
+        // splitting would leave a ghost head with zero occurrences.
+        (scope === "following" && occurrence.date <= current.date)
+      ) {
         const moved = current.recurrence
           ? shiftSeries(current, daysBetweenISO(occurrence.date, toDate))
           : { ...current, date: toDate };
