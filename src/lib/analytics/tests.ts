@@ -89,3 +89,56 @@ describe("analyticsBeforeSend", () => {
     expect(analyticsBeforeSend(pageview)).toBeNull();
   });
 });
+
+/**
+ * These re-import the module after rewriting the address bar, because the
+ * boot-time UTM capture happens at module load: that ordering (capture, then
+ * strip, then send) is exactly the behavior under test.
+ */
+describe("UTM capture and strip", () => {
+  const loadWithUrl = async (url: string) => {
+    window.history.replaceState(null, "", url);
+    vi.resetModules();
+    return await import(".");
+  };
+
+  afterEach(() => {
+    window.history.replaceState(null, "", "/");
+    vi.resetModules();
+  });
+
+  it("re-attaches boot-time utm params to events sent after the strip", async () => {
+    const mod = await loadWithUrl("/?utm_source=landing&utm_medium=qr");
+
+    mod.stripUtmParams();
+    const sent = mod.analyticsBeforeSend({
+      type: "pageview",
+      url: window.location.href,
+    });
+
+    expect(sent).not.toBeNull();
+    const url = new URL(sent!.url);
+    expect(url.searchParams.get("utm_source")).toBe("landing");
+    expect(url.searchParams.get("utm_medium")).toBe("qr");
+  });
+
+  it("strips only utm params, leaving other params and the hash alone", async () => {
+    const mod = await loadWithUrl("/?utm_source=landing&keep=1#fragment");
+
+    mod.stripUtmParams();
+
+    expect(window.location.search).toBe("?keep=1");
+    expect(window.location.hash).toBe("#fragment");
+  });
+
+  it("leaves the history entry untouched when no utm params are present", async () => {
+    const mod = await loadWithUrl("/?keep=1");
+    const replaceState = vi.spyOn(window.history, "replaceState");
+
+    mod.stripUtmParams();
+
+    expect(replaceState).not.toHaveBeenCalled();
+    expect(window.location.search).toBe("?keep=1");
+    replaceState.mockRestore();
+  });
+});

@@ -21,7 +21,7 @@ import {
   type EditScope,
 } from "@/context/CalendarContext";
 import { SyncProvider, useSync } from "@/context/SyncContext";
-import { trackEvent } from "@/lib/analytics";
+import { stripUtmParams, trackEvent } from "@/lib/analytics";
 import { defaultFocusISO } from "@/lib/dateGrid";
 import { markLandingDismissed, shouldShowLanding } from "@/lib/landingGate";
 import { prefersReducedMotion } from "@/utils/prefersReducedMotion";
@@ -497,6 +497,13 @@ const App = () => {
   // The calendar's entrance choreography plays only on the handoff from the
   // landing page, never on a boot that skips straight to the calendar.
   const [cameFromLanding, setCameFromLanding] = useState(false);
+
+  // A scanned QR lands with utm_* tags in the query; drop them once the page
+  // has painted. Attribution survives the early strip: the analytics module
+  // captured the tags at load and re-attaches them to each event it sends.
+  useEffect(() => {
+    stripUtmParams();
+  }, []);
 
   useEffect(() => {
     if (phase === "landing") trackEvent("landing-viewed");
