@@ -34,9 +34,9 @@ const hashOf = (url: string): string => new URL(url).hash;
 describe("buildDeviceLinkUrl", () => {
   it("builds an origin URL with the device-link fragment", () => {
     const url = buildDeviceLinkUrl(secrets, "https://tuxbank.app", NOW);
-    expect(
-      url.startsWith(`https://tuxbank.app/${DEVICE_LINK_HASH_PREFIX}`),
-    ).toBe(true);
+    const parsed = new URL(url);
+    expect(parsed.origin).toBe("https://tuxbank.app");
+    expect(parsed.hash.startsWith(DEVICE_LINK_HASH_PREFIX)).toBe(true);
   });
 
   it("round-trips through parseDeviceLinkHash, stamped with an expiry", () => {

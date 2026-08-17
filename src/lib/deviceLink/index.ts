@@ -2,6 +2,7 @@ import { fromBase64Url, toBase64Url } from "@/utils/base64";
 import {
   DEVICE_LINK_HASH_PREFIX,
   DEVICE_LINK_TTL_MS,
+  DEVICE_LINK_UTM_QUERY,
   DEVICE_LINK_VERSION,
 } from "./consts";
 import {
@@ -23,7 +24,7 @@ export const buildDeviceLinkUrl = (
     exp: now + DEVICE_LINK_TTL_MS,
     ...secrets,
   };
-  return `${origin}/${DEVICE_LINK_HASH_PREFIX}${toBase64Url(
+  return `${origin}/${DEVICE_LINK_UTM_QUERY}${DEVICE_LINK_HASH_PREFIX}${toBase64Url(
     new TextEncoder().encode(JSON.stringify(payload)),
   )}`;
 };

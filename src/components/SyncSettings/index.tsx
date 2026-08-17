@@ -522,7 +522,7 @@ export const SyncSettings = () => {
               </p>
               <div
                 data-testid="device-link-qr"
-                className="mx-auto h-44 w-44 bg-white p-2 [&_svg]:h-full [&_svg]:w-full"
+                className="mx-auto h-64 w-64 bg-white p-2 [&_svg]:h-full [&_svg]:w-full"
                 dangerouslySetInnerHTML={{ __html: renderSVG(linkUrl) }}
               />
             </>
