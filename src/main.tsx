@@ -20,6 +20,15 @@ import { registerSW } from "virtual:pwa-register";
 // offline support, as before.
 registerSW({ onNeedReload: () => {} });
 
+// The navigation route once kept its own runtime HTML cache
+// ("tuxbank-navigation"); it could serve an index.html whose hashed bundles
+// later deploys had purged, which is a blank page. The route now falls back
+// to the precached shell only, but the orphaned cache still sits in existing
+// installs, so drop it here. Best effort: nothing reads it anymore either way.
+if ("caches" in window) {
+  void caches.delete("tuxbank-navigation").catch(() => undefined);
+}
+
 const container = document.getElementById("root");
 if (!container) {
   // Unrecoverable bootstrap failure — no caller to handle a typed error.

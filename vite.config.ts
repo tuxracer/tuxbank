@@ -30,8 +30,12 @@ const commitShaMeta = (): Plugin => {
 };
 
 const PRECACHE_MAX_FILE_SIZE = 5_000_000; // headroom so the single no-split bundle (libsodium + supabase) stays precacheable as it grows past workbox's 2 MiB default
-const NAVIGATION_CACHE = "tuxbank-navigation";
-const NAVIGATION_NETWORK_TIMEOUT_SECONDS = 3; // bound the wait on a connection that is up but not answering before falling back to cache
+const NAVIGATION_NETWORK_TIMEOUT_SECONDS = 3; // bound the wait on a connection that is up but not answering before falling back to the precached shell
+// Required by the NetworkFirst strategy but deliberately never written to
+// (see cacheableResponse below). Not the retired "tuxbank-navigation" name:
+// existing installs hold a stale entry under that one, and reusing it would
+// serve that entry on a failed reload.
+const NAVIGATION_NOOP_CACHE = "tuxbank-navigation-noop";
 
 const pwa = () =>
   VitePWA({
@@ -73,16 +77,29 @@ const pwa = () =>
       directoryIndex: null,
       runtimeCaching: [
         {
-          // Navigations go to the network first, so an online visitor always
-          // lands on the newest `index.html`. Cache and precache are fallbacks
-          // for an offline or unresponsive network, not the default response.
+          // Navigations go to the network, so an online visitor always lands
+          // on the newest `index.html`. When the network fails or exceeds the
+          // timeout, the fallback is the precached shell and nothing else: it
+          // is the one copy guaranteed consistent with the precached assets
+          // the same worker installed. A real runtime HTML cache used to sit
+          // in between, and that cache is a trap — the worker auto-updates in
+          // place between navigations, so a cached navigation can name hashed
+          // bundles that later deploys have purged from both the precache and
+          // the CDN, and serving it paints the boot notice while a working
+          // precached shell sits unused.
+          //
+          // The strategy stays NetworkFirst only because workbox's generator
+          // refuses networkTimeoutSeconds on NetworkOnly. cacheableResponse
+          // keeps the strategy's cache permanently empty instead: it admits
+          // only status 0 (opaque) responses, and a same-origin navigation is
+          // always a 200, so nothing is ever written, every cache lookup
+          // misses, and each fallback goes straight to the precached shell.
           urlPattern: ({ request }) => request.mode === "navigate",
           handler: "NetworkFirst",
           options: {
-            cacheName: NAVIGATION_CACHE,
+            cacheName: NAVIGATION_NOOP_CACHE,
             networkTimeoutSeconds: NAVIGATION_NETWORK_TIMEOUT_SECONDS,
-            // Last resort: the precached shell, which is always consistent
-            // with the precached assets the same worker installed.
+            cacheableResponse: { statuses: [0] },
             precacheFallback: { fallbackURL: "index.html" },
           },
         },
