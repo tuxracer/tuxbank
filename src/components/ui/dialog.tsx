@@ -37,7 +37,7 @@ function DialogOverlay({
     <DialogPrimitive.Overlay
       data-slot="dialog-overlay"
       className={cn(
-        "fixed inset-0 isolate z-50 bg-black/10 duration-100 supports-backdrop-filter:backdrop-blur-xs data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
+        "fixed inset-0 isolate z-50 bg-black/10 supports-backdrop-filter:backdrop-blur-xs data-open:animate-in data-open:fade-in-0 data-open:duration-300 data-closed:animate-out data-closed:fade-out-0 data-closed:duration-150",
         className,
       )}
       {...props}
@@ -69,8 +69,14 @@ function DialogContent({
       <DialogPrimitive.Content
         data-slot="dialog-content"
         {...(hasDescription ? {} : { "aria-describedby": undefined })}
+        // Shared motion signature for every dialog: open rises 8px into place
+        // with a near-full scale and a 2px blur resolving to sharp (an
+        // instrument coming into focus, not a pop), on an expo-out curve;
+        // close is quicker and quieter, dropping 4px as it fades. The rise
+        // animates `transform` in the enter/exit keyframes, which composes
+        // with the centering `translate` property rather than overriding it.
         className={cn(
-          "fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-xl bg-popover p-4 text-sm text-popover-foreground ring-1 ring-foreground/10 duration-100 outline-none sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+          "fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-xl bg-popover p-4 text-sm text-popover-foreground ring-1 ring-foreground/10 outline-none sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-98 data-open:slide-in-from-bottom-2 data-open:blur-in-[2px] data-open:duration-300 data-open:ease-[cubic-bezier(0.16,1,0.3,1)] data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-98 data-closed:slide-out-to-bottom-1 data-closed:duration-150 data-closed:ease-in",
           className,
         )}
         {...props}
