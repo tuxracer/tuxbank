@@ -135,6 +135,15 @@ const CalendarScreen = ({ entrance = false }: { entrance?: boolean }) => {
   const selectedMonth = cal.visibleMonth.getMonth();
   const [editor, setEditor] = useState<EditorState | null>(null);
   const [scope, setScope] = useState<ScopeState | null>(null);
+  // Closing clears editor/scope, but unmounting the dialog in that same
+  // render cuts its exit animation to nothing. Retain the last non-null
+  // value so the dialog stays mounted (with open=false) while Radix plays
+  // the close motion; Radix unmounts the portal contents itself when the
+  // animation ends.
+  const [lastEditor, setLastEditor] = useState<EditorState | null>(null);
+  if (editor && editor !== lastEditor) setLastEditor(editor);
+  const [lastScope, setLastScope] = useState<ScopeState | null>(null);
+  if (scope && scope !== lastScope) setLastScope(scope);
   const [activeOccurrence, setActiveOccurrence] = useState<Occurrence | null>(
     null,
   );
@@ -477,18 +486,22 @@ const CalendarScreen = ({ entrance = false }: { entrance?: boolean }) => {
         </p>
       )}
 
-      {editor && (
+      {lastEditor && (
         <EventDialog
-          open
-          mode={editor.mode}
+          open={editor !== null}
+          mode={lastEditor.mode}
           categories={cal.categories}
           defaultDate={
-            editor.mode === "create" ? editor.date : editor.occurrence.date
+            lastEditor.mode === "create"
+              ? lastEditor.date
+              : lastEditor.occurrence.date
           }
           initialOccurrence={
-            editor.mode === "edit" ? editor.occurrence : undefined
+            lastEditor.mode === "edit" ? lastEditor.occurrence : undefined
           }
-          sourceEvent={editor.mode === "edit" ? editor.event : undefined}
+          sourceEvent={
+            lastEditor.mode === "edit" ? lastEditor.event : undefined
+          }
           onOpenChange={(open) => !open && setEditor(null)}
           onSubmit={handleSubmit}
           onDelete={handleDelete}
@@ -496,13 +509,13 @@ const CalendarScreen = ({ entrance = false }: { entrance?: boolean }) => {
         />
       )}
 
-      {scope && (
+      {lastScope && (
         <RecurrenceScopeDialog
-          open
-          action={scope.action}
-          allowThis={scope.action === "edit" ? scope.allowThis : true}
-          allowFollowing={scope.allowFollowing}
-          allowAll={scope.allowAll}
+          open={scope !== null}
+          action={lastScope.action}
+          allowThis={lastScope.action === "edit" ? lastScope.allowThis : true}
+          allowFollowing={lastScope.allowFollowing}
+          allowAll={lastScope.allowAll}
           onConfirm={confirmScope}
           onOpenChange={(open) => !open && setScope(null)}
         />
