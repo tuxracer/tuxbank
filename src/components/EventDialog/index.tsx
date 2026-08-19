@@ -132,8 +132,10 @@ const EventDialog = (props: EventDialogProps) => {
           and overflow-y-auto would never engage. The body's -mx-1/px-1 pair
           gives the 3px focus ring room inside the scroll box: overflow-y auto
           clips the x axis too, so a full-width input's ring is cut off at both
-          edges without it. */}
-      <DialogContent className="cy-dialog max-h-[85dvh] grid-rows-[minmax(0,1fr)_auto] border-0 sm:max-w-md">
+          edges without it. Compact screens pin the dialog to the top instead
+          of centering it: the on-screen keyboard covers the lower half, and a
+          centered dialog ends up half-hidden behind it. */}
+      <DialogContent className="cy-dialog top-4 max-h-[85dvh] translate-y-0 grid-rows-[minmax(0,1fr)_auto] border-0 sm:top-1/2 sm:max-w-md sm:-translate-y-1/2">
         <div className="-mx-1 grid min-h-0 gap-4 overflow-y-auto px-1">
           <DialogHeader>
             <DialogTitle className="cy-display uppercase tracking-wide">
