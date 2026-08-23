@@ -1,8 +1,14 @@
 import { useLayoutEffect, useRef } from "react";
+import type { Day } from "date-fns";
 import { renderSVG } from "uqr";
 import { Button } from "@/components/ui/button";
 import { COLS, weekdayLabels } from "@/components/MonthGrid";
-import { WEEK_STARTS_ON } from "@/lib/dateGrid";
+import {
+  buildMonthGrid,
+  inMonthWeekCount,
+  toISODate,
+  WEEK_STARTS_ON,
+} from "@/lib/dateGrid";
 import { RUNTIME_LOCALE } from "@/utils/runtimeLocale";
 import { catColorVar } from "@/utils/categoryColor";
 import {
@@ -17,12 +23,9 @@ import {
   LANDING_COUNT_MS,
   LANDING_ENTRANCE_MS,
   LANDING_PREVIEW_CARRY_IN,
-  LANDING_PREVIEW_COMPACT_ROWS,
-  LANDING_PREVIEW_DAYS,
   LANDING_PREVIEW_EVENTS,
   LANDING_PREVIEW_MONTH,
-  LANDING_PREVIEW_ROWS,
-  LANDING_PREVIEW_TODAY,
+  LANDING_PREVIEW_MONTH_DATE,
   LANDING_PREVIEW_TODAY_DATE,
   LANDING_SPECS,
   LANDING_STAGGER_MS,
@@ -42,11 +45,21 @@ export * from "./types";
  * Walks the preview month once, carrying the running balance forward the same
  * way `@/lib/balance` does for real data, so the figures printed in the cells
  * and on the rail can never drift from the transactions above them.
+ *
+ * The cells come from the app's own `buildMonthGrid`, so the month is laid out
+ * for the week start passed in rather than for a fixed Sunday column. The days
+ * it pulls in from the adjacent months carry no transaction and hold the
+ * balance flat, which is what an out-of-month cell shows in the app.
  */
-const buildPreviewMonth = (): {
+export const buildPreviewMonth = (
+  weekStartsOn: Day,
+): {
   days: LandingPreviewDay[];
+  /** Week rows the month spans: what the wide preview slices back to. */
+  rows: number;
   totals: LandingPreviewTotals;
 } => {
+  const cells = buildMonthGrid(LANDING_PREVIEW_MONTH_DATE, weekStartsOn);
   const days: LandingPreviewDay[] = [];
   const totals: LandingPreviewTotals = {
     deposits: 0,
@@ -55,10 +68,10 @@ const buildPreviewMonth = (): {
   };
   let balance = LANDING_PREVIEW_CARRY_IN;
 
-  for (let index = 0; index < LANDING_PREVIEW_COMPACT_ROWS * COLS; index++) {
-    const dayOfMonth = index + 1;
-    const inMonth = dayOfMonth <= LANDING_PREVIEW_DAYS;
-    const event = inMonth ? LANDING_PREVIEW_EVENTS[dayOfMonth] : undefined;
+  for (const cell of cells) {
+    const event = cell.inMonth
+      ? LANDING_PREVIEW_EVENTS[cell.dayOfMonth]
+      : undefined;
     const prevBalance = balance;
 
     if (event) {
@@ -68,8 +81,9 @@ const buildPreviewMonth = (): {
     }
 
     days.push({
-      label: inMonth ? dayOfMonth : dayOfMonth - LANDING_PREVIEW_DAYS,
-      inMonth,
+      iso: cell.iso,
+      label: cell.dayOfMonth,
+      inMonth: cell.inMonth,
       prevBalance,
       balance,
       event,
@@ -77,10 +91,14 @@ const buildPreviewMonth = (): {
   }
 
   totals.end = balance;
-  return { days, totals };
+  return { days, rows: inMonthWeekCount(cells), totals };
 };
 
-const { days: PREVIEW_DAYS, totals: PREVIEW_TOTALS } = buildPreviewMonth();
+const {
+  days: PREVIEW_DAYS,
+  rows: PREVIEW_ROWS,
+  totals: PREVIEW_TOTALS,
+} = buildPreviewMonth(WEEK_STARTS_ON);
 
 /**
  * The hero QR, rendered once at module scope since the URL never changes.
@@ -96,16 +114,23 @@ const APP_QR_SVG = renderSVG(APP_QR_URL, {
 });
 
 /**
- * The wide grid drops the sixth week, the way MonthGrid renders only the weeks
- * the month spans once it has the height for taller cells.
+ * The wide grid drops any week the month does not reach, the way MonthGrid
+ * renders only the weeks the month spans once it has the height for taller
+ * cells. Compact keeps the full six weeks the app always fills there. How many
+ * weeks March spans now depends on the week start, so it is counted rather
+ * than written down.
  */
-const PREVIEW_WIDE_DAYS = PREVIEW_DAYS.slice(0, LANDING_PREVIEW_ROWS * COLS);
+const PREVIEW_WIDE_DAYS = PREVIEW_DAYS.slice(0, PREVIEW_ROWS * COLS);
 
 /**
- * The day the compact panel is opened on. March 2026 starts on a Sunday, so
- * there are no leading blanks and day N sits at index N-1.
+ * The day the compact panel is opened on, and the cell drawn as today. Found
+ * by date rather than by position: which cell March 12 lands in depends on
+ * where the visitor's week starts. Every in-month day is in the grid, so the
+ * lookup always hits and the fallback only satisfies the type.
  */
-const PREVIEW_PANEL_DAY = PREVIEW_DAYS[LANDING_PREVIEW_TODAY - 1];
+const PREVIEW_TODAY_ISO = toISODate(LANDING_PREVIEW_TODAY_DATE);
+const PREVIEW_PANEL_DAY =
+  PREVIEW_DAYS.find((day) => day.iso === PREVIEW_TODAY_ISO) ?? PREVIEW_DAYS[0];
 
 /** The panel lands once the last cell above it has. */
 const PREVIEW_PANEL_DELAY_MS =
@@ -216,14 +241,13 @@ const PreviewGrid = () => (
         const classes = ["cy-cell", "cy-land", "flex", "flex-col", "gap-1"];
         classes.push("min-h-[4.75rem]", "p-1.5", "lg:min-h-[5.5rem]");
         if (!day.inMonth) classes.push("out");
-        if (day.inMonth && day.label === LANDING_PREVIEW_TODAY)
-          classes.push("today");
+        if (day.iso === PREVIEW_TODAY_ISO) classes.push("today");
 
         const delayMs = LANDING_ENTRANCE_MS.grid + index * LANDING_STAGGER_MS;
 
         return (
           <div
-            key={index}
+            key={day.iso}
             className={classes.join(" ")}
             style={{ animationDelay: `${delayMs}ms` }}
           >
@@ -309,14 +333,13 @@ const PreviewCompact = () => (
           // stacked lines have to clear a ~43px row on a small phone.
           classes.push("min-h-11", "p-1");
           if (!day.inMonth) classes.push("out");
-          if (day.inMonth && day.label === LANDING_PREVIEW_TODAY)
-            classes.push("today");
+          if (day.iso === PREVIEW_TODAY_ISO) classes.push("today");
 
           const delayMs = LANDING_ENTRANCE_MS.grid + index * LANDING_STAGGER_MS;
 
           return (
             <div
-              key={index}
+              key={day.iso}
               className={classes.join(" ")}
               style={{ animationDelay: `${delayMs}ms` }}
             >
@@ -430,7 +453,10 @@ const LandingPage = ({
           className="cy-land flex flex-col gap-3 border-b border-[color:var(--cy-line)] px-3 py-2.5 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between sm:gap-x-6 sm:px-4"
           style={{ animationDelay: `${LANDING_ENTRANCE_MS.rail}ms` }}
         >
-          <span className="cy-display text-xl leading-none font-bold tracking-wide text-[color:var(--cy-text-strong)]">
+          <span
+            className="cy-display text-xl leading-none font-bold tracking-wide text-[color:var(--cy-text-strong)]"
+            lang={RUNTIME_LOCALE}
+          >
             {LANDING_PREVIEW_MONTH}
           </span>
           <div className="flex items-end justify-between gap-4 sm:justify-start sm:gap-10">
