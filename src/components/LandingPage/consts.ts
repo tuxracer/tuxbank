@@ -1,3 +1,6 @@
+import { mapValues } from "remeda";
+
+import { LOCAL_CURRENCY } from "@/utils/formatCurrency";
 import type { LandingPreviewEvent, LandingSpec } from "./types";
 
 /**
@@ -43,19 +46,86 @@ export const LANDING_PREVIEW_MONTH = new Intl.DateTimeFormat(undefined, {
 }).format(LANDING_PREVIEW_MONTH_DATE);
 
 /**
+ * Order-of-magnitude correction for demo amounts when the visitor's currency
+ * sits far from dollar parity. The figures below are written at dollar scale,
+ * and formatting them in the local currency without rescaling prints nonsense:
+ * rent of ¥1,850 is about twelve dollars. No web API or CLDR table says what
+ * everyday amounts look like in a region, so, like REGION_CURRENCY, this is a
+ * hand-kept lookup. Powers of ten only, picked so rent and paycheck land near
+ * everyday local magnitudes; only the order matters, so drift in real exchange
+ * rates does not need tracking. Currencies not listed are within a factor of a
+ * few of the dollar and read fine unscaled.
+ */
+const DEMO_AMOUNT_SCALE: Readonly<Record<string, number>> = {
+  // The Gulf dinars and rial run the other way: one unit buys a few dollars.
+  BHD: 0.1,
+  KWD: 0.1,
+  OMR: 0.1,
+  BDT: 10,
+  BRL: 10,
+  CNY: 10,
+  CZK: 10,
+  DKK: 10,
+  EGP: 10,
+  HKD: 10,
+  INR: 10,
+  KES: 10,
+  MAD: 10,
+  MXN: 10,
+  NOK: 10,
+  PHP: 10,
+  PKR: 10,
+  RUB: 10,
+  SEK: 10,
+  THB: 10,
+  TRY: 10,
+  TWD: 10,
+  UAH: 10,
+  ZAR: 10,
+  AMD: 100,
+  CRC: 100,
+  HUF: 100,
+  ISK: 100,
+  JPY: 100,
+  KZT: 100,
+  LKR: 100,
+  NGN: 100,
+  RSD: 100,
+  CLP: 1_000,
+  COP: 1_000,
+  IQD: 1_000,
+  KRW: 1_000,
+  MMK: 1_000,
+  MNT: 1_000,
+  PYG: 1_000,
+  IDR: 10_000,
+  LAK: 10_000,
+  UZS: 10_000,
+  VND: 10_000,
+};
+
+const DEMO_SCALE = DEMO_AMOUNT_SCALE[LOCAL_CURRENCY] ?? 1;
+
+/** Rounded so the fractional (Gulf) scale still yields whole figures. */
+const scaleAmount = (amount: number): number => Math.round(amount * DEMO_SCALE);
+
+/**
  * Balance carried into the preview month. Chosen so rent on the 1st overdraws
  * the account for two days before the first paycheck lands: the dip is the
- * whole point of laying a month out, so the preview shows one.
+ * whole point of laying a month out, so the preview shows one. Scaling every
+ * amount and this carry-in by the same factor keeps that story at any
+ * magnitude.
  */
-export const LANDING_PREVIEW_CARRY_IN = 1_468;
+export const LANDING_PREVIEW_CARRY_IN = scaleAmount(1_468);
 
 /**
  * The preview month's transactions, keyed by day of month. Amounts are signed
- * (deposits positive), and every category color appears at least once: green
- * for income, magenta for fixed debt, yellow for utilities, orange for variable
- * spending, cyan for savings.
+ * (deposits positive) and written at dollar scale (see DEMO_AMOUNT_SCALE), and
+ * every category color appears at least once: green for income, magenta for
+ * fixed debt, yellow for utilities, orange for variable spending, cyan for
+ * savings.
  */
-export const LANDING_PREVIEW_EVENTS: Readonly<
+const DOLLAR_SCALE_PREVIEW_EVENTS: Readonly<
   Record<number, LandingPreviewEvent>
 > = {
   1: { title: "Rent", amount: -1_850, color: "magenta" },
@@ -78,6 +148,13 @@ export const LANDING_PREVIEW_EVENTS: Readonly<
   30: { title: "Groceries", amount: -124, color: "orange" },
   31: { title: "Paycheck", amount: 2_310, color: "green" },
 };
+
+export const LANDING_PREVIEW_EVENTS: Readonly<
+  Record<number, LandingPreviewEvent>
+> = mapValues(DOLLAR_SCALE_PREVIEW_EVENTS, (event) => ({
+  ...event,
+  amount: scaleAmount(event.amount),
+}));
 
 /** Milliseconds each preview cell waits past the one before it on first paint. */
 export const LANDING_STAGGER_MS = 16;
