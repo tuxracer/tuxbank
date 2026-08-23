@@ -18,7 +18,10 @@ export type LandingPreviewEvent = {
 
 /** A preview day once its running balance has been resolved. */
 export type LandingPreviewDay = {
-  /** Day number as printed in the cell (restarts at 1 for trailing days). */
+  /** The day itself, `yyyy-MM-dd`: identifies the cell whatever column it
+      lands in once the locale's week start has placed it. */
+  iso: string;
+  /** Day number as printed in the cell. */
   label: number;
   inMonth: boolean;
   /** Balance carried in from the day before: where the count-up starts. */

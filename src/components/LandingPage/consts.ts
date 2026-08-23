@@ -21,33 +21,26 @@ export const APP_URL = "https://tuxbank.app";
  */
 export const APP_QR_URL = `${APP_URL}/?utm_source=landing&utm_medium=qr`;
 
-/** Month label above the preview console. */
-export const LANDING_PREVIEW_MONTH = "March 2026";
+/**
+ * The month behind the preview, and the day its compact panel is opened on.
+ * The grid is built from these real dates through the app's own
+ * `buildMonthGrid`, so the columns follow the visitor's locale: where the week
+ * starts on Monday, March 2026 opens with six days of February instead of the
+ * Sunday-aligned 1..31 range a hardcoded month would print under headers that
+ * had already rotated.
+ */
+export const LANDING_PREVIEW_MONTH_DATE = new Date(2026, 2, 1);
+export const LANDING_PREVIEW_TODAY_DATE = new Date(2026, 2, 12);
 
 /**
- * Static month behind the landing-page preview. March 2026 starts on a Sunday,
- * so there are no leading blanks and the cells are a plain range.
- *
- * The month is built out to six weeks because that is what the app's compact
- * grid always renders; the wide preview slices back to the five weeks March
- * actually spans. Both numbers mirror MonthGrid's own `rows` split, so the
- * preview shows the visitor the grid they will get at their own width.
+ * Month label above the preview console, in the visitor's language, the way
+ * the toolbar's month picker reads inside the running app. Intl text in an
+ * otherwise-English document, so render it under `lang={RUNTIME_LOCALE}`.
  */
-export const LANDING_PREVIEW_DAYS = 31;
-export const LANDING_PREVIEW_ROWS = 5;
-export const LANDING_PREVIEW_COMPACT_ROWS = 6;
-export const LANDING_PREVIEW_TODAY = 12;
-
-/**
- * The selected day as a real date. The compact preview's day panel labels it
- * through the same Intl formatter the app's DayPanel uses, rather than a
- * hardcoded string that would not follow the visitor's locale.
- */
-export const LANDING_PREVIEW_TODAY_DATE = new Date(
-  2026,
-  2,
-  LANDING_PREVIEW_TODAY,
-);
+export const LANDING_PREVIEW_MONTH = new Intl.DateTimeFormat(undefined, {
+  month: "long",
+  year: "numeric",
+}).format(LANDING_PREVIEW_MONTH_DATE);
 
 /**
  * Balance carried into the preview month. Chosen so rent on the 1st overdraws
