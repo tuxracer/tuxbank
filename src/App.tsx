@@ -26,7 +26,6 @@ import { defaultFocusISO } from "@/lib/dateGrid";
 import { markLandingDismissed, shouldShowLanding } from "@/lib/landingGate";
 import { prefersReducedMotion } from "@/utils/prefersReducedMotion";
 import LandingPage from "@/components/LandingPage";
-import IntroFlow, { type IntroOutcome } from "@/components/IntroFlow";
 import CalendarToolbar from "@/components/CalendarToolbar";
 import DayPanel from "@/components/DayPanel";
 import MonthGrid from "@/components/MonthGrid";
@@ -50,27 +49,13 @@ const dropDateFormatter = new Intl.DateTimeFormat(undefined, {
 /*
  * Try Now handoff choreography. The landing lifts out (`.cy-exit` in
  * globals.css — the fallback below covers its animationend never firing, e.g.
- * animations disabled outside the reduced-motion query), the first-run flow
- * lands and later lifts out the same way, and then the calendar screen lands
- * top-down on the landing's own `cy-land` grammar: toolbar, console, then the
- * compact day panel — the same order LANDING_ENTRANCE_MS brought the landing
- * in. Plays only on this handoff, never on a normal boot.
+ * animations disabled outside the reduced-motion query), then the calendar
+ * screen lands top-down on the landing's own `cy-land` grammar: toolbar,
+ * console, then the compact day panel — the same order LANDING_ENTRANCE_MS
+ * brought the landing in. Plays only on this handoff, never on a normal boot.
  */
-const EXIT_FALLBACK_MS = 400;
+const LANDING_EXIT_FALLBACK_MS = 400;
 const APP_ENTRANCE_MS = { toolbar: 0, console: 70, panel: 140 } as const;
-
-/**
- * The screens between a first visit and the calendar. Each `-exit` phase is
- * the previous screen playing its lift-out; the next screen mounts when it
- * ends. A return visit boots straight to `calendar`.
- */
-type Phase = "landing" | "landing-exit" | "intro" | "intro-exit" | "calendar";
-
-/** What the calendar says on arrival from the first-run flow. */
-const welcomeMessage = (outcome: IntroOutcome): string =>
-  outcome.eventCount > 0
-    ? "Your month is ready. Pick any day to add more."
-    : "Pick any day to add your first event.";
 
 /**
  * How long the first load may take before it is worth saying so. Reading the
@@ -126,23 +111,9 @@ type ScopeState = {
   | { action: "move"; occurrence: Occurrence; toDate: string }
 );
 
-const CalendarScreen = ({
-  entrance = false,
-  welcome = null,
-}: {
-  entrance?: boolean;
-  /** Set on arrival from the first-run flow; the calendar greets once with it. */
-  welcome?: IntroOutcome | null;
-}) => {
+const CalendarScreen = ({ entrance = false }: { entrance?: boolean }) => {
   const cal = useCalendar();
   const sync = useSync();
-  // One greeting, on mount: the Toaster below is a child, so it has subscribed
-  // by the time this effect runs. Nothing re-fires it, since `welcome` never
-  // changes for the life of the screen.
-  useEffect(() => {
-    if (welcome) toast(welcomeMessage(welcome));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
   const [settingsOpen, setSettingsOpen] = useState(false);
   // Which settings tab is showing; null is the compact root menu (and the
   // default tab on wide screens).
@@ -564,13 +535,12 @@ const CalendarScreen = ({
 };
 
 const App = () => {
-  const [phase, setPhase] = useState<Phase>(() =>
-    shouldShowLanding() ? "landing" : "calendar",
+  const [phase, setPhase] = useState<"landing" | "leaving" | "app">(() =>
+    shouldShowLanding() ? "landing" : "app",
   );
-  // The calendar's entrance choreography and greeting play only on the
-  // handoff from the first-run flow, never on a boot that skips straight to
-  // the calendar.
-  const [welcome, setWelcome] = useState<IntroOutcome | null>(null);
+  // The calendar's entrance choreography plays only on the handoff from the
+  // landing page, never on a boot that skips straight to the calendar.
+  const [cameFromLanding, setCameFromLanding] = useState(false);
 
   // A scanned QR lands with utm_* tags in the query; drop them once the page
   // has painted. Attribution survives the early strip: the analytics module
@@ -583,25 +553,28 @@ const App = () => {
     if (phase === "landing") trackEvent("landing-viewed");
   }, [phase]);
 
-  // Backstop for the exit handoffs: if the leaving screen's animationend never
-  // fires (animations disabled outside the reduced-motion query), swap anyway.
+  // Backstop for the exit handoff: if the landing's animationend never fires
+  // (animations disabled outside the reduced-motion query), swap anyway.
   useEffect(() => {
-    if (phase !== "landing-exit" && phase !== "intro-exit") return;
-    const next: Phase = phase === "landing-exit" ? "intro" : "calendar";
-    const timer = window.setTimeout(() => setPhase(next), EXIT_FALLBACK_MS);
+    if (phase !== "leaving") return;
+    const timer = window.setTimeout(
+      () => setPhase("app"),
+      LANDING_EXIT_FALLBACK_MS,
+    );
     return () => window.clearTimeout(timer);
   }, [phase]);
 
-  if (phase === "landing" || phase === "landing-exit") {
+  if (phase !== "app") {
     return (
       <LandingPage
         onTryNow={() => {
           markLandingDismissed();
           trackEvent("try-now-clicked");
-          setPhase(prefersReducedMotion() ? "intro" : "landing-exit");
+          setCameFromLanding(true);
+          setPhase(prefersReducedMotion() ? "app" : "leaving");
         }}
-        leaving={phase === "landing-exit"}
-        onExited={() => setPhase("intro")}
+        leaving={phase === "leaving"}
+        onExited={() => setPhase("app")}
       />
     );
   }
@@ -609,18 +582,7 @@ const App = () => {
   return (
     <CalendarProvider>
       <SyncProvider>
-        {phase === "intro" || phase === "intro-exit" ? (
-          <IntroFlow
-            onFinish={(outcome) => {
-              setWelcome(outcome);
-              setPhase(prefersReducedMotion() ? "calendar" : "intro-exit");
-            }}
-            leaving={phase === "intro-exit"}
-            onExited={() => setPhase("calendar")}
-          />
-        ) : (
-          <CalendarScreen entrance={welcome !== null} welcome={welcome} />
-        )}
+        <CalendarScreen entrance={cameFromLanding} />
       </SyncProvider>
     </CalendarProvider>
   );

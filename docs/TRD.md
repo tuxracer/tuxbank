@@ -242,7 +242,6 @@ This mirrors iCalendar semantics (`EXDATE` / `RECURRENCE-ID` for single override
 - **Landing page (first visit only):** `src/components/LandingPage` renders instead of the calendar until the visitor clicks the **Try Now** CTA. It stacks three bands: a hero (HUD status line, headline, supporting line, `.cy-cta` button), a full-width **preview console**, and a **spec grid** of four cells (Account / Storage / Sync / Price) built with the month grid's own construction (panel fills over a hairline `gap-px` background, 1px `--cy-line` outer border), each holding a mono HUD key, a display-face claim, and one supporting sentence. A footer with the MIT license and a source-repo link closes the page.
 
 The console is the page's one bold element. It renders a fixed March 2026 built from the real `.cy-cell` / `.cy-chip` / `.cy-balance` markup, so it stays honest as the design system changes, and it carries a rail of month totals (deposits, withdrawals, month end). Its figures are never hand-written: `buildPreviewMonth` walks the transactions in `consts.ts` once and carries the running balance forward the way `src/lib/balance` does for real data, so the per-cell balances and the rail totals cannot drift from the events above them. The month is picked to show the product's point, not a best case: rent on the 1st overdraws the account for two days (magenta `.cy-balance-neg`) before the first paycheck lands. The month is fixed but its presentation is not: the preview follows the visitor's locale the way the app does, through the same modules. `buildMonthGrid` lays the days out from `WEEK_STARTS_ON`, so a Monday-start locale opens the grid on the six February days that finish the week March 1 ends (out-of-month cells that hold the balance flat at the carry-in) and spans six week-rows instead of five; the weekday headers come from `weekdayLabels`, the month title and the compact panel's day label from `Intl`, and every figure from `formatCurrency` / `formatCurrencyShort`, which default to the locale's currency. The landing renders before storage is read, so it follows the locale only and never the stored display preferences. Below `sm` the preview switches to what the app actually renders there rather than to a friendlier layout: the full six-row grid with a dot per event and the abbreviated running balance, over an inert copy of the day panel opened on the 12th. Clicking Try Now sets a localStorage flag (`tuxbank:landing-dismissed`, see `src/lib/landingGate`) and swaps in the calendar; later visits with the flag boot straight into the app. One flow bypasses the landing page: a `#device-link=` URL, since a device-link sign-in must surface its TOTP prompt immediately. Signing out goes the other way: the storage wipe takes the flag with it, so the reload returns this browser to the landing page.
-- **First-run flow (once, after Try Now):** `src/components/IntroFlow` renders between the landing page and the calendar. It asks three optional questions, one per screen, phone-first: today's balance, the visitor's regular income (name, amount, weekly / every 2 weeks / monthly, next payday) and their biggest monthly bill (name, amount, next due date). Each screen is one column with the question set in the display face, the figure in a hero-scale mono input (the one control in the flow that opts out of the 32px pill, like the landing's Try now button), a live `.cy-hud` readout ("About $4,620 a month", the bill screen's "Leaves about …"), a full-width `.cy-cta` primary action, and Back / Skip this as quiet `.cy-btn` pills under it. A progress row of three pills fills in cyan as the questions go by; the HUD masthead counts "2 of 3". Answers stay as typed until the last screen, so Back never loses one and Skip this drops exactly the current one; the welcome screen's Skip setup leaves the flow with nothing. On the way out the pure `src/lib/introPlan` module turns the answers into a plan (`buildIntroPlan`): the balance becomes an uncategorized one-off deposit titled "Starting balance" on today's date (the running balance starts at zero, so this is how an opening balance is represented; it edits and deletes like any event), the income a deposit series under a green **Income** category (every 2 weeks is `weekly` at interval 2) and the bill a monthly withdrawal series under a magenta **Bills** category. The flow creates the categories first, then the events with the ids it got back (`createCategory` returns the existing row when the name is taken, so nothing duplicates). It lives inside `CalendarProvider`, and every advancing control waits for the provider's `loaded` gate so a write can never race the initial read. The calendar then lands on the Try Now entrance choreography and greets once with a toast ("Your month is ready. Pick any day to add more.", or "Pick any day to add your first event." when everything was skipped). The flow is part of the Try Now handoff and nothing persists "mid-flow": a reload during it boots straight to the (possibly empty) calendar, and the landing page's return path (sign-out wipe) brings the flow back with it. Steps slide in on the month grid's `.cy-shift-next` / `.cy-shift-prev` feedback; the screen itself lands on `.cy-land` and lifts out on `.cy-exit`, with `App.tsx` holding the same timed fallback it holds for the landing.
 
 ---
 
@@ -347,7 +346,7 @@ Per `CLAUDE.md` module conventions, each module is a **directory** named after i
 index.html                  # Vite HTML entry
 src/
   main.tsx                  # Vite entry: fonts, globals.css, mounts <App />
-  App.tsx                   # landing -> first-run flow -> calendar phase machine + calendar page composition
+  App.tsx                   # landing-page gate + calendar page composition
   globals.css               # Tailwind layers + design tokens
   components/
     CalendarToolbar/        # month nav, Today, category filter, New Event, HUD line
@@ -370,7 +369,6 @@ src/
     StorageUnavailableBanner/ # shown when storage fails; offers a reset when the DB is unopenable
     SyncSettings/           # settings pane: optional account sync: create / sign-in / TOTP / recovery-key / change-password
     LandingPage/            # first-visit entry screen; Try Now CTA dismisses it via landingGate
-    IntroFlow/              # first-run flow after Try Now: three optional questions that become the first events
   context/
     CalendarContext/        # visible month, events, CRUD actions (including moveEvent), filter state
     SyncContext/            # optional account-sync state machine; consume via useSync()
@@ -387,7 +385,6 @@ src/
     balance/                # running balance from deposits/withdrawals
     displayPreferences/     # synced display overrides (currency, week start); null = automatic; IndexedDB-backed
     landingGate/            # localStorage flag for skipping the landing page on return visits
-    introPlan/              # pure: first-run answers -> the categories and events to create (plus the readout math)
   types/                    # CalendarEvent, Category, Recurrence + type guards
   utils/
     categoryColor/          # PALETTE, DEFAULT_CATEGORY_COLOR, catColorVar
@@ -1012,7 +1009,6 @@ carry no user content (no titles, amounts, dates, categories, or emails).
 | --- | --- | --- |
 | `landing-viewed` | The first-visit landing page renders | |
 | `try-now-clicked` | The landing page's Try Now CTA enters the app | |
-| `intro-finished` | The first-run flow hands off to the calendar, whether completed or skipped out of | `balance`, `income`, `bill` |
 | `new-event-clicked` | The New Event button (full toolbar) or + Add (compact day panel) opens the editor | `layout` |
 | `settings-opened` | The toolbar's Settings button opens the settings dialog | `layout` |
 | `sync-opened` / `data-opened` / `categories-opened` / `display-opened` | The matching settings pane becomes visible (a rail tab on desktop, a drilled-in section on compact) | `layout` |
@@ -1024,8 +1020,6 @@ carry no user content (no titles, amounts, dates, categories, or emails).
 | `signed-in` | The password or device link is accepted, before the 2FA challenge | `method` |
 | `sign-in-choice` | The first-sync conflict prompt is answered | `choice` |
 
-`balance`, `income` and `bill` are booleans saying which of the first-run
-questions were answered (all false is a skipped setup).
 `layout` is `compact` or `full`; `synced` says whether the action also rewrote
 the account's data on every device; `method` is `password` or `device-link`;
 `setting` is `currency` or `week-start` and `automatic` says whether the change

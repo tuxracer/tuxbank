@@ -5,7 +5,6 @@
 export type AnalyticsEventName =
   | "landing-viewed"
   | "try-now-clicked"
-  | "intro-finished"
   | "new-event-clicked"
   | "settings-opened"
   | "sync-opened"
