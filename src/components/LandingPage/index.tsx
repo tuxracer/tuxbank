@@ -360,7 +360,10 @@ const LandingPage = ({
   onExited,
 }: LandingPageProps) => (
   <main
-    className={`h-[100dvh] overflow-y-auto ${leaving ? "cy-exit" : ""}`}
+    // Plain white in the light theme rather than the app's grey page ground:
+    // the landing is paper, and its dark console plate and tinted tiles do the
+    // separating. Dark keeps the shared page ground.
+    className={`h-[100dvh] overflow-y-auto bg-white dark:bg-[color:var(--cy-bg)] ${leaving ? "cy-exit" : ""}`}
     // The landing's own cy-land entrances bubble their animationend up here,
     // so the handoff waits for the event fired by this element itself.
     onAnimationEnd={(e) => {
@@ -463,14 +466,16 @@ const LandingPage = ({
         <PreviewCompact />
       </section>
 
-      {/* Spec grid: the same construction as the month grid (rounded panel
-          tiles over a gap) so the specs read as four cells cut from the
-          calendar above, not a separate marketing surface. */}
+      {/* Spec grid: the same construction as the month grid (rounded tiles
+          over a gap) so the specs read as four cells cut from the calendar
+          above, not a separate marketing surface. The tiles take the panel-2
+          tint rather than the panel fill because the light landing page is
+          white, and a white tile on white paper is no tile. */}
       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {LANDING_SPECS.map((spec) => (
           <div
             key={spec.key}
-            className="flex flex-col gap-2.5 rounded-2xl bg-[color:var(--cy-panel)] p-4 sm:p-5"
+            className="flex flex-col gap-2.5 rounded-2xl bg-[color:var(--cy-panel-2)] p-4 sm:p-5"
           >
             <h2 className="cy-hud text-[color:var(--cy-cyan)]">{spec.key}</h2>
             <p className="cy-display text-2xl leading-[1.05] text-[color:var(--cy-text-strong)]">
