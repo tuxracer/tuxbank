@@ -23,17 +23,27 @@ export const resolveLocalCurrency = (locale: string): string => {
 export const LOCAL_CURRENCY = resolveLocalCurrency(RUNTIME_LOCALE);
 
 // One cached formatter per currency and form: the default plus whatever
-// override the display preferences select, in the full figure and the
-// abbreviated one, without rebuilding Intl.NumberFormat per call.
+// override the display preferences select, in the full figure, the
+// abbreviated one and the whole-unit one, without rebuilding
+// Intl.NumberFormat per call.
+type CurrencyForm = "full" | "short" | "whole";
+const CURRENCY_FORM_OPTIONS: Record<CurrencyForm, Intl.NumberFormatOptions> = {
+  full: {},
+  short: { notation: "compact" },
+  whole: { maximumFractionDigits: 0 },
+};
 const currencyFormats = new Map<string, Intl.NumberFormat>();
-const currencyFormat = (currency: string, short = false): Intl.NumberFormat => {
-  const key = short ? `${currency}:short` : currency;
+const currencyFormat = (
+  currency: string,
+  form: CurrencyForm = "full",
+): Intl.NumberFormat => {
+  const key = `${currency}:${form}`;
   let format = currencyFormats.get(key);
   if (!format) {
     format = new Intl.NumberFormat(undefined, {
       style: "currency",
       currency,
-      ...(short ? { notation: "compact" as const } : {}),
+      ...CURRENCY_FORM_OPTIONS[form],
     });
     currencyFormats.set(key, format);
   }
@@ -57,6 +67,14 @@ export const formatCurrency = (
 export const formatCurrencyShort = (
   amount: number,
   currency: string = LOCAL_CURRENCY,
-): string => currencyFormat(currency, true).format(amount);
+): string => currencyFormat(currency, "short").format(amount);
+/**
+ * The figure without its fraction, for estimates and readouts ("About $4,620
+ * a month") where cents would claim a precision the number does not have.
+ */
+export const formatCurrencyWhole = (
+  amount: number,
+  currency: string = LOCAL_CURRENCY,
+): string => currencyFormat(currency, "whole").format(amount);
 export const formatSignedCompact = (amount: number): string =>
   COMPACT.format(amount);
