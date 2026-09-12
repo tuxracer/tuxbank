@@ -383,7 +383,7 @@ const LandingPage = ({
         <span>
           tuxbank{" "}
           <span className="dim">
-            - an app to privately track your budget (not a bank)
+            · an app to privately track your budget (not a bank)
           </span>
         </span>
         <span className="hidden sm:inline">local first · no account</span>
