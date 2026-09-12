@@ -272,6 +272,14 @@ body {
 [data-cat="orange"] {
   --c: var(--cat-orange);
 }
+/* The cyan fallback for a chip or legend pill rendered without a `data-cat`.
+   It lives in `:where()` so it has zero specificity and the `[data-cat]` rules
+   above beat it wherever either sits in the file. A plain `.cy-chip { --c }`
+   ties with an attribute selector and wins by source order, which once painted
+   every chip and legend pill cyan whatever its category. */
+:where(.cy-chip, .cy-legend) {
+  --c: var(--cy-cyan);
+}
 
 /* Status readouts (sync state, the landing header, the rail keys): the figure
    face in sentence case, so they read as small print rather than a heading. */
@@ -337,7 +345,6 @@ body {
 /* A category toggle in the toolbar: its own colour at a light tint, the way
    a chip carries it. Dimmed, not restyled, when the category is filtered out. */
 .cy-legend {
-  --c: var(--cy-cyan);
   font-family: var(--font-ui), sans-serif;
   font-weight: 700;
   color: var(--cy-text-strong);
@@ -466,10 +473,9 @@ body {
    the same colour: the title in the strong ink at 11px/1.25, the figure at
    the same size in the figure face a weight heavier. In a money calendar the
    number is what the eye goes to, so the face and weight give it the rank.
-   `--c` comes from the chip's `data-cat`; the cyan default only covers a chip
-   rendered without one. */
+   `--c` comes from the chip's `data-cat`; the cyan default for a chip rendered
+   without one is the `:where()` rule next to the `[data-cat]` block. */
 .cy-chip {
-  --c: var(--cy-cyan);
   display: flex;
   align-items: baseline;
   gap: 6px;
