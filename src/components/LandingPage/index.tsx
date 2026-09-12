@@ -378,11 +378,11 @@ const LandingPage = ({
         className="cy-hud cy-land flex items-center justify-between gap-3"
         style={{ animationDelay: `${LANDING_ENTRANCE_MS.header}ms` }}
       >
-        {/* The name says "bank", so the HUD comment says what it is not:
-            nothing here holds or moves money, it only plans it. */}
+        {/* The name says "bank", so the HUD comment says outright what it is
+            not, then what it is. */}
         <span>
           tuxbank{" "}
-          <span className="dim">{"// keeps your budget, not your money"}</span>
+          <span className="dim">{"// not a bank, a budget calendar"}</span>
         </span>
         <span className="hidden sm:inline">local first · no account</span>
       </header>
