@@ -1,6 +1,5 @@
 import { useLayoutEffect, useRef } from "react";
 import type { Day } from "date-fns";
-import { renderSVG } from "uqr";
 import { Button } from "@/components/ui/button";
 import { COLS, weekdayLabels } from "@/components/MonthGrid";
 import {
@@ -19,7 +18,6 @@ import {
 import { fullDateLabel } from "@/utils/fullDateLabel";
 import { prefersReducedMotion } from "@/utils/prefersReducedMotion";
 import {
-  APP_QR_URL,
   LANDING_COUNT_MS,
   LANDING_ENTRANCE_MS,
   LANDING_PREVIEW_CARRY_IN,
@@ -99,19 +97,6 @@ const {
   rows: PREVIEW_ROWS,
   totals: PREVIEW_TOTALS,
 } = buildPreviewMonth(WEEK_STARTS_ON);
-
-/**
- * The hero QR, rendered once at module scope since the URL never changes.
- * Modules are currentColor over a transparent ground, so it prints as bare
- * ink on the page background in either theme. In the dark theme that makes it
- * an inverted code (light modules on dark); modern phone cameras read those,
- * and ECC M buys some margin on top.
- */
-const APP_QR_SVG = renderSVG(APP_QR_URL, {
-  ecc: "M",
-  whiteColor: "transparent",
-  blackColor: "currentColor",
-});
 
 /**
  * The wide grid drops any week the month does not reach, the way MonthGrid
@@ -431,12 +416,16 @@ const LandingPage = ({
             {/* Desktop only: a phone scanning its own screen is pointless, and
                 below lg the hero column has no room for it anyway. */}
             <div className="hidden flex-col items-center gap-1.5 lg:flex">
-              {/* h-24 rather than h-20: the UTM query pushes the code up a QR
-                  version, and the extra 16px keeps the denser modules at a
-                  scannable size. */}
-              <div
-                className="h-24 w-24 text-[color:var(--cy-text-strong)] [&_svg]:h-full [&_svg]:w-full"
-                dangerouslySetInnerHTML={{ __html: APP_QR_SVG }}
+              {/* A pre-rendered raster rather than a runtime-generated code:
+                  the URL never changes, and the image is black ink on a white
+                  ground so it scans the same in both themes. Rounded like the
+                  rest of the tiles. */}
+              <img
+                src="/qr.png"
+                alt="QR code linking to tuxbank.app"
+                width={96}
+                height={96}
+                className="h-24 w-24 rounded-2xl"
               />
               <span className="cy-hud">on your phone</span>
             </div>
