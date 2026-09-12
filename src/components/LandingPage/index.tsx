@@ -418,14 +418,14 @@ const LandingPage = ({
             <div className="hidden flex-col items-center gap-1.5 lg:flex">
               {/* A pre-rendered raster rather than a runtime-generated code:
                   the URL never changes, and the image is black ink on a white
-                  ground so it scans the same in both themes. Rounded like the
-                  rest of the tiles. */}
+                  ground so it scans the same in both themes. Left square: the
+                  quiet zone around the modules has to stay intact. */}
               <img
                 src="/qr.png"
                 alt="QR code linking to tuxbank.app"
                 width={96}
                 height={96}
-                className="h-24 w-24 rounded-2xl"
+                className="h-24 w-24"
               />
               <span className="cy-hud">on your phone</span>
             </div>
