@@ -378,11 +378,13 @@ const LandingPage = ({
         className="cy-hud cy-land flex items-center justify-between gap-3"
         style={{ animationDelay: `${LANDING_ENTRANCE_MS.header}ms` }}
       >
-        {/* The name says "bank", so the line says outright what it is not,
-            then what it is, joined the way the right-hand HUD pairs its
-            phrases. */}
+        {/* The name says "bank", so the line says what the app is and then,
+            in parentheses, what it is not. */}
         <span>
-          tuxbank <span className="dim">· not a bank, a budget calendar</span>
+          tuxbank{" "}
+          <span className="dim">
+            - an app to privately track your budget (not a bank)
+          </span>
         </span>
         <span className="hidden sm:inline">local first · no account</span>
       </header>
