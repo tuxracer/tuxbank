@@ -418,9 +418,6 @@ const LandingPage = ({
             >
               Try now
             </Button>
-            <span className="cy-mono text-xs text-[color:var(--cy-muted)]">
-              opens straight into the calendar
-            </span>
             {/* Desktop only: a phone scanning its own screen is pointless, and
                 below lg the hero column has no room for it anyway. */}
             <div className="hidden flex-col items-center gap-1.5 lg:flex">
