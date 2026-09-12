@@ -399,16 +399,20 @@ const LandingPage = ({
           as a <span className="text-[color:var(--cy-cyan)]">month</span>.
         </h1>
 
+        {/* The column is capped at the paragraph's measure (in its own type
+            size, so the ch unit agrees with the copy) and the button row runs
+            the full width of it: the button keeps the left edge and the QR
+            code sits flush with the paragraph's right edge. */}
         <div
-          className="cy-land flex flex-col items-start gap-5"
+          className="cy-land flex max-w-[40ch] flex-col items-start gap-5 text-base sm:text-lg"
           style={{ animationDelay: `${LANDING_ENTRANCE_MS.copy}ms` }}
         >
-          <p className="max-w-[40ch] text-base text-[color:var(--cy-text)] sm:text-lg">
+          <p className="text-[color:var(--cy-text)]">
             Deposits and withdrawals land on the days they happen. The running
             balance moves with them, so you can see what you will have on any
             day ahead.
           </p>
-          <div className="flex flex-wrap items-center gap-4">
+          <div className="flex w-full flex-wrap items-center justify-between gap-4">
             {/* Hero-scale on purpose: h-auto opts out of the 32px control row. */}
             <Button
               type="button"
