@@ -1,25 +1,20 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" fill="#0a0c11" />
-  <rect x="14" y="14" width="484" height="484" fill="none" stroke="#1b2431" stroke-width="4" />
-  <!-- past days: ink accumulates through the month like the running balance -->
-  <g fill="#22d3ee">
-    <rect x="56" y="56" width="88" height="88" opacity="0.1" />
-    <rect x="160" y="56" width="88" height="88" opacity="0.13" />
-    <rect x="264" y="56" width="88" height="88" opacity="0.16" />
-    <rect x="368" y="56" width="88" height="88" opacity="0.2" />
-    <rect x="56" y="160" width="88" height="88" opacity="0.25" />
-    <rect x="160" y="160" width="88" height="88" opacity="0.3" />
-    <rect x="264" y="160" width="88" height="88" opacity="0.36" />
-    <rect x="368" y="160" width="88" height="88" opacity="0.43" />
-    <rect x="56" y="264" width="88" height="88" opacity="0.51" />
-    <rect x="160" y="264" width="88" height="88" opacity="0.6" />
-    <rect x="264" y="264" width="88" height="88" opacity="0.7" />
-    <rect x="368" y="264" width="88" height="88" opacity="0.8" />
-    <rect x="56" y="368" width="88" height="88" opacity="0.9" />
-    <rect x="160" y="368" width="88" height="88" />
-  </g>
-  <!-- today -->
-  <rect x="264" y="368" width="88" height="88" fill="#fbbf24" />
-  <!-- the future: outline only -->
-  <rect x="370" y="370" width="84" height="84" fill="none" stroke="#22d3ee" stroke-width="4" opacity="0.25" />
+  <rect width="512" height="512" rx="112" fill="#0a0c11" />
+  <rect x="40" y="40" width="96" height="96" rx="24" fill="#0c1a20" />
+  <rect x="152" y="40" width="96" height="96" rx="24" fill="#0d242c" />
+  <rect x="264" y="40" width="96" height="96" rx="24" fill="#0c1e25" />
+  <rect x="376" y="40" width="96" height="96" rx="24" fill="#0e2c34" />
+  <rect x="40" y="152" width="96" height="96" rx="24" fill="#0f343d" />
+  <rect x="152" y="152" width="96" height="96" rx="24" fill="#0e2a32" />
+  <rect x="264" y="152" width="96" height="96" rx="24" fill="#10424d" />
+  <rect x="376" y="152" width="96" height="96" rx="24" fill="#0f3842" />
+  <rect x="40" y="264" width="96" height="96" rx="24" fill="#12505c" />
+  <rect x="152" y="264" width="96" height="96" rx="24" fill="#166c7b" />
+  <rect x="264" y="264" width="96" height="96" rx="24" fill="#145c69" />
+  <rect x="376" y="264" width="96" height="96" rx="24" fill="#187f91" />
+  <rect x="40" y="376" width="96" height="96" rx="24" fill="#1da7bd" />
+  <rect x="152" y="376" width="96" height="96" rx="24" fill="#22d3ee" />
+  <rect x="264" y="376" width="96" height="96" rx="24" fill="#fbbf24" />
+  <rect x="376" y="376" width="96" height="96" rx="24" fill="#187e8c" />
+  <rect x="382" y="382" width="84" height="84" rx="18" fill="#0b181e" />
 </svg>
