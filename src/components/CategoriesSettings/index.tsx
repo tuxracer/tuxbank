@@ -58,7 +58,7 @@ const CategoriesSettings = ({
       />
 
       {categories.length === 0 && (
-        <p className="cy-mono text-xs text-[color:var(--cy-muted)]">
+        <p className="text-xs text-[color:var(--cy-muted)]">
           No categories yet.
         </p>
       )}
@@ -103,7 +103,7 @@ const CategoriesSettings = ({
               </Button>
             </div>
             {renameError?.id === c.id && (
-              <p className="cy-mono text-xs text-[color:var(--cy-magenta)]">
+              <p className="text-xs text-[color:var(--cy-magenta)]">
                 {renameError.message}
               </p>
             )}
@@ -121,7 +121,7 @@ const CategoriesSettings = ({
       )}
 
       {confirming && (
-        <div className="cy-mono mt-2 flex flex-col gap-2 border-t border-[color:var(--cy-line)] pt-2 text-xs">
+        <div className="mt-2 flex flex-col gap-2 border-t border-[color:var(--cy-line)] pt-2 text-xs">
           <span>
             {usageCountById[confirming.id] ?? 0} events use &quot;
             {confirming.name}&quot;. They&apos;ll become Uncategorized.

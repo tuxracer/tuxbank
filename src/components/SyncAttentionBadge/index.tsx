@@ -10,7 +10,7 @@ export const SyncAttentionBadge = () => {
   if (!attention) return null;
   return (
     <span
-      className="cy-mono flex items-center gap-1.5 text-[10px] uppercase"
+      className="cy-hud flex items-center gap-1.5"
       style={{ color: attention.colorVar }}
     >
       <span

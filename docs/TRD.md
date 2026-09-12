@@ -1,10 +1,10 @@
-# TRD: Full-Page Cyberpunk Calendar
+# TRD: Full-Page Budget Calendar
 
 > Technical Reference Document. See [CLAUDE.md](../CLAUDE.md) for project conventions.
 
 **Status:** Draft for review · **Date:** 2026-05-30 · **Owner:** Derek Petersen
 
-A single-user, full-page **month calendar** web app with a **cyberpunk-inspired** interface. Events are created, edited, and deleted entirely in the browser and persist locally in **IndexedDB** (via the `idb` library) with no backend or account by default. An optional, end-to-end-encrypted account sync (managed Supabase backend, required TOTP 2FA) can be enabled for cross-device sync; see the Optional account sync section. Local-only use is unchanged when signed out. Events can repeat, and repeating events can be edited or deleted at three scopes (this occurrence / this and following / the whole series).
+A single-user, full-page **month calendar** web app with a **soft, rounded** interface. Events are created, edited, and deleted entirely in the browser and persist locally in **IndexedDB** (via the `idb` library) with no backend or account by default. An optional, end-to-end-encrypted account sync (managed Supabase backend, required TOTP 2FA) can be enabled for cross-device sync; see the Optional account sync section. Local-only use is unchanged when signed out. Events can repeat, and repeating events can be edited or deleted at three scopes (this occurrence / this and following / the whole series).
 
 ---
 
@@ -12,7 +12,7 @@ A single-user, full-page **month calendar** web app with a **cyberpunk-inspired*
 
 ### Goals
 - A calendar that **fills the entire viewport** and is the whole app, with no chrome competing for space.
-- A **cohesive, cyberpunk-inspired aesthetic**: flat data-ink surfaces, a disciplined accent palette, and no glow effects, not a generic theme.
+- A **cohesive, friendly aesthetic**: rounded tiles and pills, flat colour, a disciplined accent palette, and no glow effects, not a generic theme.
 - Fast, fully **client-side** personal scheduling: create/edit/delete events with **no sign-in and no network dependency**.
 - **Local persistence** that survives reloads via IndexedDB.
 - Support **recurring events** with familiar Google-Calendar-style edit/delete scopes.
@@ -40,13 +40,13 @@ A single person managing their own schedule of **all-day, date-based events**: m
 | PWA / offline | **vite-plugin-pwa** (Workbox) | Service worker precaches the build for offline cold-loads, but answers navigations network-first so an online visitor is never a deploy behind; installable web manifest + icons in `public/`. Build emits `sw.js`, a `workbox-*.js` helper it loads, and `manifest.webmanifest` into `dist/`; registration uses `workbox-window` via `virtual:pwa-register`. |
 | Language | **TypeScript** (ESM) | Per repo conventions in `CLAUDE.md`. |
 | UI library | **React** | |
-| Styling | **Tailwind CSS** | Utility-first; cyberpunk design tokens defined as CSS variables in `globals.css`. |
-| Components | **shadcn/ui** (Radix primitives) | Dialog, Select, Popover, RadioGroup, Button, Input, Textarea, Label, Form, restyled to the cyberpunk theme. |
+| Styling | **Tailwind CSS** | Utility-first; design tokens defined as CSS variables in `globals.css`. |
+| Components | **shadcn/ui** (Radix primitives) | Dialog, Select, Popover, RadioGroup, Button, Input, Textarea, Label, Form, restyled to the app's tokens. |
 | Forms | **react-hook-form** + **zod** (via `@hookform/resolvers`) | Form state & validation for the event editor; drives shadcn's `Form` component and its accessible field errors. |
 | Date math | **date-fns** | Grid generation, recurrence stepping, comparisons. |
 | Date picker | **Native `<input type="date">`** | Used for the event form's Date field; main month grid is custom-built. The shadcn `calendar` primitive remains available for future use. |
 | Persistence | **IndexedDB** via **idb** | Two object stores (events, categories); see §"Persistence: IndexedDB". |
-| Fonts | **Rajdhani**, **Chakra Petch**, **JetBrains Mono** | Self-hosted via `@fontsource` packages (latin subsets), imported in `src/main.tsx`. Display / UI / data, respectively. |
+| Fonts | **Nunito**, **Sono** | Self-hosted variable fonts via `@fontsource-variable` packages (latin subsets), declared in `src/fonts.css`. Display and UI / figures, respectively. |
 | Drag-and-drop | **@dnd-kit/core** | `DndContext` + `PointerSensor` in `src/App.tsx`; chips use `useDraggable`, cells use `useDroppable`. |
 | Toasts | **sonner** | Move confirmations with Undo; themed wrapper in `src/components/ui/sonner.tsx`. |
 | Testing | **vitest** + **@testing-library/react** | Behavior-focused tests per `CLAUDE.md`; storage tests run against fake-indexeddb. |
@@ -236,7 +236,7 @@ This mirrors iCalendar semantics (`EXDATE` / `RECURRENCE-ID` for single override
 - **Day cell:** date number; **today** highlight; dimmed out-of-month days; stacked **event chips** (with ↻ for recurring); **"+N more"** → **day popover**. A day cell shows as many event chips as fit its measured row height and collapses the rest into the "+N more" popover, so chips never clip. There is **no fixed maximum**: capacity is whatever the row can hold, so a taller window shows more chips rather than hiding them behind a trigger it has the room to avoid. `MonthGrid` measures one shared row height (every row is an equal `1fr` track) with a `ResizeObserver` and passes each cell the answer from `chipCapacity`; the "+N more" line is only reserved when the day's occurrences genuinely exceed what fits. When no chips fit, the trigger reads "N events" instead. Before the first measurement (and always under jsdom, whose `ResizeObserver` stub never fires) a cell has no limit to apply and renders every chip.
 - **Event editor (Dialog):** built with shadcn `Form` + **react-hook-form**/zod. Fields: Title, Date (native `<input type="date">`), Category (`CategoryCombobox`: creatable combobox built on shadcn `Command` + `Popover`; backed by `useCategorySearch` for filtering and exact-match detection; pick existing or create a new name + color via `CategoryCreateRow`), Repeat (`NativeSelect`: Does-not-repeat / Daily / Weekly / Monthly / Yearly) with interval + optional end date; footer with **Delete**, **Cancel**, **Save**. The shadcn `calendar`/`Select` primitives remain available for future use.
 - **Recurring scope dialog:** This event / This and following / All events (used for edit, delete, and move); options that cannot apply are hidden, so the last occurrence of a series offers no "This and following" and the first occurrence offers no "All events" (see §7).
-- **Move toast:** a `sonner` toast at the bottom center confirms every move and provides an Undo action. Styled to the cyberpunk panel look via `.cy-toast` / `.cy-toast-action` in `globals.css`.
+- **Move toast:** a `sonner` toast at the bottom center confirms every move and provides an Undo action. Styled to the floating-panel look via `.cy-toast` / `.cy-toast-action` in `globals.css`.
 - **Responsive / compact mode:** below 640px (Tailwind's `sm` breakpoint) the `useIsCompact()` hook (`src/hooks/useIsCompact/`, matchMedia-driven) switches the calendar to compact rendering. The grid always shows the full 6 week-rows (unlike desktop, which trims to the weeks the month spans). Day cells show up to 4 category-colored dots (plus a `+` marker when there are more) instead of full chips, and tapping a day selects it. They still carry the running balance on their bottom line, abbreviated by the locale's own compact notation ("$1.2K", `formatCurrencyShort`) at 9px (`.cy-balance-sm`), because the full figure does not fit a cell roughly 50px wide; the exact amount stays one tap away in the `DayPanel`. Compact cells also run tighter than desktop ones (`p-1` / `gap-0.5` rather than `p-1.5` / `gap-1`) so all three lines clear a row that is only about 43px tall on a 568px-high phone. Swiping the grid left or right changes months (left for next, right for previous), with a brief 180ms directional slide as feedback. The selected day's events, running balance, and an Add button appear in a `DayPanel` below the grid. The toolbar becomes two rows: navigation and an overflow menu (shadcn Popover) on row 1, the category legend on row 2; the menu holds SYNC, DATA, and CATEGORIES, and its trigger shows a bare attention dot when any item inside needs attention. Drag-and-drop is disabled in compact mode; events move between days by editing the date in the event editor. Dialogs cap their height at `85dvh` and scroll internally.
 - **Empty state:** a styled prompt to create the first event when the calendar has none.
 - **Landing page (first visit only):** `src/components/LandingPage` renders instead of the calendar until the visitor clicks the **Try Now** CTA. It stacks three bands: a hero (HUD status line, headline, supporting line, `.cy-cta` button), a full-width **preview console**, and a **spec grid** of four cells (Account / Storage / Sync / Price) built with the month grid's own construction (panel fills over a hairline `gap-px` background, 1px `--cy-line` outer border), each holding a mono HUD key, a display-face claim, and one supporting sentence. A footer with the MIT license and a source-repo link closes the page.
@@ -245,81 +245,94 @@ The console is the page's one bold element. It renders a fixed March 2026 built 
 
 ---
 
-## 10. Design Language: cyberpunk-inspired, sober
+## 10. Design Language: Pebble, soft and flat
 
-A flat, disciplined treatment where color carries meaning instead of decoration. This section is the canonical visual spec; the source-of-truth tokens live in `src/globals.css`.
+A rounded, friendly treatment where colour carries meaning instead of decoration. Surfaces are filled tiles and pills with no hairlines of their own; a slightly darker ground between them does the separating. This section is the canonical visual spec; the source-of-truth tokens live in `src/globals.css`. The `cy-` class prefix predates this language and is kept as the app's own CSS namespace.
 
 ### Palette: data ink, not decoration
 
-Cyan is the only interface accent: navigation, links, the primary CTA, focus and selection state. All five accents (cyan, magenta, yellow, green, orange) are also available as user-assigned category colors. Beyond that, colors double up rather than staying reserved to one meaning: magenta is the error/destructive/negative-balance color (validation errors, destructive buttons, `.cy-balance-neg`); yellow marks today's cell and also flags offline sync status (`SyncAttentionBadge`); orange also flags sync-error status alongside its category use; green appears in exactly one place, the online HUD indicator (`.cy-hud .on`). Light and dark are independently designed token sets defined in `src/globals.css`, not one derived from the other.
+Cyan is the only interface accent: navigation, the primary CTA, focus and selection state, the active direction segment. All five accents (cyan, magenta, yellow, green, orange) are also available as user-assigned category colours. Beyond that, colours double up rather than staying reserved to one meaning: magenta is the error/destructive/negative-balance colour (validation errors, destructive buttons, `.cy-balance-neg`, the storage banner); yellow marks today's cell and also flags offline sync status (`SyncAttentionBadge`); orange also flags sync-error status alongside its category use; green appears in exactly one place, the online HUD indicator (`.cy-hud .on`). Light and dark are independently designed token sets defined in `src/globals.css`, not one derived from the other.
 
 **Light** (`:root`)
 
 | Token | Hex | Role |
 | --- | --- | --- |
 | `--cy-bg` | `#eff2f6` | page background |
-| `--cy-panel` | `#ffffff` | cards, dialogs, toolbar |
-| `--cy-panel-2` | `#f7f9fb` | raised fill (today / selected / drop cell) |
-| `--cy-line` | `#d6dde6` | borders |
-| `--cy-hairline` | `#e6ebf1` | day-cell borders |
+| `--cy-ground` | `#f5f7fa` | the plate under the month grid (`.cy-frame`) and the settings rail |
+| `--cy-panel` | `#ffffff` | tiles, dialogs, toolbar |
+| `--cy-panel-2` | `#f1f4f8` | control fill (buttons, inputs, selects, the direction track) |
+| `--cy-line` | `#d6dde6` | unused by tiles; kept for the landing rail divider |
+| `--cy-hairline` | `#e6ebf1` | dividers inside dialogs (settings headers, event-form sections) |
 | `--cy-text` | `#1b2430` | body text |
-| `--cy-text-strong` | `#0b1119` | headings, emphasis |
-| `--cy-muted` | `#5c6d7f` | secondary text, HUD labels |
+| `--cy-text-strong` | `#0b1119` | headings, emphasis, chip text |
+| `--cy-muted` | `#5c6d7f` | secondary text, labels, readouts |
 | `--cy-cyan` | `#0e7490` | interface accent |
-| `--cy-magenta` | `#be123c` | withdrawals |
+| `--cy-magenta` | `#be123c` | withdrawals, errors |
 | `--cy-yellow` | `#b45309` | today |
-| `--cy-green` | `#047857` | deposits |
-| `--cy-orange` | `#c2410c` | category-only |
+| `--cy-green` | `#047857` | online |
+| `--cy-orange` | `#c2410c` | category-only, sync error |
+| `--cy-shadow` | `0 12px 32px -12px rgba(11, 17, 25, 0.22)` | the one drop shadow: dialogs, popovers, toasts |
 
 **Dark** (`@media (prefers-color-scheme: dark)`)
 
 | Token | Hex | Role |
 | --- | --- | --- |
 | `--cy-bg` | `#0a0c11` | page background |
-| `--cy-panel` | `#0d1119` | cards, dialogs, toolbar |
-| `--cy-panel-2` | `#10151f` | raised fill (today / selected / drop cell) |
-| `--cy-line` | `#1b2431` | borders |
-| `--cy-hairline` | `#151c27` | day-cell borders |
+| `--cy-ground` | `#11161f` | the plate under the month grid and the settings rail |
+| `--cy-panel` | `#0d1119` | tiles, dialogs, toolbar |
+| `--cy-panel-2` | `#171d28` | control fill |
+| `--cy-line` | `#1b2431` | landing rail divider |
+| `--cy-hairline` | `#151c27` | dividers inside dialogs |
 | `--cy-text` | `#c8d4e0` | body text |
-| `--cy-text-strong` | `#eaf2f8` | headings, emphasis |
-| `--cy-muted` | `#6b7c8f` | secondary text, HUD labels |
+| `--cy-text-strong` | `#eaf2f8` | headings, emphasis, chip text |
+| `--cy-muted` | `#6b7c8f` | secondary text, labels, readouts |
 | `--cy-cyan` | `#22d3ee` | interface accent |
-| `--cy-magenta` | `#f0407a` | withdrawals |
+| `--cy-magenta` | `#f0407a` | withdrawals, errors |
 | `--cy-yellow` | `#fbbf24` | today |
-| `--cy-green` | `#34d399` | deposits |
-| `--cy-orange` | `#fb923c` | category-only |
+| `--cy-green` | `#34d399` | online |
+| `--cy-orange` | `#fb923c` | category-only, sync error |
+| `--cy-shadow` | `0 12px 32px -12px rgba(0, 0, 0, 0.7)` | the one drop shadow |
 
-Category accents (`--cat-{color}` for cyan, magenta, yellow, green, orange) mirror the matching `--cy-*` accent value in each theme; components read them through `catColorVar` in `src/utils/categoryColor`.
+Category accents (`--cat-{color}` for cyan, magenta, yellow, green, orange) mirror the matching `--cy-*` accent value in each theme. Anything that carries a category sets `data-cat="{color}"` on itself, and a rule per colour in `globals.css` resolves that to the `--c` custom property the chip and legend tints are mixed from (`color-mix(in oklab, var(--c) 16%, var(--cy-panel))` for a chip, 14% for a legend pill). Components that need the raw colour in JS (compact-cell dots, the colour picker) read it through `catColorVar` in `src/utils/categoryColor`.
 
-### Effects: none
+### Shape: tiles and pills
 
-No glow anywhere: no outer glow, no colored drop-shadow, no `text-shadow`. Two `box-shadow`s exist, both zero-blur color fills rather than glows: the flat 2px inset left edge used for the day-cell highlight states (today / selected / drop, see Component styling below), and the 1px focus ring on form controls and buttons (see Focus below). No radial gradients, no CRT-style overlay lines, no background grid. No cut or angled corners: every surface is a flat fill with a straight 1px CSS border (`--cy-line` or `--cy-hairline`). Corners are square everywhere, controlled in one place: the shadcn `--radius` token is `0`, so every `rounded-*` utility on a primitive (inputs, selects, buttons, dialogs, popovers) computes flat and no per-component reset is needed. The exceptions are elements that are round by nature, which use `rounded-full` and do not read that token: category dots and the sync attention badge. The design system adds two animations, both described under Component styling: the month-change slide in the app, and the one-shot fill-in on the landing-page console. shadcn/Radix UI primitives (dialogs, popovers, toasts) keep their own built-in open/close transitions on top of that.
+- **Corners.** The shadcn `--radius` token is `12px` and the `--radius-*` scale is written in whole pixels rather than derived (`sm` 8, `md` 10, `lg` 12, `xl` 16, `2xl` 20). Day cells and popovers sit at 12px, dialogs, the toolbar, the console frame and toasts at 16px, the compact settings menu tiles at 20px, and every control (`Button`, `Input`, `NativeSelect`, the Radix select trigger, the input group) is a full pill (`rounded-full`). `Textarea` is the exception at 16px, since a multi-line box has no pill shape to take. Elements that are round by nature (category dots, the sync attention dot) also use `rounded-full`.
+- **No hairlines on tiles.** A day cell, the toolbar, a dialog and a control are all fills without borders; the shadcn `--input` token is transparent for that reason, and the `.cy-*` classes that used to draw a 1px line set `border: 1px solid transparent` so a focus edge can appear without shifting layout. The ground plate (`--cy-ground`, `.cy-frame`) separates the tiles. Out-of-month cells are holes: `background: transparent`, so the plate shows through, plus a dimmed numeral.
+- **Dividers inside dialogs stay.** The settings dialog's headers and the event form's sections keep a 1px `--cy-hairline` rule between them, since they are regions inside one panel rather than separate objects.
+- **Effects.** One soft drop shadow (`--cy-shadow`) on the surfaces that float over the page: dialogs and popovers (`.cy-dialog`) and toasts (`.cy-toast`). Nothing else casts one: tiles, the toolbar and controls stay flat. No glow, no gradient, no `text-shadow`, no overlay lines. The remaining `box-shadow`s are zero-blur fills: the 2px inset ring on the day-cell highlight states. Tinted fills come from `color-mix`, never from a second palette.
+- **Focus** (`:focus-visible`): a 1px cyan edge plus a 3px halo at 35% cyan, drawn by the primitives in `src/components/ui` as `border-ring ring-3 ring-ring/35` with the shadcn `--ring` token pointing at `--cy-cyan`. `.cy-btn`, `.cy-nav` and `.cy-legend` set their own border (unlayered, so it wins), so they restate the cyan edge and draw the halo as a 3px `outline`. `.cy-cta` is already a cyan fill, so its halo sits 2px outside the pill. A scroll container that holds focusable controls has to leave inline room for the halo (`-mx-1 px-1`); see the Gotchas in CLAUDE.md.
 
 ### Typography
-- **Rajdhani** (600/700): display headings, month label, CTAs.
-- **Chakra Petch**: general UI text.
-- **JetBrains Mono**: all figures, date numbers, HUD readouts, field labels.
 
-Day-cell type follows the source design mock. Chrome sits at 9-11px (`.cy-weekhead` 9px/`0.22em`, `.cy-cell-num` 11px/1.1, `.cy-balance` 10px) and the chip carries an 11px/1.25 title against an equally sized figure (`.cy-chip-amount`) at **weight 500**, tinted with the same category accent that draws the chip's left edge. Weight alone gives the figure its rank, because in a money calendar the number is what the eye goes to. JetBrains Mono 500 is imported in `src/main.tsx`; without that weight loaded the rule silently falls back to 400. The mock sets this figure at 10.5px, but px values are always whole numbers here (see CLAUDE.md), and 11px is visually indistinguishable.
+- **Nunito** (variable, 200 to 1000): the display face at weight 800 (`.cy-display`: dialog titles, the hero, the month label, CTAs) and the UI face at 400 to 700 for everything else.
+- **Sono** (variable, 200 to 800): all figures, date numerals, balances, status readouts (`.cy-hud`) and recovery-key text. Loaded from the weight-only variable file, which fixes the family's `MONO` axis at its default of 1, so every glyph is monospaced and figures line up in columns.
+- Both are self-hosted from the `@fontsource-variable` packages through `src/fonts.css`, one latin woff2 per family.
+- **Sentence case everywhere.** No `text-transform: uppercase` and no tracked-out labels; the only letter-spacing in the system is `.cy-hud`'s 0.02em. Buttons read "+ New event", "Settings", "Export database".
+- Labels: `.cy-label` (Nunito 700, 11px, muted) for field labels, the day-panel date and the popover date. Readouts: `.cy-hud` (Sono 500, 11px, muted).
 
-Sizes for `.cy-weekhead`, `.cy-cell-num`, and `.cy-chip` live on the classes themselves, never at the call site. Two reasons: the landing preview reuses the same classes and has to stay identical, and a day cell's vertical budget is zero-sum, so `DAY_NUMBER_HEIGHT_PX` and `CHIP_HEIGHT_PX` in `MonthGrid/consts.ts` mirror these rules and are re-measured in a browser whenever they change.
+Day-cell type: chrome sits at 9 to 11px (`.cy-weekhead` Nunito 700 at 11px, `.cy-cell-num` Sono 500 at 11px/1.1, `.cy-balance` Sono 500 at 10px) and the chip carries an 11px/1.25 Nunito 600 title against an equally sized Sono 500 figure (`.cy-chip-amount`). The face and weight give the figure its rank, because in a money calendar the number is what the eye goes to. Sizes for `.cy-weekhead`, `.cy-cell-num`, and `.cy-chip` live on the classes themselves, never at the call site. Two reasons: the landing preview reuses the same classes and has to stay identical, and a day cell's vertical budget is zero-sum, so `DAY_NUMBER_HEIGHT_PX` and `CHIP_HEIGHT_PX` in `MonthGrid/consts.ts` mirror these rules (13px and 20px, measured at 12.09px and 19.75px) and are re-measured in a browser whenever they change.
 
 ### Component styling
-- Event chips (`.cy-chip`): flat fill, a 2px left border in the category accent, no glow. The amount (`.cy-chip-amount`) takes that same accent, so the category reads twice in one chip; the title stays in the strong text ink. Baseline-aligned, with the amount pushed right by `ml-auto` (rather than the mock's `space-between`, which would strand the recurring **↻** marker in the middle).
-- Primary CTA (`.cy-cta`): solid cyan fill, square corners, no glow.
-- Dialogs (`.cy-dialog`): flat panel fill, 1px `--cy-line` border, `box-shadow: none`.
-- Day-cell states `.today` / `.selected` / `.drop` share one grammar: a 2px inset left edge (`box-shadow: inset 2px 0 0 <color>`) over a `--cy-panel-2` fill. Source order in `globals.css` is the precedence rule: `.cy-cell.drop` is defined last, so a cell that is both today and an active drop target shows the cyan drop edge, since the drag affordance is the more urgent signal. `.cy-cell.out` (a day outside the current month) is a different treatment: a flat `--cy-bg` fill and a dimmed date numeral (`opacity: 0.45`), no box-shadow edge. When a cell is both `.out` and `.today`, the numeral opacity is forced back to `1` so the amber today color stays legible.
+
+- Event chips (`.cy-chip`): a capsule filled with the category tint, led by a 6px dot in the category colour drawn by `::before`, with a 3px vertical padding. The title stays in the strong ink; the amount (`.cy-chip-amount`) too, so the same figure reads the same from one row to the next. Baseline-aligned, with the amount pushed right by `ml-auto` (rather than `space-between`, which would strand the recurring **↻** marker in the middle).
+- Buttons (`.cy-btn`): Nunito 700 over a `--cy-panel-2` fill, hover mixes 7% of the text ink into the fill. Prev/next (`.cy-nav`) are the same pill in cyan at weight 800. Category toggles in the toolbar (`.cy-legend`) are the chip's own tint at 14%, dimmed to 35% opacity when filtered out.
+- Primary CTA (`.cy-cta`): solid cyan pill, Nunito 800. Hover mixes 16% of the strong text ink into the cyan; pressed 30%, landing instantly. Neither lifts or glows.
+- Dialogs and popovers (`.cy-dialog`): panel fill, no border, `--cy-shadow`. Toasts (`.cy-toast`) match, in Nunito 600 at 13px, with a cyan pill action.
+- Day-cell states `.today` / `.selected` / `.drop` share one grammar: a 2px inset ring (`box-shadow: inset 0 0 0 2px <color>`) over the tile tinted 8% with the same colour. Source order in `globals.css` is the precedence rule: `.cy-cell.drop` is defined last, so a cell that is both today and an active drop target shows the cyan drop ring, since the drag affordance is the more urgent signal. When a cell is both `.out` and `.today`, the numeral opacity is forced back to `1` so the amber today colour stays legible.
+- The event editor's direction control is a two-segment pill: a `--cy-panel-2` track with the chosen segment filled cyan.
+- Settings: the wide layout's rail sits on `--cy-ground` with the active tab as a panel-filled pill in cyan text; the compact layout's root menu is a stack of 20px-radius `--cy-panel-2` tiles.
+- Storage banner (`.cy-banner`): a 12% magenta tint in the magenta ink, rounded 16px.
 - Month-change feedback (`.cy-shift-next` / `.cy-shift-prev`): a 180ms directional slide (`translateX` plus an opacity fade), applied by `MonthGrid` and cleared on `animationend`. Disabled under `prefers-reduced-motion` (`animation: none !important`).
-- Primary CTA hover (`.cy-cta:hover`): the cyan fill and border swap to `--cy-text-strong`. A flat inversion, not a glow or a lift.
-- Focus (`:focus-visible`): a flat 2px cyan edge, never a soft ring. The shadcn primitives in `src/components/ui` draw it as a 1px `--ring` border plus a 1px hard ring, with the shadcn `--ring` token pointing at `--cy-cyan` so it follows the theme. `.cy-btn` and `.cy-nav` are also applied to raw buttons and selects that carry no such utilities, so they get the same edge from a 1px cyan `outline` at `outline-offset: 1px`. `.cy-cta` is already a cyan fill, which a cyan line would disappear into, so it focuses in `--cy-text-strong`, the same ink its hover inversion uses. A scroll container that holds focusable controls has to leave inline room for the ring (`-mx-1 px-1`) or it gets clipped; see the Gotchas in CLAUDE.md.
-- Landing console (`.cy-console`): pins the **dark** token set in both themes. The accents are data ink and read most strongly on a dark surface, so on the light landing page the month renders as an instrument set on paper instead of a white box on grey. The values are copied from the `prefers-color-scheme: dark` block rather than invented, so the two must be kept in sync. The app's real calendar shares the console frame (a bordered panel around the grid) but follows the active theme instead of pinning this set.
+- Landing console (`.cy-console`): pins the **dark** token set in both themes, including `--cy-ground`. The accents are data ink and read most strongly on a dark surface, so on the light landing page the month renders as a dark plate set on paper. The values are copied from the `prefers-color-scheme: dark` block rather than invented, so the two must be kept in sync. The app's real calendar shares the plate (`.cy-frame`) but follows the active theme. The landing's spec grid is four 20px-radius panel tiles over a gap, the same construction as the month.
 - Landing fill-in (`.cy-land`): a 300ms `translateY` + fade on each console cell, staggered by an inline `animation-delay` of `LANDING_STAGGER_MS` per cell so the month reads left to right the way it accumulates. `animation-fill-mode: both` holds the from-state through the delay. Disabled under `prefers-reduced-motion`.
+- Boot notice (`index.html`): mirrors the language without loading it, since the stylesheet and fonts may be the very requests that failed: a system sans, a 16px-radius panel, a cyan pill button, and the same six hex values duplicated from `globals.css`.
 
 ### Theming: light/dark (auto, follows OS)
 - Both themes are selected automatically from `prefers-color-scheme`; there is **no in-app toggle and no persistence**. Pure CSS: no JS, no theme class. The one exemption is the landing page's preview console, which pins the dark ink set in both themes (see Landing console above).
-- Every theme-able color is a CSS custom property: light values live in `:root`, dark values in `@media (prefers-color-scheme: dark) { :root { … } }`. The Tailwind `dark:` variant is media-query-driven (`@custom-variant dark (@media (prefers-color-scheme: dark))`), and `:root` sets `color-scheme: light dark` for native controls.
+- Every theme-able colour is a CSS custom property: light values live in `:root`, dark values in `@media (prefers-color-scheme: dark) { :root { … } }`. The Tailwind `dark:` variant is media-query-driven (`@custom-variant dark (@media (prefers-color-scheme: dark))`), and `:root` sets `color-scheme: light dark` for native controls.
 - Light and dark are **independently designed token sets**, not a derived pair: each theme picks its own surface, text, and accent values (see the Palette tables above) rather than inverting the other theme's numbers.
-- Category accents are CSS tokens `--cat-{color}` (not a JS hex map); components reference them via `catColorVar` in `src/utils/categoryColor`.
+- Category accents are CSS tokens `--cat-{color}` (not a JS hex map); chips and legend pills resolve them through `data-cat`, and components that need the value in JS reference them via `catColorVar` in `src/utils/categoryColor`.
 
 ---
 
@@ -334,7 +347,7 @@ index.html                  # Vite HTML entry
 src/
   main.tsx                  # Vite entry: fonts, globals.css, mounts <App />
   App.tsx                   # landing-page gate + calendar page composition
-  globals.css               # Tailwind layers + cyberpunk-inspired design tokens
+  globals.css               # Tailwind layers + design tokens
   components/
     CalendarToolbar/        # month nav, Today, category filter, New Event, HUD line
     MonthGrid/              # week-grid (desktop trims to weeks spanned; compact = 6 rows); consumes dateGrid + grouped occurrences
@@ -446,7 +459,7 @@ Vitest, **behavior-focused** (verify behavior, not implementation constants, per
 
 ## 15. Success Criteria (Acceptance)
 
-1. Opening the app shows the current month full-screen in the cyberpunk theme.
+1. Opening the app shows the current month full-screen in the app's theme.
 2. A user can create, edit, and delete a one-off event; it persists across reload.
 3. A user can create a recurring event (e.g., weekly), and it renders on the correct days within the visible month.
 4. Editing/deleting/moving a recurring event prompts for scope, and **This / This-and-following / All** each behave per §7 and persist correctly.

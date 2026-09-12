@@ -424,11 +424,11 @@ const CalendarScreen = ({ entrance = false }: { entrance?: boolean }) => {
         />
       </div>
 
-      {/* The calendar sits in a bordered console panel like the landing
-          preview's, but follows the active theme rather than pinning the
-          landing's dark ink. */}
+      {/* The calendar sits on the same ground plate as the landing
+          preview's console, but follows the active theme rather than pinning
+          the landing's dark ink. */}
       <section
-        className={`flex min-h-0 flex-1 flex-col border border-[color:var(--cy-line)] bg-[color:var(--cy-bg)] ${landClass}`}
+        className={`cy-frame flex min-h-0 flex-1 flex-col ${landClass}`}
         style={landStyle(APP_ENTRANCE_MS.console)}
       >
         <DndContext
@@ -477,12 +477,12 @@ const CalendarScreen = ({ entrance = false }: { entrance?: boolean }) => {
 
       {totalOccurrences === 0 && (
         <p
-          className={`cy-mono text-center text-xs text-[color:var(--cy-muted)] ${landClass}`}
+          className={`text-center text-xs text-[color:var(--cy-muted)] ${landClass}`}
           style={landStyle(APP_ENTRANCE_MS.panel)}
         >
           {isCompact
-            ? "◢ No events this month — tap a day, then + Add."
-            : "◢ No events this month — click a day or “+ New Event” to begin."}
+            ? "No events this month. Tap a day, then + Add."
+            : "No events this month. Click a day or + New event to begin."}
         </p>
       )}
 

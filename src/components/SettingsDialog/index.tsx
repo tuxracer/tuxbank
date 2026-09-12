@@ -53,12 +53,12 @@ const SettingsDialog = ({
   if (isCompact) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="cy-dialog top-0 left-0 flex h-dvh max-h-none w-screen max-w-none translate-x-0 translate-y-0 flex-col gap-0 border-0 p-0">
+        <DialogContent className="cy-dialog top-0 left-0 flex h-dvh max-h-none w-screen max-w-none translate-x-0 translate-y-0 flex-col gap-0 rounded-none border-0 p-0">
           {tab === null ? (
             <>
-              <header className="flex items-center border-b border-[color:var(--cy-line)] px-4 py-3">
-                <DialogTitle className="cy-display text-lg tracking-wide uppercase">
-                  ◢ Settings
+              <header className="flex items-center border-b border-[color:var(--cy-hairline)] px-4 py-3">
+                <DialogTitle className="cy-display text-lg">
+                  Settings
                 </DialogTitle>
               </header>
               <nav className="flex flex-col gap-2 p-3">
@@ -68,19 +68,19 @@ const SettingsDialog = ({
                     type="button"
                     variant="ghost"
                     onClick={() => onTabChange(t.id)}
-                    // Menu rows, not toolbar controls: identical tall blocks
+                    // Menu rows, not toolbar controls: identical tall tiles
                     // with room for a description line, deliberately off the
-                    // 32px control box the toolbar rule is about.
-                    className="h-auto flex-col items-start gap-1 border border-[color:var(--cy-line)] px-4 py-3 text-left whitespace-normal"
+                    // 32px pill the toolbar rule is about.
+                    className="h-auto flex-col items-start gap-1 rounded-2xl bg-[color:var(--cy-panel-2)] px-4 py-3 text-left whitespace-normal"
                   >
-                    <span className="cy-mono flex w-full items-center gap-2 text-xs tracking-[0.12em] uppercase">
-                      ◢ {t.label}
+                    <span className="flex w-full items-center gap-2 text-sm font-bold">
+                      {t.label}
                       <span className="ml-auto flex items-center gap-2">
                         {t.id === "sync" && <SyncAttentionDot />}
                         <span className="text-[color:var(--cy-muted)]">›</span>
                       </span>
                     </span>
-                    <span className="cy-mono text-[10px] text-[color:var(--cy-muted)]">
+                    <span className="text-xs font-normal text-[color:var(--cy-muted)]">
                       {t.description}
                     </span>
                   </Button>
@@ -92,7 +92,7 @@ const SettingsDialog = ({
             </>
           ) : (
             <>
-              <header className="flex items-center gap-2 border-b border-[color:var(--cy-line)] px-3 py-2">
+              <header className="flex items-center gap-2 border-b border-[color:var(--cy-hairline)] px-3 py-2">
                 <Button
                   type="button"
                   size="icon"
@@ -103,8 +103,8 @@ const SettingsDialog = ({
                 >
                   ‹
                 </Button>
-                <DialogTitle className="cy-display text-base tracking-wide uppercase">
-                  ◢ {tabMeta(tab).title}
+                <DialogTitle className="cy-display text-base">
+                  {tabMeta(tab).title}
                 </DialogTitle>
               </header>
               {/* Keyed so each drill-in mounts fresh and the one-shot
@@ -126,9 +126,9 @@ const SettingsDialog = ({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="cy-dialog flex h-[560px] max-h-[85dvh] flex-row gap-0 overflow-hidden border-0 p-0 sm:max-w-2xl">
-        <aside className="flex w-44 shrink-0 flex-col border-r border-[color:var(--cy-line)] bg-[color:var(--cy-panel-2)]">
-          <DialogTitle className="cy-display px-4 pt-4 pb-3 text-base tracking-wide uppercase">
-            ◢ Settings
+        <aside className="flex w-44 shrink-0 flex-col bg-[color:var(--cy-ground)]">
+          <DialogTitle className="cy-display px-4 pt-4 pb-3 text-base">
+            Settings
           </DialogTitle>
           <nav className="flex flex-col gap-1 px-2">
             {SETTINGS_TABS.map((t) => (
@@ -137,11 +137,11 @@ const SettingsDialog = ({
                 type="button"
                 variant="ghost"
                 onClick={() => onTabChange(t.id)}
-                // The selected tab borrows the calendar's selected-cell
-                // grammar: a 2px inset cyan edge over the raised fill.
-                className={`cy-mono justify-start gap-2 px-3 text-xs tracking-[0.12em] uppercase ${
+                // The selected tab is the one pill with a fill: the panel
+                // tone over the rail's ground, in the interface accent.
+                className={`justify-start gap-2 px-3 text-xs font-bold ${
                   t.id === active
-                    ? "bg-[color:var(--cy-panel)] text-[color:var(--cy-text-strong)] shadow-[inset_2px_0_0_var(--cy-cyan)]"
+                    ? "bg-[color:var(--cy-panel)] text-[color:var(--cy-cyan)]"
                     : "text-[color:var(--cy-muted)]"
                 }`}
               >
@@ -158,9 +158,7 @@ const SettingsDialog = ({
         </aside>
         <div className="flex min-h-0 flex-1 flex-col">
           <header className="border-b border-[color:var(--cy-hairline)] px-5 py-4">
-            <h2 className="cy-display text-base font-medium tracking-wide uppercase">
-              ◢ {tabMeta(active).title}
-            </h2>
+            <h2 className="cy-display text-base">{tabMeta(active).title}</h2>
           </header>
           {/* Keyed so switching tabs mounts a fresh pane (resetting any
               half-finished flow) and replays the one-shot slide. */}

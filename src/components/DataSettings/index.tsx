@@ -127,7 +127,7 @@ const DataSettings = ({
   return (
     <div className="flex flex-col gap-4">
       <section className="flex flex-col gap-2">
-        <p className="cy-mono text-xs text-[color:var(--cy-muted)]">
+        <p className="text-xs text-[color:var(--cy-muted)]">
           Download a full backup of your database ({currentEventCount} events,{" "}
           {currentCategoryCount} categories).
         </p>
@@ -137,12 +137,12 @@ const DataSettings = ({
           disabled={!storageAvailable}
           onClick={handleExport}
         >
-          ◢ EXPORT DATABASE
+          Export database
         </Button>
       </section>
 
       <section className="flex flex-col gap-2 border-t border-[color:var(--cy-line)] pt-3">
-        <p className="cy-mono text-xs text-[color:var(--cy-muted)]">
+        <p className="text-xs text-[color:var(--cy-muted)]">
           Restore from a backup file. This replaces all current data.
         </p>
         <input
@@ -163,12 +163,12 @@ const DataSettings = ({
           disabled={!storageAvailable || flowBusy}
           onClick={() => inputRef.current?.click()}
         >
-          ◢ IMPORT DATABASE
+          Import database
         </Button>
       </section>
 
       <section className="flex flex-col gap-2 border-t border-[color:var(--cy-line)] pt-3">
-        <p className="cy-mono text-xs text-[color:var(--cy-muted)]">
+        <p className="text-xs text-[color:var(--cy-muted)]">
           Permanently delete all events and categories. This cannot be undone.
         </p>
         <Button
@@ -177,12 +177,12 @@ const DataSettings = ({
           disabled={!storageAvailable || flowBusy}
           onClick={startReset}
         >
-          ◢ CLEAR ALL DATA
+          Clear all data
         </Button>
       </section>
 
       {stage.kind === "resetConfirm" && (
-        <div className="cy-mono flex flex-col gap-2 border-t border-[color:var(--cy-magenta)] pt-3 text-xs">
+        <div className="flex flex-col gap-2 border-t border-[color:var(--cy-magenta)] pt-3 text-xs">
           <span>
             Type <span className="text-[color:var(--cy-magenta)]">reset</span>{" "}
             to permanently delete all {currentEventCount} events and{" "}
@@ -218,19 +218,19 @@ const DataSettings = ({
       )}
 
       {stage.kind === "resetting" && (
-        <p className="cy-mono text-xs text-[color:var(--cy-muted)]">
+        <p className="text-xs text-[color:var(--cy-muted)]">
           Clearing all data…
         </p>
       )}
 
       {stage.kind === "validating" && (
-        <p className="cy-mono text-xs text-[color:var(--cy-muted)]">
+        <p className="text-xs text-[color:var(--cy-muted)]">
           Validating backup…
         </p>
       )}
 
       {stage.kind === "confirm" && (
-        <div className="cy-mono flex flex-col gap-2 border-t border-[color:var(--cy-magenta)] pt-3 text-xs">
+        <div className="flex flex-col gap-2 border-t border-[color:var(--cy-magenta)] pt-3 text-xs">
           <span>
             Replace all current data ({currentEventCount} events,{" "}
             {currentCategoryCount} categories) with this backup (
@@ -256,19 +256,17 @@ const DataSettings = ({
       )}
 
       {stage.kind === "importing" && (
-        <p className="cy-mono text-xs text-[color:var(--cy-muted)]">
-          Importing…
-        </p>
+        <p className="text-xs text-[color:var(--cy-muted)]">Importing…</p>
       )}
 
       {stage.kind === "error" && (
-        <p className="cy-mono text-xs text-[color:var(--cy-magenta)]">
+        <p className="text-xs text-[color:var(--cy-magenta)]">
           {stage.message}
         </p>
       )}
 
       {!storageAvailable && (
-        <p className="cy-mono text-xs text-[color:var(--cy-magenta)]">
+        <p className="text-xs text-[color:var(--cy-magenta)]">
           Storage is unavailable — export/import is disabled this session.
         </p>
       )}

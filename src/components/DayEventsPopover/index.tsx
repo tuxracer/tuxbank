@@ -23,16 +23,14 @@ const DayEventsPopover = ({
       <Button
         type="button"
         variant="ghost"
-        className="cy-mono mt-1 h-auto border-0 p-0 text-[10px] font-normal tracking-widest text-[color:var(--cy-cyan)]"
+        className="mt-1 h-auto border-0 p-0 text-[10px] font-bold text-[color:var(--cy-cyan)]"
         onClick={(e) => e.stopPropagation()}
       >
         {label}
       </Button>
     </PopoverTrigger>
     <PopoverContent className="cy-dialog w-56 border-0 p-3">
-      <p className="cy-mono mb-2 text-[10px] uppercase tracking-widest text-[color:var(--cy-cyan)]">
-        {dateLabel}
-      </p>
+      <p className="cy-label mb-2 text-[color:var(--cy-cyan)]">{dateLabel}</p>
       <div className="flex flex-col gap-1">
         {occurrences.map((o) => (
           <EventChip

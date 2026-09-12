@@ -12,11 +12,7 @@ export const CategoryColorPicker = ({
   label,
 }: CategoryColorPickerProps) => (
   <div className="flex items-center gap-2">
-    {label && (
-      <span className="cy-mono text-[10px] uppercase text-[color:var(--cy-muted)]">
-        {label}
-      </span>
-    )}
+    {label && <span className="cy-label">{label}</span>}
     {PALETTE.map((color) => (
       <Button
         key={color}

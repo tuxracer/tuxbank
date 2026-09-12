@@ -41,7 +41,7 @@ const RecurrenceScopeDialog = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="cy-dialog border-0 sm:max-w-sm">
         <DialogHeader>
-          <DialogTitle className="cy-display uppercase tracking-wide">
+          <DialogTitle className="cy-display">
             {action === "edit"
               ? "Edit recurring event"
               : action === "delete"

@@ -209,10 +209,6 @@ const RailFigure = ({ label, value }: { label: string; value: string }) => (
   </div>
 );
 
-const chipStyle = (day: LandingPreviewDay) => ({
-  borderLeftColor: day.event ? catColorVar(day.event.color) : undefined,
-});
-
 // The landing shows before any preference can exist, so its previews follow
 // the locale's week start rather than reading the display preferences.
 const PREVIEW_WEEKDAYS = weekdayLabels(WEEK_STARTS_ON);
@@ -253,7 +249,7 @@ const PreviewGrid = () => (
           >
             <span className="cy-cell-num">{day.label}</span>
             {day.event && (
-              <span className="cy-chip" style={chipStyle(day)}>
+              <span className="cy-chip" data-cat={day.event.color}>
                 <span className="truncate">{day.event.title}</span>
                 <span className="cy-chip-amount ml-auto">
                   {formatSignedCompact(day.event.amount)}
@@ -289,10 +285,7 @@ const PreviewPanel = () => (
     style={{ animationDelay: `${PREVIEW_PANEL_DELAY_MS}ms` }}
   >
     <div className="flex items-center justify-between gap-2">
-      <p
-        className="cy-mono text-[10px] tracking-widest text-[color:var(--cy-cyan)] uppercase"
-        lang={RUNTIME_LOCALE}
-      >
+      <p className="cy-label text-[color:var(--cy-cyan)]" lang={RUNTIME_LOCALE}>
         {fullDateLabel(LANDING_PREVIEW_TODAY_DATE)}
       </p>
       <CountUpBalance
@@ -303,7 +296,10 @@ const PreviewPanel = () => (
       />
     </div>
     <div className="flex flex-col gap-1">
-      <span className="cy-chip w-full" style={chipStyle(PREVIEW_PANEL_DAY)}>
+      <span
+        className="cy-chip w-full"
+        data-cat={PREVIEW_PANEL_DAY.event?.color}
+      >
         <span className="truncate">{PREVIEW_PANEL_DAY.event?.title}</span>
         <span className="cy-chip-amount ml-auto">
           {formatSignedCompact(PREVIEW_PANEL_DAY.event?.amount ?? 0)}
@@ -402,7 +398,7 @@ const LandingPage = ({
 
       <section className="grid gap-6 lg:grid-cols-[1.1fr_1fr] lg:items-end lg:gap-14">
         <h1
-          className="cy-display cy-land text-[clamp(2.75rem,8vw,5.5rem)] leading-[0.88] font-bold tracking-[-0.015em] text-[color:var(--cy-text-strong)]"
+          className="cy-display cy-land text-[clamp(2.75rem,8vw,5.5rem)] leading-[0.95] tracking-[-0.02em] text-[color:var(--cy-text-strong)]"
           style={{ animationDelay: `${LANDING_ENTRANCE_MS.title}ms` }}
         >
           See your money
@@ -454,7 +450,7 @@ const LandingPage = ({
           style={{ animationDelay: `${LANDING_ENTRANCE_MS.rail}ms` }}
         >
           <span
-            className="cy-display text-xl leading-none font-bold tracking-wide text-[color:var(--cy-text-strong)]"
+            className="cy-display text-xl leading-none text-[color:var(--cy-text-strong)]"
             lang={RUNTIME_LOCALE}
           >
             {LANDING_PREVIEW_MONTH}
@@ -478,17 +474,17 @@ const LandingPage = ({
         <PreviewCompact />
       </section>
 
-      {/* Spec grid: the same construction as the month grid (panel fills over
-          a hairline gap-px background) so the specs read as four cells cut
-          from the calendar above, not a separate marketing surface. */}
-      <section className="grid gap-px border border-[color:var(--cy-line)] bg-[color:var(--cy-hairline)] sm:grid-cols-2 lg:grid-cols-4">
+      {/* Spec grid: the same construction as the month grid (rounded panel
+          tiles over a gap) so the specs read as four cells cut from the
+          calendar above, not a separate marketing surface. */}
+      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {LANDING_SPECS.map((spec) => (
           <div
             key={spec.key}
-            className="flex flex-col gap-2.5 bg-[color:var(--cy-panel)] p-4 sm:p-5"
+            className="flex flex-col gap-2.5 rounded-2xl bg-[color:var(--cy-panel)] p-4 sm:p-5"
           >
             <h2 className="cy-hud text-[color:var(--cy-cyan)]">{spec.key}</h2>
-            <p className="cy-display text-2xl leading-[1.05] font-bold tracking-wide text-[color:var(--cy-text-strong)]">
+            <p className="cy-display text-2xl leading-[1.05] text-[color:var(--cy-text-strong)]">
               {spec.title}
             </p>
             <p className="max-w-[44ch] text-sm text-[color:var(--cy-text)]">

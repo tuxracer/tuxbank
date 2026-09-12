@@ -55,9 +55,9 @@ const CalendarToolbar = ({
       <NativeSelect
         title="Month"
         // Month names are Intl text in the viewer's locale inside an English
-        // document, and `uppercase` casing is locale-sensitive.
+        // document.
         lang={RUNTIME_LOCALE}
-        className={`${selectClasses} uppercase`}
+        className={selectClasses}
         value={selectedMonth}
         onChange={(e) => onSelectMonth(Number(e.target.value))}
       >
@@ -117,8 +117,9 @@ const CalendarToolbar = ({
             variant="ghost"
             title={c.name}
             onClick={() => onToggleCategory(c.id)}
-            className="cy-mono gap-1.5 border px-2 text-[10px] uppercase"
-            style={{ borderColor: colorVar, opacity: active ? 1 : 0.35 }}
+            className="cy-legend h-7 gap-1.5 px-2.5 text-[11px]"
+            data-cat={c.color}
+            style={{ opacity: active ? 1 : 0.35 }}
           >
             <span
               className="inline-block h-2.5 w-2.5 rounded-full"
@@ -148,7 +149,7 @@ const CalendarToolbar = ({
               onClick={onOpenSettings}
             >
               {/* U+FE0E keeps the gear a glyph, not an emoji, on mobile. */}
-              {"⚙︎ SETTINGS"}
+              {"⚙︎ Settings"}
               <SyncAttentionDot />
             </Button>
           </div>
@@ -171,7 +172,7 @@ const CalendarToolbar = ({
             onClick={onOpenSettings}
           >
             {/* U+FE0E keeps the gear a glyph, not an emoji. */}
-            {"⚙︎ SETTINGS"}
+            {"⚙︎ Settings"}
             <SyncAttentionBadge />
           </Button>
           <Button
@@ -180,7 +181,7 @@ const CalendarToolbar = ({
             className="cy-cta px-5 text-sm"
             onClick={onNewEvent}
           >
-            + New Event
+            + New event
           </Button>
         </div>
       </div>

@@ -202,13 +202,13 @@ export const SyncSettings = () => {
   return (
     <div className="flex flex-col gap-4">
       {!sync.configured && (
-        <p className="cy-mono text-xs text-[color:var(--cy-muted)]">
+        <p className="text-xs text-[color:var(--cy-muted)]">
           Sync is not configured in this build.
         </p>
       )}
 
       {sync.error && (
-        <p className="cy-mono text-xs text-[color:var(--cy-magenta)]">
+        <p className="text-xs text-[color:var(--cy-magenta)]">
           {errorText(sync.error)}
         </p>
       )}
@@ -216,7 +216,7 @@ export const SyncSettings = () => {
       {/* REAUTH: emailed code to finish a Secure password change */}
       {awaitingReauth && (
         <section className="flex flex-col gap-3">
-          <p className="cy-mono text-xs">
+          <p className="text-xs">
             We emailed you a confirmation code to finish changing your password.
             Enter it below.
           </p>
@@ -268,10 +268,10 @@ export const SyncSettings = () => {
       {/* CONFIRM SIGN OUT: optionally wipe local data on this device */}
       {confirmingSignOut && (
         <section className="flex flex-col gap-3">
-          <p className="cy-mono text-xs">
+          <p className="text-xs">
             Sign out of <span className="cy-hud on">{sync.email}</span>?
           </p>
-          <p className="cy-mono text-xs text-[color:var(--cy-muted)]">
+          <p className="text-xs text-[color:var(--cy-muted)]">
             Your data stays safe in your account and comes back when you sign in
             again.
           </p>
@@ -296,10 +296,10 @@ export const SyncSettings = () => {
         !deleting &&
         !linking && (
           <section className="flex flex-col gap-3">
-            <p className="cy-mono text-xs">
+            <p className="text-xs">
               Signed in as <span className="cy-hud on">{sync.email}</span>
             </p>
-            <p className="cy-mono text-xs text-[color:var(--cy-muted)]">
+            <p className="text-xs text-[color:var(--cy-muted)]">
               {syncStatusLine(sync)}
             </p>
             <Button
@@ -349,12 +349,12 @@ export const SyncSettings = () => {
       {/* DELETE ACCOUNT: password + 2FA code + the typed confirmation phrase */}
       {sync.unlocked && sync.step === "idle" && deleting && (
         <section className="flex flex-col gap-3">
-          <p className="cy-mono text-xs text-[color:var(--cy-magenta)]">
+          <p className="text-xs text-[color:var(--cy-magenta)]">
             Deleting <span className="cy-hud on">{sync.email}</span> erases
             everything it holds on the server, along with the login itself. This
             cannot be undone.
           </p>
-          <p className="cy-mono text-xs text-[color:var(--cy-muted)]">
+          <p className="text-xs text-[color:var(--cy-muted)]">
             This device keeps its calendar. Your events, categories, and
             settings stay here and go back to being local-only. Other devices
             signed into the account keep their copies too, but they stop syncing
@@ -431,7 +431,7 @@ export const SyncSettings = () => {
         changingPw &&
         !awaitingReauth && (
           <section className="flex flex-col gap-3">
-            <p className="cy-mono text-xs">Set a new password.</p>
+            <p className="text-xs">Set a new password.</p>
             <Label htmlFor="cp-new">New password</Label>
             <Input
               id="cp-new"
@@ -447,7 +447,7 @@ export const SyncSettings = () => {
               onChange={(e) => setConfirmPassword(e.target.value)}
             />
             {confirmPassword.length > 0 && password !== confirmPassword && (
-              <p className="cy-mono text-[10px] text-[color:var(--cy-magenta)]">
+              <p className="text-[10px] text-[color:var(--cy-magenta)]">
                 Passwords do not match.
               </p>
             )}
@@ -488,7 +488,7 @@ export const SyncSettings = () => {
         <section className="flex flex-col gap-3">
           {!linkUrl && (
             <>
-              <p className="cy-mono text-xs">
+              <p className="text-xs">
                 Confirm your password to generate a sign-in code for another
                 device.
               </p>
@@ -516,7 +516,7 @@ export const SyncSettings = () => {
           )}
           {linkUrl && (
             <>
-              <p className="cy-mono text-xs">
+              <p className="text-xs">
                 Scan this on the other device. It opens tuxbank and signs you
                 in; you still enter your 2FA code there.
               </p>
@@ -543,7 +543,7 @@ export const SyncSettings = () => {
       {/* LOCKED: session exists, need password to unlock the key */}
       {sync.status === "locked" && !recovering && !confirmingSignOut && (
         <section className="flex flex-col gap-3">
-          <p className="cy-mono text-xs">
+          <p className="text-xs">
             Unlock <span className="cy-hud on">{sync.email}</span> to resume
             sync.
           </p>
@@ -580,7 +580,7 @@ export const SyncSettings = () => {
       {/* RECOVER with the recovery key, then set a new password */}
       {sync.status === "locked" && recovering && !awaitingReauth && (
         <section className="flex flex-col gap-3">
-          <p className="cy-mono text-xs">
+          <p className="text-xs">
             Enter your recovery key and choose a new password.
           </p>
           <Label htmlFor="rec-key">Recovery key</Label>
@@ -604,7 +604,7 @@ export const SyncSettings = () => {
             onChange={(e) => setConfirmPassword(e.target.value)}
           />
           {confirmPassword.length > 0 && password !== confirmPassword && (
-            <p className="cy-mono text-[10px] text-[color:var(--cy-magenta)]">
+            <p className="text-[10px] text-[color:var(--cy-magenta)]">
               Passwords do not match.
             </p>
           )}
@@ -653,7 +653,7 @@ export const SyncSettings = () => {
       {/* SIGN UP: confirm email, then sign in to finish setup */}
       {sync.step === "confirm-email" && (
         <section className="flex flex-col gap-3">
-          <p className="cy-mono text-xs">
+          <p className="text-xs">
             We sent a confirmation link to{" "}
             <span className="cy-hud on">{sync.email}</span>. Confirm your
             account, then sign in here to finish setup (2FA + recovery key).
@@ -673,7 +673,7 @@ export const SyncSettings = () => {
       {/* CREATE: TOTP enrollment */}
       {sync.step === "create-totp" && sync.enrollment && (
         <section className="flex flex-col gap-3">
-          <p className="cy-mono text-xs">
+          <p className="text-xs">
             Scan this with an authenticator app, then enter the 6-digit code.
           </p>
           <img
@@ -712,11 +712,11 @@ export const SyncSettings = () => {
       {/* CREATE: recovery key */}
       {sync.step === "create-recovery" && sync.recoveryKey && (
         <section className="flex flex-col gap-3">
-          <p className="cy-mono text-xs text-[color:var(--cy-magenta)]">
+          <p className="text-xs text-[color:var(--cy-magenta)]">
             Save this recovery key. It is the ONLY way to recover your data if
             you forget your password. It is shown once.
           </p>
-          <code className="cy-mono block break-all border border-[color:var(--cy-line)] p-3 text-xs">
+          <code className="cy-mono block rounded-xl bg-[color:var(--cy-panel-2)] p-3 text-xs break-all">
             {sync.recoveryKey}
           </code>
           <Button
@@ -744,7 +744,7 @@ export const SyncSettings = () => {
         <section className="flex flex-col gap-3">
           {choiceStage.kind === "choose" && (
             <>
-              <p className="cy-mono text-xs">
+              <p className="text-xs">
                 This device has {sync.signInChoice.local} events. Your account
                 has {sync.signInChoice.remote} events. Choose which set to keep.
               </p>
@@ -754,7 +754,7 @@ export const SyncSettings = () => {
               >
                 Merge both
               </Button>
-              <span className="cy-mono text-xs text-[color:var(--cy-muted)]">
+              <span className="text-xs text-[color:var(--cy-muted)]">
                 Keeps everything from both sides. Nothing is deleted.
               </span>
               <Button
@@ -779,7 +779,7 @@ export const SyncSettings = () => {
           )}
 
           {choiceStage.kind === "confirm" && (
-            <div className="cy-mono flex flex-col gap-2 text-xs">
+            <div className="flex flex-col gap-2 text-xs">
               <span>
                 Type{" "}
                 <span className="text-[color:var(--cy-magenta)]">
@@ -834,7 +834,7 @@ export const SyncSettings = () => {
       {/* SIGN IN: TOTP challenge */}
       {sync.step === "signin-totp" && (
         <section className="flex flex-col gap-3">
-          <p className="cy-mono text-xs">
+          <p className="text-xs">
             Enter the 6-digit code from your authenticator app.
           </p>
           <Input
@@ -867,7 +867,7 @@ export const SyncSettings = () => {
         <section className="flex flex-col gap-3">
           {mode === "choose" && (
             <>
-              <p className="cy-mono text-xs text-[color:var(--cy-muted)]">
+              <p className="text-xs text-[color:var(--cy-muted)]">
                 Optionally sync your encrypted data across devices. Your data is
                 end-to-end encrypted; we cannot read it.
               </p>
@@ -900,7 +900,7 @@ export const SyncSettings = () => {
               {mode === "create" &&
                 email.length > 0 &&
                 !isPlausibleEmail(email) && (
-                  <p className="cy-mono text-[10px] text-[color:var(--cy-magenta)]">
+                  <p className="text-[10px] text-[color:var(--cy-magenta)]">
                     Enter a valid email address.
                   </p>
                 )}
@@ -912,7 +912,7 @@ export const SyncSettings = () => {
                 onChange={(e) => setPassword(e.target.value)}
               />
               {mode === "create" && (
-                <p className="cy-mono text-[10px] text-[color:var(--cy-muted)]">
+                <p className="text-[10px] text-[color:var(--cy-muted)]">
                   This password protects your encryption key; choose a strong
                   one.
                 </p>
@@ -928,7 +928,7 @@ export const SyncSettings = () => {
                   />
                   {confirmPassword.length > 0 &&
                     password !== confirmPassword && (
-                      <p className="cy-mono text-[10px] text-[color:var(--cy-magenta)]">
+                      <p className="text-[10px] text-[color:var(--cy-magenta)]">
                         Passwords do not match.
                       </p>
                     )}

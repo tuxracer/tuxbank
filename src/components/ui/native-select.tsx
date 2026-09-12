@@ -14,9 +14,9 @@ import { cn } from "@/lib/utils";
  * react-hook-form's `register()`.
  *
  * Like `Button` and `Input`, this owns the 32px box (height, border, padding)
- * so call sites only add the cyberpunk voice (`cy-btn`) and the type size.
+ * so call sites only add the button voice (`cy-btn`) and the type size.
  * Focus is left to the browser's own outline, which `.cy-btn:focus-visible`
- * replaces with the flat cyan edge every other control focuses in.
+ * replaces with the cyan edge and halo every other control focuses in.
  */
 function NativeSelect({ className, ...props }: React.ComponentProps<"select">) {
   return (
@@ -24,7 +24,7 @@ function NativeSelect({ className, ...props }: React.ComponentProps<"select">) {
       <select
         data-slot="native-select"
         className={cn(
-          "h-8 w-full appearance-none rounded-lg border border-input bg-transparent py-1 pr-6 pl-2.5 text-sm disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50",
+          "h-8 w-full appearance-none rounded-full border border-input bg-[color:var(--cy-panel-2)] py-1 pr-6 pl-2.5 text-sm disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50",
           className,
         )}
         {...props}

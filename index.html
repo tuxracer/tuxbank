@@ -32,8 +32,8 @@
         padding: 16px;
         background: #eff2f6;
         color: #1b2430;
-        font-family: "JetBrains Mono", ui-monospace, monospace;
-        font-size: 12px;
+        font-family: system-ui, sans-serif;
+        font-size: 14px;
         line-height: 1.6;
       }
 
@@ -53,9 +53,9 @@
 
       .boot-notice div {
         max-width: 460px;
-        border: 1px solid #d6dde6;
+        border-radius: 16px;
         background: #ffffff;
-        padding: 16px;
+        padding: 20px;
       }
 
       .boot-notice p {
@@ -69,19 +69,18 @@
       .boot-notice button {
         margin: 0 0 12px;
         padding: 8px 20px;
-        border: 1px solid #0e7490;
-        background: #ffffff;
-        color: #0e7490;
+        border: 0;
+        border-radius: 999px;
+        background: #0e7490;
+        color: #ffffff;
         font: inherit;
-        letter-spacing: 0.12em;
-        text-transform: uppercase;
+        font-weight: 700;
         cursor: pointer;
       }
 
       .boot-notice-title {
         color: #0e7490;
-        letter-spacing: 0.12em;
-        text-transform: uppercase;
+        font-weight: 700;
       }
 
       .boot-notice-note {
@@ -95,7 +94,6 @@
         }
 
         .boot-notice div {
-          border-color: #1b2431;
           background: #0d1119;
         }
 
@@ -108,9 +106,8 @@
         }
 
         .boot-notice button {
-          border-color: #22d3ee;
-          background: #0d1119;
-          color: #22d3ee;
+          background: #22d3ee;
+          color: #0a0c11;
         }
       }
     </style>
@@ -126,7 +123,7 @@
     <div id="root"></div>
     <div id="boot-fallback" class="boot-notice">
       <div>
-        <p class="boot-notice-title">◢ TuxBank didn’t open</p>
+        <p class="boot-notice-title">TuxBank didn’t open</p>
         <p>
           Something went wrong while loading this page. Refreshing usually fixes
           it.
@@ -142,7 +139,7 @@
     <noscript>
       <div class="boot-notice">
         <div>
-          <p class="boot-notice-title">◢ JavaScript is required</p>
+          <p class="boot-notice-title">JavaScript is required</p>
           <p>
             TuxBank runs entirely in your browser. It needs JavaScript to draw
             the calendar and to read the events saved on this device.

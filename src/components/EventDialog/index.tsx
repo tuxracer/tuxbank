@@ -21,10 +21,9 @@ import type { EventDialogProps } from "./types";
 
 export * from "./types";
 
-/* Field labels speak in the HUD voice (mono, tracked, muted) so the boxes read
-   as the content and the labels as chrome. */
-const FIELD_LABEL =
-  "font-mono text-[10px] tracking-[0.18em] uppercase text-[color:var(--cy-muted)]";
+/* Field labels are small, bold and muted so the boxes read as the content
+   and the labels as chrome. */
+const FIELD_LABEL = "cy-label";
 
 const HAIRLINE = "border-t border-[color:var(--cy-hairline)]";
 
@@ -33,19 +32,18 @@ const DIRECTIONS = [
   { value: "deposit", sign: "+", label: "Deposit" },
 ] as const;
 
-/* The active segment borrows the calendar's own selection grammar: a 2px inset
-   cyan edge over the raised panel fill (see .cy-cell.selected). Inline styles
-   because .cy-btn's unlayered color/background win over Tailwind utilities. */
+/* The direction control is a two-segment pill: the chosen segment fills in
+   the interface accent, the other stays muted text over the track. Inline
+   styles so the fill wins over the Button's hover utilities. */
 const SEGMENT_ACTIVE: CSSProperties = {
-  background: "var(--cy-panel-2)",
-  color: "var(--cy-text-strong)",
-  boxShadow: "inset 2px 0 0 var(--cy-cyan)",
+  background: "var(--cy-cyan)",
+  color: "var(--cy-cta-fg)",
 };
 const SEGMENT_IDLE: CSSProperties = { color: "var(--cy-muted)" };
 
 const FieldError = ({ message }: { message?: string }) =>
   message ? (
-    <p className="font-mono text-[11px] text-[color:var(--cy-magenta)]">
+    <p className="text-[11px] font-semibold text-[color:var(--cy-magenta)]">
       {message}
     </p>
   ) : null;
@@ -138,8 +136,8 @@ const EventDialog = (props: EventDialogProps) => {
       <DialogContent className="cy-dialog top-4 max-h-[85dvh] translate-y-0 grid-rows-[minmax(0,1fr)_auto] border-0 sm:top-1/2 sm:max-w-md sm:-translate-y-1/2">
         <div className="-mx-1 grid min-h-0 gap-4 overflow-y-auto px-1">
           <DialogHeader>
-            <DialogTitle className="cy-display uppercase tracking-wide">
-              {mode === "create" ? "New Event" : "Edit Event"}
+            <DialogTitle className="cy-display">
+              {mode === "create" ? "New event" : "Edit event"}
             </DialogTitle>
           </DialogHeader>
 
@@ -193,17 +191,16 @@ const EventDialog = (props: EventDialogProps) => {
               <Label htmlFor="amount" className={FIELD_LABEL}>
                 Amount
               </Label>
-              {/* One fused strip: the direction segments and the amount share
-                  borders (-ml-px / -mt-px collapse the doubles) so the sign
-                  choice and the figure read as a single instrument. */}
-              <div>
-                <div className="grid grid-cols-2">
-                  {DIRECTIONS.map((d, i) => (
+              {/* The direction segments sit in one pill-shaped track over the
+                  amount, so the sign choice and the figure read as a pair. */}
+              <div className="flex flex-col gap-2">
+                <div className="grid grid-cols-2 rounded-full bg-[color:var(--cy-panel-2)] p-0.5">
+                  {DIRECTIONS.map((d) => (
                     <Button
                       key={d.value}
                       type="button"
                       variant="ghost"
-                      className={cn("cy-btn text-xs", i > 0 && "-ml-px")}
+                      className="h-7 text-xs font-bold"
                       style={
                         direction === d.value ? SEGMENT_ACTIVE : SEGMENT_IDLE
                       }
@@ -220,7 +217,7 @@ const EventDialog = (props: EventDialogProps) => {
                   step="0.01"
                   min={0}
                   placeholder="0.00"
-                  className="-mt-px font-mono"
+                  className="font-mono"
                   {...register("amount")}
                 />
               </div>
@@ -286,7 +283,7 @@ const EventDialog = (props: EventDialogProps) => {
             <Button
               type="button"
               variant="ghost"
-              className="text-[color:var(--cy-magenta)]"
+              className="font-bold text-[color:var(--cy-magenta)]"
               onClick={onDelete}
             >
               Delete
@@ -295,7 +292,7 @@ const EventDialog = (props: EventDialogProps) => {
             <span />
           )}
           <Button type="submit" form="event-form" className="cy-cta">
-            Save ▸
+            Save
           </Button>
         </DialogFooter>
       </DialogContent>

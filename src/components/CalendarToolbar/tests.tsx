@@ -56,10 +56,10 @@ describe("CalendarToolbar month/year selects", () => {
 });
 
 describe("CalendarToolbar settings button", () => {
-  it("compact mode hides + New Event and fires onOpenSettings from the labeled button", async () => {
+  it("compact mode hides + New event and fires onOpenSettings from the labeled button", async () => {
     const onOpenSettings = vi.fn();
     render(<CalendarToolbar {...baseProps({ onOpenSettings })} compact />);
-    expect(screen.queryByText("+ New Event")).not.toBeInTheDocument();
+    expect(screen.queryByText("+ New event")).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: /settings/i }));
     expect(onOpenSettings).toHaveBeenCalled();
   });
@@ -67,7 +67,7 @@ describe("CalendarToolbar settings button", () => {
   it("desktop fires onOpenSettings from the labeled button", async () => {
     const onOpenSettings = vi.fn();
     render(<CalendarToolbar {...baseProps({ onOpenSettings })} />);
-    expect(screen.getByText("+ New Event")).toBeInTheDocument();
+    expect(screen.getByText("+ New event")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: /settings/i }));
     expect(onOpenSettings).toHaveBeenCalled();
   });

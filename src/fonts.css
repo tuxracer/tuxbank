@@ -1,106 +1,30 @@
 /*
- * Latin woff2 subsets from the @fontsource packages, declared here instead of
- * importing their CSS: the packaged declarations carry a woff fallback per
- * face, which doubles every font in the build and the service worker precache
- * for browsers this app does not support. woff2-only keeps one file per face.
+ * Latin woff2 variable fonts from the @fontsource-variable packages, declared
+ * here instead of importing their CSS: the packaged declarations also pull in
+ * the latin-ext and vietnamese subsets and, for Sono, a second axis file, none
+ * of which this app renders. One file per family keeps the build and the
+ * service worker precache small.
  */
 
-/* rajdhani-latin-500-normal */
+/* Nunito, variable weight 200-1000: display and UI text. */
 @font-face {
-  font-family: "Rajdhani";
+  font-family: "Nunito";
   font-style: normal;
   font-display: swap;
-  font-weight: 500;
-  src: url(@fontsource/rajdhani/files/rajdhani-latin-500-normal.woff2)
-    format("woff2");
+  font-weight: 200 1000;
+  src: url(@fontsource-variable/nunito/files/nunito-latin-wght-normal.woff2)
+    format("woff2-variations");
 }
 
-/* rajdhani-latin-600-normal */
+/* Sono, variable weight 200-800 on the weight-only file, which fixes the
+   family's MONO axis at its default of 1: every glyph is monospaced, so
+   figures line up in columns. The chip amount uses weight 500 and the rail
+   figures 600; both come out of this one file. */
 @font-face {
-  font-family: "Rajdhani";
+  font-family: "Sono";
   font-style: normal;
   font-display: swap;
-  font-weight: 600;
-  src: url(@fontsource/rajdhani/files/rajdhani-latin-600-normal.woff2)
-    format("woff2");
-}
-
-/* rajdhani-latin-700-normal */
-@font-face {
-  font-family: "Rajdhani";
-  font-style: normal;
-  font-display: swap;
-  font-weight: 700;
-  src: url(@fontsource/rajdhani/files/rajdhani-latin-700-normal.woff2)
-    format("woff2");
-}
-
-/* chakra-petch-latin-400-normal */
-@font-face {
-  font-family: "Chakra Petch";
-  font-style: normal;
-  font-display: swap;
-  font-weight: 400;
-  src: url(@fontsource/chakra-petch/files/chakra-petch-latin-400-normal.woff2)
-    format("woff2");
-}
-
-/* chakra-petch-latin-500-normal */
-@font-face {
-  font-family: "Chakra Petch";
-  font-style: normal;
-  font-display: swap;
-  font-weight: 500;
-  src: url(@fontsource/chakra-petch/files/chakra-petch-latin-500-normal.woff2)
-    format("woff2");
-}
-
-/* chakra-petch-latin-600-normal */
-@font-face {
-  font-family: "Chakra Petch";
-  font-style: normal;
-  font-display: swap;
-  font-weight: 600;
-  src: url(@fontsource/chakra-petch/files/chakra-petch-latin-600-normal.woff2)
-    format("woff2");
-}
-
-/* chakra-petch-latin-700-normal */
-@font-face {
-  font-family: "Chakra Petch";
-  font-style: normal;
-  font-display: swap;
-  font-weight: 700;
-  src: url(@fontsource/chakra-petch/files/chakra-petch-latin-700-normal.woff2)
-    format("woff2");
-}
-
-/* jetbrains-mono-latin-400-normal */
-@font-face {
-  font-family: "JetBrains Mono";
-  font-style: normal;
-  font-display: swap;
-  font-weight: 400;
-  src: url(@fontsource/jetbrains-mono/files/jetbrains-mono-latin-400-normal.woff2)
-    format("woff2");
-}
-
-/* jetbrains-mono-latin-500-normal */
-@font-face {
-  font-family: "JetBrains Mono";
-  font-style: normal;
-  font-display: swap;
-  font-weight: 500;
-  src: url(@fontsource/jetbrains-mono/files/jetbrains-mono-latin-500-normal.woff2)
-    format("woff2");
-}
-
-/* jetbrains-mono-latin-700-normal */
-@font-face {
-  font-family: "JetBrains Mono";
-  font-style: normal;
-  font-display: swap;
-  font-weight: 700;
-  src: url(@fontsource/jetbrains-mono/files/jetbrains-mono-latin-700-normal.woff2)
-    format("woff2");
+  font-weight: 200 800;
+  src: url(@fontsource-variable/sono/files/sono-latin-wght-normal.woff2)
+    format("woff2-variations");
 }

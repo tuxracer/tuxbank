@@ -23,7 +23,7 @@ const DayPanel = ({
     <section className="cy-toolbar relative flex flex-col gap-2 px-3 py-2.5">
       <div className="flex items-center justify-between gap-2">
         <p
-          className="cy-mono text-[10px] uppercase tracking-widest text-[color:var(--cy-cyan)]"
+          className="cy-label text-[color:var(--cy-cyan)]"
           lang={RUNTIME_LOCALE}
         >
           {fullDateLabel(parseISO(dateISO))}
@@ -36,9 +36,7 @@ const DayPanel = ({
         pushing the grid off-screen. */}
       <div className="flex max-h-[30dvh] flex-col gap-1 overflow-y-auto">
         {occurrences.length === 0 ? (
-          <p className="cy-mono text-[10px] uppercase tracking-widest text-[color:var(--cy-muted)]">
-            No events
-          </p>
+          <p className="cy-label">No events</p>
         ) : (
           occurrences.map((o) => (
             <EventChip

@@ -5,9 +5,9 @@
 @custom-variant dark (@media (prefers-color-scheme: dark));
 
 :root {
-  --font-display: "Rajdhani";
-  --font-ui: "Chakra Petch";
-  --font-mono: "JetBrains Mono";
+  --font-display: "Nunito";
+  --font-ui: "Nunito";
+  --font-mono: "Sono";
 }
 
 @theme inline {
@@ -45,13 +45,13 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
-  --radius-sm: calc(var(--radius) * 0.6);
-  --radius-md: calc(var(--radius) * 0.8);
+  --radius-sm: 8px;
+  --radius-md: 10px;
   --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.4);
-  --radius-2xl: calc(var(--radius) * 1.8);
-  --radius-3xl: calc(var(--radius) * 2.2);
-  --radius-4xl: calc(var(--radius) * 2.6);
+  --radius-xl: 16px;
+  --radius-2xl: 20px;
+  --radius-3xl: 24px;
+  --radius-4xl: 28px;
 }
 
 :root {
@@ -72,31 +72,29 @@
   --accent-foreground: oklch(0.205 0 0);
   --destructive: oklch(0.577 0.245 27.325);
   --border: oklch(0.922 0 0);
-  /* Form controls draw the same edge as every other line in the app. The stock
-     value here is a neutral grey, which put an <Input> and a `.cy-btn` select
-     side by side in two different inks. `--cy-line` is defined further down and
-     flips with the theme, so this and its twin in the dark block resolve per
-     theme on their own. */
-  --input: var(--cy-line);
+  /* Controls are filled pills with no edge of their own (the fill is
+     `--cy-panel-2`, set in the primitives), so the shadcn border token they
+     read is transparent. A control only grows a visible edge on focus, when
+     the primitives swap it for `--ring`. */
+  --input: transparent;
   /* Focus is interface state, and cyan is the only interface accent, so the
      shadcn ring token points at it instead of the stock neutral. `--cy-cyan`
      is defined further down and flips with the theme, so the value below and
-     its twin in the dark block resolve per theme on their own. Focus is drawn
-     flat (1px border + 1px hard ring, no blur): see the primitives in
-     `src/components/ui`. */
+     its twin in the dark block resolve per theme on their own. Focus is a
+     1px cyan edge plus a 3px translucent cyan halo (`ring-3 ring-ring/35` in
+     the primitives), soft enough to sit on a rounded control. */
   --ring: var(--cy-cyan);
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
-  /* Square corners everywhere, per the design language: every surface is a
-     flat fill with a straight 1px border. This is the single control for it,
-     since the shadcn primitives size all their `rounded-*` utilities off this
-     token and the `--radius-*` scale above. Deliberately round elements
-     (category dots, status badges) use `rounded-full`, which does not read
-     this value. */
-  --radius: 0;
+  /* The base corner. Day cells and popovers sit here (12px), dialogs, the
+     toolbar and the console frame one step up (`--radius-xl`, 16px), and
+     every control is a full pill (`rounded-full`), which does not read this
+     value. The `--radius-*` scale above is written in whole pixels rather
+     than derived, so each step is a number someone chose. */
+  --radius: 12px;
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
   --sidebar-primary: oklch(0.205 0 0);
@@ -125,7 +123,7 @@
     --accent-foreground: oklch(0.985 0 0);
     --destructive: oklch(0.704 0.191 22.216);
     --border: oklch(1 0 0 / 10%);
-    --input: var(--cy-line);
+    --input: transparent;
     --ring: var(--cy-cyan);
     --chart-1: oklch(0.87 0 0);
     --chart-2: oklch(0.556 0 0);
@@ -155,17 +153,22 @@
   }
 }
 
-/* ===================== DESIGN SYSTEM: CYBERPUNK-INSPIRED, DATA INK ===================== */
-/* Neon is data ink, not decoration: cyan is the only interface accent. Beyond
-   that, colors double up: magenta is the error/destructive/negative-balance
-   color, yellow marks today and doubles as offline sync chrome, orange is the
-   category-only accent that also flags sync errors, and green appears in
-   exactly one place, the online HUD state (`.cy-hud .on`). See TRD §10. */
+/* ===================== DESIGN SYSTEM: PEBBLE ===================== */
+/* Soft shapes, flat colour. Every surface is a filled tile or pill with no
+   hairline of its own; tiles sit on a slightly darker ground and the ground
+   supplies the separation. Colour is data ink, not decoration: cyan is the only
+   interface accent. Beyond that, colours double up: magenta is the
+   error/destructive/negative-balance colour, yellow marks today and doubles as
+   offline sync chrome, orange is the category-only accent that also flags sync
+   errors, and green appears in exactly one place, the online HUD state
+   (`.cy-hud .on`). See TRD §10. The `cy-` class prefix predates this language
+   and is kept as the app's own namespace. */
 :root {
   /* Surfaces — light */
   --cy-bg: #eff2f6;
+  --cy-ground: #f5f7fa;
   --cy-panel: #ffffff;
-  --cy-panel-2: #f7f9fb;
+  --cy-panel-2: #f1f4f8;
   --cy-line: #d6dde6;
   --cy-hairline: #e6ebf1;
 
@@ -182,9 +185,11 @@
   --cy-orange: #c2410c;
 
   /* Derived — light */
-  --cy-chip-bg: #f1f5f9;
   --cy-chip-text: #0b1119;
   --cy-cta-fg: #ffffff;
+  /* The one drop shadow, reserved for surfaces that float over the page:
+     dialogs, popovers and toasts. Tiles and the toolbar stay flat. */
+  --cy-shadow: 0 12px 32px -12px rgba(11, 17, 25, 0.22);
 
   /* Category accents — light */
   --cat-cyan: #0e7490;
@@ -198,8 +203,9 @@
   :root {
     /* Surfaces — dark */
     --cy-bg: #0a0c11;
+    --cy-ground: #11161f;
     --cy-panel: #0d1119;
-    --cy-panel-2: #10151f;
+    --cy-panel-2: #171d28;
     --cy-line: #1b2431;
     --cy-hairline: #151c27;
 
@@ -216,9 +222,9 @@
     --cy-orange: #fb923c;
 
     /* Derived — dark */
-    --cy-chip-bg: #10151f;
     --cy-chip-text: #eaf2f8;
     --cy-cta-fg: #0a0c11;
+    --cy-shadow: 0 12px 32px -12px rgba(0, 0, 0, 0.7);
 
     /* Category accents — dark */
     --cat-cyan: #22d3ee;
@@ -245,14 +251,36 @@ body {
 }
 .cy-display {
   font-family: var(--font-display), sans-serif;
+  font-weight: 800;
 }
 
+/* A category's accent, read by anything that carries `data-cat`: chips, the
+   toolbar legend, the compact-cell dots. Setting it here keeps the tint math
+   in CSS; the markup only names the colour. */
+[data-cat="cyan"] {
+  --c: var(--cat-cyan);
+}
+[data-cat="magenta"] {
+  --c: var(--cat-magenta);
+}
+[data-cat="yellow"] {
+  --c: var(--cat-yellow);
+}
+[data-cat="green"] {
+  --c: var(--cat-green);
+}
+[data-cat="orange"] {
+  --c: var(--cat-orange);
+}
+
+/* Status readouts (sync state, the landing header, the rail keys): the figure
+   face in sentence case, so they read as small print rather than a heading. */
 .cy-hud {
   font-family: var(--font-mono), monospace;
   font-size: 11px;
-  letter-spacing: 0.18em;
+  font-weight: 500;
+  letter-spacing: 0.02em;
   color: var(--cy-muted);
-  text-transform: uppercase;
 }
 .cy-hud.on,
 .cy-hud .on {
@@ -262,73 +290,105 @@ body {
   color: var(--cy-muted);
 }
 
+/* Field and section labels: the UI face, small and bold, sentence case. */
+.cy-label {
+  font-family: var(--font-ui), sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--cy-muted);
+}
+
 .cy-toolbar {
   position: relative;
   background: var(--cy-panel);
-  border: 1px solid var(--cy-line);
+  border: 1px solid transparent;
+  border-radius: var(--radius-xl);
+}
+
+/* The plate the month grid sits on: a tone between page and tile, so the
+   tiles read as raised without any hairlines. The landing's `.cy-console`
+   pins the dark version of it. */
+.cy-frame {
+  background: var(--cy-ground);
+  border: 1px solid transparent;
+  border-radius: var(--radius-xl);
 }
 
 .cy-nav {
   color: var(--cy-cyan);
-  background: transparent;
-  border: 1px solid var(--cy-line);
+  background: var(--cy-panel-2);
+  border: 1px solid transparent;
+  font-weight: 800;
 }
-/* `.cy-btn` and `.cy-cta` are sometimes applied to shadcn's <Button>. This
+/* `.cy-btn`, `.cy-legend` and `.cy-cta` are applied to shadcn's <Button>. This
    block is unlayered so it wins over that component's utilities, but only for
-   properties it actually sets. Corners are not among them: `--radius` is 0, so
-   the Button's own `rounded-lg` already computes square. */
+   properties it actually sets. The box (32px, pill) is the Button's own. */
 .cy-btn {
-  font-family: var(--font-mono), monospace;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
+  font-family: var(--font-ui), sans-serif;
+  font-weight: 700;
   color: var(--cy-text);
-  background: transparent;
-  border: 1px solid var(--cy-line);
+  background: var(--cy-panel-2);
+  border: 1px solid transparent;
+}
+.cy-btn:hover {
+  background: color-mix(in oklab, var(--cy-panel-2), var(--cy-text) 7%);
+}
+/* A category toggle in the toolbar: its own colour at a light tint, the way
+   a chip carries it. Dimmed, not restyled, when the category is filtered out. */
+.cy-legend {
+  --c: var(--cy-cyan);
+  font-family: var(--font-ui), sans-serif;
+  font-weight: 700;
+  color: var(--cy-text-strong);
+  background: color-mix(in oklab, var(--c) 14%, var(--cy-panel));
+  border: 1px solid transparent;
+}
+.cy-legend:hover {
+  background: color-mix(in oklab, var(--c) 22%, var(--cy-panel));
 }
 .cy-cta {
   font-family: var(--font-display), sans-serif;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+  font-weight: 800;
   background: var(--cy-cyan);
   color: var(--cy-cta-fg);
   border: 1px solid var(--cy-cyan);
+  border-radius: 999px;
   cursor: pointer;
   /* Only the inks move. Timing this at all is what separates a deliberate
-     inversion from a flicker; anything longer reads as a fade. */
+     shift from a flicker; anything longer reads as a fade. */
   transition:
     background-color 120ms linear,
     border-color 120ms linear;
 }
-/* Flat inversion on hover — the fill swaps to text ink, never a glow. */
+/* Hover deepens the cyan a step toward the text ink; no lift, no glow. */
 .cy-cta:hover {
-  background: var(--cy-text-strong);
-  border-color: var(--cy-text-strong);
+  background: color-mix(in oklab, var(--cy-cyan) 84%, var(--cy-text-strong));
+  border-color: color-mix(in oklab, var(--cy-cyan) 84%, var(--cy-text-strong));
 }
-/* Pressed sits one step back off the hover ink, and lands instantly: a press
-   has to register before the pointer lifts, so it cannot wait out a fade. */
+/* Pressed goes one step further and lands instantly: a press has to register
+   before the pointer lifts, so it cannot wait out a fade. */
 .cy-cta:active {
-  background: var(--cy-text);
-  border-color: var(--cy-text);
+  background: color-mix(in oklab, var(--cy-cyan) 70%, var(--cy-text-strong));
+  border-color: color-mix(in oklab, var(--cy-cyan) 70%, var(--cy-text-strong));
   transition-duration: 0s;
 }
-/* One focus treatment app-wide: a flat cyan edge, never a glow. The shadcn
-   primitives draw it with their border + ring utilities, but these classes are
-   also applied to raw buttons and selects that carry no utilities and would
-   otherwise fall back to the browser's own focus ring. The offset puts the
-   line immediately outside the 1px border, so the two read as one edge the
-   same way a focused input does. */
+/* One focus treatment app-wide: a cyan edge with a soft cyan halo. The shadcn
+   primitives draw it with their border + ring utilities, but these classes
+   set their own border (unlayered, so it wins), so the edge is restated here
+   and the halo drawn as an outline. */
 .cy-btn:focus-visible,
-.cy-nav:focus-visible {
-  outline: 1px solid var(--cy-cyan);
-  outline-offset: 1px;
+.cy-nav:focus-visible,
+.cy-legend:focus-visible {
+  border-color: var(--cy-cyan);
+  outline: 3px solid color-mix(in oklab, var(--cy-cyan) 35%, transparent);
+  outline-offset: 0;
 }
-/* The CTA is already a cyan fill, so a cyan line around it disappears into the
-   button. It focuses in the same ink its hover inversion uses, which reads
-   against the panel in both themes. */
+/* The CTA is already a cyan fill, so its halo sits a step outside the pill
+   where it reads against the panel. */
 .cy-cta:focus-visible {
-  outline: 1px solid var(--cy-text-strong);
-  outline-offset: 1px;
+  outline: 3px solid color-mix(in oklab, var(--cy-cyan) 40%, transparent);
+  outline-offset: 2px;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -340,21 +400,23 @@ body {
 /* Sized here rather than at the call site, like .cy-cell-num: the grid and the
    landing preview both use it and have to stay identical. */
 .cy-weekhead {
-  font-family: var(--font-mono), monospace;
-  font-size: 9px;
-  letter-spacing: 0.22em;
+  font-family: var(--font-ui), sans-serif;
+  font-size: 11px;
+  font-weight: 700;
   color: var(--cy-muted);
-  text-transform: uppercase;
 }
 
+/* A day is a tile: filled, rounded, no edge. The ground behind the grid
+   (`.cy-frame`) separates neighbours. */
 .cy-cell {
   position: relative;
   overflow: hidden;
   background: var(--cy-panel);
-  border: 1px solid var(--cy-hairline);
+  border-radius: var(--radius-lg);
 }
+/* Out-of-month days are holes in the grid: the ground shows through. */
 .cy-cell.out {
-  background: var(--cy-bg);
+  background: transparent;
 }
 .cy-cell.out .cy-cell-num {
   opacity: 0.45;
@@ -367,17 +429,19 @@ body {
 .cy-cell-num {
   font-family: var(--font-mono), monospace;
   font-size: 11px;
+  font-weight: 500;
   line-height: 1.1;
   color: var(--cy-muted);
 }
 
-/* All three highlight states share one grammar: a 2px inset left edge over a
-   raised fill. Source order is the precedence rule, last wins — a cell that is
-   both today and an active drop target shows the cyan drop edge, because the
-   drag affordance is the more urgent signal. */
+/* All three highlight states share one grammar: a 2px inset ring in the
+   state's colour over a tile tinted with the same colour. Drawn as an inset
+   box-shadow so the tile keeps its size. Source order is the precedence rule,
+   last wins — a cell that is both today and an active drop target shows the
+   cyan drop ring, because the drag affordance is the more urgent signal. */
 .cy-cell.today {
-  background: var(--cy-panel-2);
-  box-shadow: inset 2px 0 0 var(--cy-yellow);
+  background: color-mix(in oklab, var(--cy-yellow) 8%, var(--cy-panel));
+  box-shadow: inset 0 0 0 2px var(--cy-yellow);
 }
 .cy-cell.today .cy-cell-num {
   color: var(--cy-yellow);
@@ -390,35 +454,46 @@ body {
   opacity: 1;
 }
 .cy-cell.selected:not(.today) {
-  background: var(--cy-panel-2);
-  box-shadow: inset 2px 0 0 var(--cy-cyan);
+  background: color-mix(in oklab, var(--cy-cyan) 8%, var(--cy-panel));
+  box-shadow: inset 0 0 0 2px var(--cy-cyan);
 }
 .cy-cell.drop {
-  background: var(--cy-panel-2);
-  box-shadow: inset 2px 0 0 var(--cy-cyan);
+  background: color-mix(in oklab, var(--cy-cyan) 8%, var(--cy-panel));
+  box-shadow: inset 0 0 0 2px var(--cy-cyan);
 }
 
-/* Chip type follows the source design mock: an 11px/1.25 title in the strong
-   ink, and the figure at the same size but a weight heavier, tinted with the
-   same category accent that draws the left edge. In a money calendar the number
-   is what the eye goes to, so weight alone gives it the rank. */
+/* An event chip is a capsule tinted with its category and led by a dot of
+   the same colour: the title in the strong ink at 11px/1.25, the figure at
+   the same size in the figure face a weight heavier. In a money calendar the
+   number is what the eye goes to, so the face and weight give it the rank.
+   `--c` comes from the chip's `data-cat`; the cyan default only covers a chip
+   rendered without one. */
 .cy-chip {
+  --c: var(--cy-cyan);
   display: flex;
   align-items: baseline;
   gap: 6px;
   font-size: 11px;
+  font-weight: 600;
   line-height: 1.25;
-  padding: 2px 5px 2px 6px;
-  background: var(--cy-chip-bg);
+  padding: 3px 8px 3px 7px;
+  background: color-mix(in oklab, var(--c) 16%, var(--cy-panel));
   color: var(--cy-chip-text);
+  border-radius: 999px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  border-left: 2px solid var(--cy-cyan);
   cursor: pointer;
 }
-/* The color is set inline from the occurrence's category, alongside the chip's
-   border-left-color. Weight 500 is loaded explicitly in main.tsx. */
+.cy-chip::before {
+  content: "";
+  flex: none;
+  align-self: center;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--c);
+}
 .cy-chip-amount {
   font-family: var(--font-mono), monospace;
   font-weight: 500;
@@ -428,12 +503,11 @@ body {
 /* Applied to shadcn DialogContent / PopoverContent. Do NOT set `position` here:
    this block is unlayered, so it would override Tailwind's `fixed` centering
    utility and push the portaled dialog off-screen. Keep this to visual props.
-   Corners need no reset: DialogContent/PopoverContent size their `rounded-xl`
-   and `rounded-lg` base classes off `--radius`, which is 0. */
+   Corners come from the primitives' `rounded-*` base classes off `--radius`. */
 .cy-dialog {
   background: var(--cy-panel);
-  border: 1px solid var(--cy-line);
-  box-shadow: none;
+  border: 1px solid transparent;
+  box-shadow: var(--cy-shadow);
 }
 
 /* Month-change feedback on swipe. One-shot, cleared on animationend by
@@ -475,15 +549,16 @@ body {
 /* ===================== LANDING-PAGE CONSOLE ===================== */
 /* The landing preview pins the dark token set in both themes. The accents are
    data ink and read most strongly against a dark surface; on the light page
-   the month reads as an instrument set on paper rather than a white box on
-   grey. The app's real calendar shares the console structure (border + rail +
-   grid, see App.tsx) but follows the active theme instead of pinning this
-   set. These are the same values as the `prefers-color-scheme: dark` block
-   above, not a third palette — keep them in sync with it. */
+   the month reads as a dark plate set on paper rather than a white box on
+   grey. The app's real calendar shares the plate (`.cy-frame`, see App.tsx)
+   but follows the active theme instead of pinning this set. These are the
+   same values as the `prefers-color-scheme: dark` block above, not a third
+   palette — keep them in sync with it. */
 .cy-console {
   --cy-bg: #0a0c11;
+  --cy-ground: #11161f;
   --cy-panel: #0d1119;
-  --cy-panel-2: #10151f;
+  --cy-panel-2: #171d28;
   --cy-line: #1b2431;
   --cy-hairline: #151c27;
 
@@ -497,8 +572,8 @@ body {
   --cy-green: #34d399;
   --cy-orange: #fb923c;
 
-  --cy-chip-bg: #10151f;
   --cy-chip-text: #eaf2f8;
+  --cy-cta-fg: #0a0c11;
 
   --cat-cyan: #22d3ee;
   --cat-magenta: #f0407a;
@@ -506,8 +581,9 @@ body {
   --cat-green: #34d399;
   --cat-orange: #fb923c;
 
-  background: var(--cy-bg);
-  border: 1px solid var(--cy-line);
+  background: var(--cy-ground);
+  border: 1px solid transparent;
+  border-radius: var(--radius-xl);
   color: var(--cy-text);
 }
 
@@ -560,6 +636,7 @@ body {
 .cy-balance {
   font-family: var(--font-mono), monospace;
   font-size: 10px;
+  font-weight: 500;
   color: var(--cy-muted);
 }
 /* Compact day cells are about 32px of usable width, so their balance drops a
@@ -574,21 +651,33 @@ body {
   color: var(--cy-magenta);
 }
 
+/* A problem the whole screen has to know about (storage unavailable): a
+   magenta-tinted tile in the destructive ink. */
+.cy-banner {
+  background: color-mix(in oklab, var(--cy-magenta) 12%, var(--cy-panel));
+  color: var(--cy-magenta);
+  border-radius: var(--radius-xl);
+  font-weight: 600;
+}
+
 /* The source chip dims while its DragOverlay copy follows the pointer. */
 .cy-chip-dragging {
   opacity: 0.35;
 }
-/* sonner toast themed to the cyberpunk panel look. */
+/* sonner toast on the same floating-panel treatment as a dialog. */
 .cy-toast {
   background: var(--cy-panel);
   color: var(--cy-text);
-  border: 1px solid var(--cy-line);
-  border-radius: 0;
-  font-family: var(--font-mono), monospace;
-  font-size: 12px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-xl);
+  box-shadow: var(--cy-shadow);
+  font-family: var(--font-ui), sans-serif;
+  font-size: 13px;
+  font-weight: 600;
 }
 .cy-toast-action {
   background: var(--cy-cyan);
   color: var(--cy-cta-fg);
-  border-radius: 0;
+  border-radius: 999px;
+  font-weight: 700;
 }

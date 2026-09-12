@@ -30,10 +30,10 @@ const DisplaySettings = () => {
   return (
     <div className="flex flex-col gap-4">
       <section className="flex flex-col gap-2">
-        <Label htmlFor="display-currency" className="cy-mono text-xs uppercase">
+        <Label htmlFor="display-currency" className="cy-label">
           Currency
         </Label>
-        <p className="cy-mono text-xs text-[color:var(--cy-muted)]">
+        <p className="text-xs text-[color:var(--cy-muted)]">
           Amounts and balances are labeled with this currency. Automatic follows
           the browser locale. No conversion is applied.
         </p>
@@ -61,13 +61,10 @@ const DisplaySettings = () => {
       </section>
 
       <section className="flex flex-col gap-2 border-t border-[color:var(--cy-line)] pt-3">
-        <Label
-          htmlFor="display-week-start"
-          className="cy-mono text-xs uppercase"
-        >
+        <Label htmlFor="display-week-start" className="cy-label">
           Week starts on
         </Label>
-        <p className="cy-mono text-xs text-[color:var(--cy-muted)]">
+        <p className="text-xs text-[color:var(--cy-muted)]">
           The weekday the calendar columns begin with. Automatic follows the
           browser locale.
         </p>

@@ -1,4 +1,3 @@
-import { catColorVar } from "@/utils/categoryColor";
 import { formatSignedCompact } from "@/utils/formatCurrency";
 import { signedAmount } from "@/lib/balance";
 
@@ -15,19 +14,17 @@ const EventChip = ({
   isDragging,
 }: EventChipProps) => {
   const { color } = occurrence.category;
-  const accent = catColorVar(color);
   const delta = signedAmount(occurrence.direction, occurrence.amount);
   return (
     <button
       ref={dragRef}
       type="button"
       className={`cy-chip w-full text-left${isDragging ? " cy-chip-dragging" : ""}`}
-      style={{
-        borderLeftColor: accent,
-        // Only suppress touch-scroll on actually-draggable chips; static chips
-        // (overflow popover, drag overlay) keep native scrolling.
-        ...(dragListeners ? { touchAction: "none" } : {}),
-      }}
+      // The category tint and leading dot are drawn by .cy-chip off this.
+      data-cat={color}
+      // Only suppress touch-scroll on actually-draggable chips; static chips
+      // (overflow popover, drag overlay) keep native scrolling.
+      style={dragListeners ? { touchAction: "none" } : undefined}
       onClick={(e) => {
         e.stopPropagation();
         onSelect(occurrence);
@@ -41,8 +38,8 @@ const EventChip = ({
       {occurrence.isRecurring && <span>↻</span>}
       <span className="truncate">{occurrence.title}</span>
       {/* The amount stays the chip's own text colour: the category already
-          speaks through the left border, and tinting the figure too made the
-          same number read differently from one row to the next. */}
+          speaks through the tint and the dot, and tinting the figure too made
+          the same number read differently from one row to the next. */}
       <span className="cy-chip-amount ml-auto">
         {formatSignedCompact(delta)}
       </span>

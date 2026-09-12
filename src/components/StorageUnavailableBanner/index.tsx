@@ -12,9 +12,9 @@ const StorageUnavailableBanner = ({
   const [confirming, setConfirming] = useState(false);
 
   return (
-    <div className="cy-mono flex flex-col gap-2 border border-[color:var(--cy-magenta)] px-4 py-2 text-xs text-[color:var(--cy-magenta)] sm:flex-row sm:items-center sm:justify-between">
+    <div className="cy-banner flex flex-col gap-2 px-4 py-2 text-xs sm:flex-row sm:items-center sm:justify-between">
       <span>
-        ◢ LOCAL STORAGE UNAVAILABLE —{" "}
+        Local storage unavailable:{" "}
         {resettable
           ? "the saved data is from an incompatible version and can't be opened."
           : "changes won't be saved this session."}
