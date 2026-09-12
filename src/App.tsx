@@ -169,15 +169,6 @@ const CalendarScreen = ({ entrance = false }: { entrance?: boolean }) => {
     }),
   );
 
-  const totalOccurrences = useMemo(
-    () =>
-      Object.values(cal.occurrencesByDate).reduce(
-        (n, list) => n + (list?.length ?? 0),
-        0,
-      ),
-    [cal.occurrencesByDate],
-  );
-
   // openCreate and openEdit reach every DayCell through MonthGrid, and
   // DayCell is memoized: a fresh identity per render would re-render all 42
   // cells on every screen-level state change (drag start/end, dialogs).
@@ -473,17 +464,6 @@ const CalendarScreen = ({ entrance = false }: { entrance?: boolean }) => {
             onAddEvent={() => openNewEvent(resolvedSelectedDate)}
           />
         </div>
-      )}
-
-      {totalOccurrences === 0 && (
-        <p
-          className={`text-center text-xs text-[color:var(--cy-muted)] ${landClass}`}
-          style={landStyle(APP_ENTRANCE_MS.panel)}
-        >
-          {isCompact
-            ? "No events this month. Tap a day, then + Add."
-            : "No events this month. Click a day or + New event to begin."}
-        </p>
       )}
 
       {lastEditor && (
