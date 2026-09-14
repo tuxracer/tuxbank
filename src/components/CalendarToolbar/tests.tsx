@@ -56,7 +56,7 @@ describe("CalendarToolbar month/year selects", () => {
 });
 
 describe("CalendarToolbar settings button", () => {
-  it("compact mode hides + New event and fires onOpenSettings from the labeled button", async () => {
+  it("compact mode hides + New event and fires onOpenSettings from the gear button", async () => {
     const onOpenSettings = vi.fn();
     render(<CalendarToolbar {...baseProps({ onOpenSettings })} compact />);
     expect(screen.queryByText("+ New event")).not.toBeInTheDocument();

@@ -136,23 +136,35 @@ const CalendarToolbar = ({
     return (
       <header className="flex flex-col gap-2">
         <div className="cy-toolbar flex flex-col gap-2 px-3 py-2.5">
-          <div className="flex items-center gap-2">{navControls}</div>
-          {/* The labeled settings button does not fit beside the nav row on a
-              phone, so it shares the legend row: the legend scrolls within the
-              space the button leaves over. */}
-          <div className="flex items-center gap-2">
-            <div className="min-w-0 flex-1">{legend}</div>
+          {/* gap-1.5 rather than gap-2: at a 360px viewport the row is within
+              a few px of its width, and a wider gap flex-shrinks the year
+              select into its chevron. */}
+          <div className="flex items-center gap-1.5">
+            {navControls}
+            {/* A labeled settings button does not fit beside the nav on a
+                phone, so compact shows the bare gear at the row's end. */}
             <Button
               type="button"
+              size="icon"
               variant="ghost"
-              className="cy-btn ml-auto shrink-0 gap-1.5 px-2 text-xs"
+              title="Settings"
+              aria-label="Settings"
+              className="cy-btn relative ml-auto shrink-0"
               onClick={onOpenSettings}
             >
               {/* U+FE0E keeps the gear a glyph, not an emoji, on mobile. */}
-              {"⚙︎ Settings"}
-              <SyncAttentionDot />
+              {"⚙︎"}
+              <span className="absolute top-1 right-1 flex">
+                <SyncAttentionDot />
+              </span>
             </Button>
           </div>
+          {/* The legend gets its own scrolling row, and no row at all while
+              there is nothing to filter by. The -m/p pair buys the focus
+              outline room inside the scroll container's clip. */}
+          {usedCategories.length > 0 && (
+            <div className="-mx-1 -my-1 min-w-0 px-1 py-1">{legend}</div>
+          )}
         </div>
       </header>
     );
