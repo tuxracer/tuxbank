@@ -6,21 +6,14 @@ import EventChip from "@/components/EventChip";
 type DraggableEventChipProps = {
   occurrence: Occurrence;
   onSelect: (occurrence: Occurrence) => void;
-  /**
-   * Distinguishes a second draggable copy of the same occurrence. The overflow
-   * popover lists a day's chips again while the cell still shows some of them,
-   * and two draggables sharing an id would both dim and fight over the drag.
-   */
-  idPrefix?: string;
 };
 
 const DraggableEventChip = ({
   occurrence,
   onSelect,
-  idPrefix = "",
 }: DraggableEventChipProps) => {
   const { setNodeRef, listeners, attributes, isDragging } = useDraggable({
-    id: `${idPrefix}${occurrence.eventId}:${occurrence.date}`,
+    id: `${occurrence.eventId}:${occurrence.date}`,
     data: { occurrence },
   });
   return (

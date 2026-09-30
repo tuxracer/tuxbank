@@ -126,7 +126,7 @@ const DayCell = ({
               <DayEventsPopover
                 label={overflowLabel}
                 dateLabel={dateLabel}
-                occurrences={occurrences}
+                occurrences={overflow}
                 onSelect={onSelectOccurrence}
               />
             )}

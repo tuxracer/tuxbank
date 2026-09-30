@@ -3,6 +3,7 @@ import type { Occurrence } from "@/types";
 export type DayEventsPopoverProps = {
   label: string; // e.g. "+2 more"
   dateLabel: string; // e.g. "May 13"
+  // Only the occurrences the cell could not fit, not the whole day.
   occurrences: Occurrence[];
   onSelect: (occurrence: Occurrence) => void;
 };

@@ -13,9 +13,9 @@ import type { DayEventsPopoverProps, OverflowChipsProps } from "./types";
 
 export * from "./types";
 
-const OVERFLOW_DRAG_ID_PREFIX = "overflow:";
-
-// The popover's body, mounted only while the popover is open. That is what
+// The popover's body, mounted only while the popover is open. It lists only
+// the chips the cell hid, never the ones still visible above the trigger, so
+// no occurrence is ever drawn (or draggable) twice on the same day. That is what
 // scopes the drag monitor: only an open popover has anything to react to, so
 // the closed ones (up to one per day cell) register no listener.
 const OverflowChips = ({
@@ -37,7 +37,6 @@ const OverflowChips = ({
           key={`${o.eventId}:${o.date}`}
           occurrence={o}
           onSelect={onSelect}
-          idPrefix={OVERFLOW_DRAG_ID_PREFIX}
         />
       ))}
     </div>

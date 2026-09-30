@@ -72,7 +72,7 @@ A single person managing their own schedule of **all-day, date-based events**: m
 - An event has: **title** (required), **date** (required, single all-day date), an optional **category** (its color comes from a preset 5-color palette; a new event defaults to none, and uncategorized events render as **Uncategorized**), an **amount** (required, > 0) with a **deposit/withdrawal direction** (required), and an optional **recurrence** rule.
 - Events are **all-day and single-day**: no times, no multi-day spans.
 - Day cells render events as **color-coded event chips**. Recurring occurrences show a **↻** marker.
-- When a day has more chips than fit, it collapses to **"+N more"**, which opens a **day popover** listing all of that day's events.
+- When a day has more chips than fit, it collapses to **"+N more"**, which opens a **day popover** listing only the hidden events, not the chips the cell already shows.
 
 ### 4.3 Categories
 - Categories are **user-managed and persisted** (no presets; the store starts empty for a fresh user). Each has a name and a color from the 5-color palette (`cyan`, `magenta`, `yellow`, `green`, `orange`).
@@ -99,7 +99,7 @@ A `PointerSensor` with `activationConstraint: { distance: 5 }` requires five pix
 
 **Drops on another page.** Dragging a chip past the calendar frame's bottom or right edge pages forward; past its top or left edge pages back (off a corner, the vertical side decides). `App` tracks the pointer with a `pointermove` listener for the duration of a drag, because outside the frame dnd-kit has nothing to collide with, and classifies it against the frame's bounding rect (`pagingZoneFor`). The page turns once the chip has rested outside for `DRAG_PAGE_DWELL_MS` (250ms), and again every `DRAG_PAGE_REPEAT_MS` (700ms) while it stays out, so one excursion past the edge turns one page and holding there keeps turning. While the chip is out, the frame lights the two edges that page in that direction (`.cy-frame.paging-next` / `.paging-prev`) in the cell's cyan drop colour. Releasing outside any cell drops nothing. Wheel scrolling over the grid and PageUp/PageDown also page mid-drag. Nothing special is needed on the grid side: `DayCell`s are keyed by ISO date, so a page turn mounts a fresh set of droppables, and dnd-kit's default `WhileDragging` measuring strategy re-measures droppables whenever the set changes. For a non-recurring event the move applies immediately. For a recurring event the scope dialog opens, and the move runs when the user confirms.
 
-Chips in the "+N more" overflow popover (`src/components/DayEventsPopover`) drag the same way. The popover lists every chip of the day, including the ones the cell still shows, so its copies register under an `overflow:`-prefixed draggable id to stay distinct from the cell's. When a drag starts from the popover, the popover turns invisible (`opacity-0` plus `pointer-events-none`) so the day cells underneath are visible as drop targets, and it closes when the drag ends or is cancelled. It is hidden instead of closed during the drag so the source chip stays mounted for the whole drag, the way a cell's chip does. The popover's `useDndMonitor` listener lives in its body, which is mounted only while the popover is open, so closed popovers register nothing.
+Chips in the "+N more" overflow popover (`src/components/DayEventsPopover`) drag the same way. The popover lists only the chips the cell hid, so each occurrence has exactly one draggable on the page and the popover's chips share the cell's draggable id scheme. When a drag starts from the popover, the popover turns invisible (`opacity-0` plus `pointer-events-none`) so the day cells underneath are visible as drop targets, and it closes when the drag ends or is cancelled. It is hidden instead of closed during the drag so the source chip stays mounted for the whole drag, the way a cell's chip does. The popover's `useDndMonitor` listener lives in its body, which is mounted only while the popover is open, so closed popovers register nothing.
 
 ### 4.5 Recurrence
 - Supported frequencies: **Daily, Weekly, Monthly, Yearly**, each with a positive **interval** (e.g., every 2 weeks). **Weekly** repeats on the **anchor date's weekday** (selecting multiple weekdays per week is out of scope for v1).
@@ -467,7 +467,7 @@ Vitest, **behavior-focused** (verify behavior, not implementation constants, per
 2. A user can create, edit, and delete a one-off event; it persists across reload.
 3. A user can create a recurring event (e.g., weekly), and it renders on the correct days within the visible month.
 4. Editing/deleting/moving a recurring event prompts for scope, and **This / This-and-following / All** each behave per §7 and persist correctly.
-5. "+N more" reveals all events for a day via the popover; the category filter hides/shows chips.
+5. "+N more" reveals the hidden events for a day via the popover; the category filter hides/shows chips.
 6. With storage unavailable (no IndexedDB), the app shows a non-blocking banner and remains usable in-memory.
 7. `prefers-reduced-motion` disables the month-change slide animation.
 8. All tests pass and `pnpm check` is clean.
