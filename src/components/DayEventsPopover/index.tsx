@@ -53,10 +53,10 @@ const DayEventsPopover = ({
   const [open, setOpen] = useState(false);
   // A chip dragged out of the popover has to reach the day cells underneath,
   // so the popover gets out of the way the moment the drag starts. It is only
-  // hidden, not closed, until the drop: closing unmounts the chip, and dnd-kit
-  // drops the drag data of a source that unmounts mid-drag, which would turn
-  // the move into a silent no-op. The flag outlives the drop so the popover
-  // stays hidden through its close animation, and clears on the next open.
+  // hidden, not closed, until the drop, so the source chip stays mounted for
+  // the whole drag the way a cell's chip does. The flag outlives the drop so
+  // the popover stays hidden through its close animation, and clears on the
+  // next open.
   const [draggedOut, setDraggedOut] = useState(false);
   const hideForDrag = useCallback(() => setDraggedOut(true), []);
   const closeAfterDrag = useCallback(() => setOpen(false), []);

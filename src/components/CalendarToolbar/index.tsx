@@ -1,3 +1,4 @@
+import { useDroppable } from "@dnd-kit/core";
 import { Button } from "@/components/ui/button";
 import { NativeSelect } from "@/components/ui/native-select";
 import { catColorVar } from "@/utils/categoryColor";
@@ -6,12 +7,47 @@ import {
   SyncAttentionBadge,
   SyncAttentionDot,
 } from "@/components/SyncAttentionBadge";
-import { MONTH_NAMES, MONTH_NAMES_SHORT } from "./consts";
+import {
+  DRAG_PAGE_NEXT_ID,
+  DRAG_PAGE_PREV_ID,
+  MONTH_NAMES,
+  MONTH_NAMES_SHORT,
+} from "./consts";
 
 import type { CalendarToolbarProps } from "./types";
 
 export * from "./types";
 export * from "./consts";
+
+// The ‹ / › buttons are also drop targets: a chip held over one turns the
+// page (App runs the timer), so the ring they show mid-hover is the same drop
+// affordance a day cell paints.
+const PageButton = ({
+  id,
+  title,
+  onClick,
+  children,
+}: {
+  id: string;
+  title: string;
+  onClick: () => void;
+  children: React.ReactNode;
+}) => {
+  const { setNodeRef, isOver } = useDroppable({ id });
+  return (
+    <Button
+      ref={setNodeRef}
+      type="button"
+      size="icon"
+      variant="ghost"
+      title={title}
+      className={isOver ? "cy-nav drop" : "cy-nav"}
+      onClick={onClick}
+    >
+      {children}
+    </Button>
+  );
+};
 
 const CalendarToolbar = ({
   selectedYear,
@@ -42,16 +78,9 @@ const CalendarToolbar = ({
 
   const navControls = (
     <>
-      <Button
-        type="button"
-        size="icon"
-        variant="ghost"
-        title="Previous"
-        className="cy-nav"
-        onClick={onPrev}
-      >
+      <PageButton id={DRAG_PAGE_PREV_ID} title="Previous" onClick={onPrev}>
         ‹
-      </Button>
+      </PageButton>
       <NativeSelect
         title="Month"
         // Month names are Intl text in the viewer's locale inside an English
@@ -81,16 +110,9 @@ const CalendarToolbar = ({
           </option>
         ))}
       </NativeSelect>
-      <Button
-        type="button"
-        size="icon"
-        variant="ghost"
-        title="Next"
-        className="cy-nav"
-        onClick={onNext}
-      >
+      <PageButton id={DRAG_PAGE_NEXT_ID} title="Next" onClick={onNext}>
         ›
-      </Button>
+      </PageButton>
       <Button
         type="button"
         variant="ghost"
