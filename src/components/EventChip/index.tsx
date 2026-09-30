@@ -23,7 +23,7 @@ const EventChip = ({
       // The category tint and leading dot are drawn by .cy-chip off this.
       data-cat={color}
       // Only suppress touch-scroll on actually-draggable chips; static chips
-      // (overflow popover, drag overlay) keep native scrolling.
+      // (day panel, drag overlay) keep native scrolling.
       style={dragListeners ? { touchAction: "none" } : undefined}
       onClick={(e) => {
         e.stopPropagation();

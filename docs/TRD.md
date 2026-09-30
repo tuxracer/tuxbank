@@ -90,13 +90,13 @@ A single person managing their own schedule of **all-day, date-based events**: m
 
 #### 4.4.1 Drag-and-drop mechanics
 
-Drag-and-drop is powered by `@dnd-kit/core`. `DndContext` lives in `src/App.tsx`, wrapping `MonthGrid`. Chips rendered directly in a day cell are wrapped by `src/components/DraggableEventChip`, which calls `useDraggable` and passes the `occurrence` as drag data. Each `DayCell` calls `useDroppable({ id: cell.iso })` and adds a `.drop` class while a chip hovers over it, producing a cyan highlight. A `DragOverlay` in `App` renders a themed floating copy of the chip while dragging; the source chip dims via `.cy-chip-dragging`.
+Drag-and-drop is powered by `@dnd-kit/core`. `DndContext` lives in `src/App.tsx`, wrapping `MonthGrid`. Chips in a day cell are wrapped by `src/components/DraggableEventChip`, which calls `useDraggable` and passes the `occurrence` as drag data. Each `DayCell` calls `useDroppable({ id: cell.iso })` and adds a `.drop` class while a chip hovers over it, producing a cyan highlight. A `DragOverlay` in `App` renders a themed floating copy of the chip while dragging; the source chip dims via `.cy-chip-dragging`.
 
 A `PointerSensor` with `activationConstraint: { distance: 5 }` requires five pixels of pointer travel before a press becomes a drag, so a plain click still opens the editor. Collision detection uses `pointerWithin`.
 
 `onDragStart` records the active occurrence for the overlay. `onDragEnd` reads the dragged occurrence from `active.data` and the target ISO date from `over.id`. Dropping on the same day, or outside any cell, is a no-op. For a non-recurring event the move applies immediately. For a recurring event the scope dialog opens, and the move runs when the user confirms.
 
-Chips in the "+N more" overflow popover are not draggable; move them by opening the editor and changing the date.
+Chips in the "+N more" overflow popover (`src/components/DayEventsPopover`) drag the same way. The popover lists every chip of the day, including the ones the cell still shows, so its copies register under an `overflow:`-prefixed draggable id to stay distinct from the cell's. When a drag starts from the popover, the popover turns invisible (`opacity-0` plus `pointer-events-none`) so the day cells underneath are visible as drop targets, and it closes when the drag ends or is cancelled. It is hidden instead of closed during the drag on purpose: closing unmounts the source chip, and dnd-kit replaces `active.data` with an empty default once the active draggable unmounts, so `onDragEnd` would find no occurrence and the move would silently do nothing. The popover's `useDndMonitor` listener lives in its body, which is mounted only while the popover is open, so closed popovers register nothing.
 
 ### 4.5 Recurrence
 - Supported frequencies: **Daily, Weekly, Monthly, Yearly**, each with a positive **interval** (e.g., every 2 weeks). **Weekly** repeats on the **anchor date's weekday** (selecting multiple weekdays per week is out of scope for v1).
@@ -353,9 +353,9 @@ src/
     MonthGrid/              # week-grid (desktop trims to weeks spanned; compact = 6 rows); consumes dateGrid + grouped occurrences
     DayCell/                # date number, today highlight, chips, "+N more"; droppable target
     EventChip/              # color-coded chip; accepts optional drag props for draggable use
-    DraggableEventChip/     # wraps EventChip with useDraggable for cells (not the overflow popover)
+    DraggableEventChip/     # wraps EventChip with useDraggable, for cells and the overflow popover
     DayPanel/               # compact-mode selected-day detail: event chips, running balance, Add button
-    DayEventsPopover/       # overflow list (shadcn Popover)
+    DayEventsPopover/       # overflow list (shadcn Popover); its chips are draggable and it hides while one is dragged out
     CategoryCombobox/       # creatable combobox (shadcn Command + Popover); uses useCategorySearch + CategoryCreateRow
     SettingsDialog/         # one dialog for the four settings panes: tab rail on desktop, full-screen drill-down menu on compact
     CategoriesSettings/     # settings pane: rename / recolor / delete categories; search field + CategoryCreateRow for in-pane creation

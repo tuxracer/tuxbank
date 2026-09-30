@@ -6,3 +6,11 @@ export type DayEventsPopoverProps = {
   occurrences: Occurrence[];
   onSelect: (occurrence: Occurrence) => void;
 };
+
+export type OverflowChipsProps = {
+  occurrences: Occurrence[];
+  onSelect: (occurrence: Occurrence) => void;
+  onDragStart: () => void;
+  // Fires for a cancelled drag as well as a dropped one.
+  onDragEnd: () => void;
+};
