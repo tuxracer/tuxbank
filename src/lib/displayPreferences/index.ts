@@ -3,10 +3,13 @@ import { subscribeToDataChanges } from "@/lib/tabSync";
 import {
   CURRENCY_SETTING_ID,
   DEFAULT_DISPLAY_PREFERENCES,
+  DISPLAY_SETTING_IDS,
   WEEK_STARTS_ON_SETTING_ID,
+  WEEKS_VISIBLE_SETTING_ID,
 } from "./consts";
 import {
   isCurrencyCode,
+  isWeekCount,
   isWeekStartDay,
   type DisplayPreferences,
 } from "./types";
@@ -53,9 +56,17 @@ export const resetDisplayPreferencesSnapshot = (): void => {
 
 const settingValueFor = (
   preferences: DisplayPreferences,
-  id: string,
-): SettingValue =>
-  id === CURRENCY_SETTING_ID ? preferences.currency : preferences.weekStartsOn;
+  id: (typeof DISPLAY_SETTING_IDS)[number],
+): SettingValue => {
+  switch (id) {
+    case CURRENCY_SETTING_ID:
+      return preferences.currency;
+    case WEEK_STARTS_ON_SETTING_ID:
+      return preferences.weekStartsOn;
+    case WEEKS_VISIBLE_SETTING_ID:
+      return preferences.weeksVisible;
+  }
+};
 
 /**
  * Read one setting row's value back into a preference, falling back to
@@ -73,6 +84,9 @@ const toPreferences = (
     }
     if (row.id === WEEK_STARTS_ON_SETTING_ID) {
       patch.weekStartsOn = isWeekStartDay(row.value) ? row.value : null;
+    }
+    if (row.id === WEEKS_VISIBLE_SETTING_ID) {
+      patch.weeksVisible = isWeekCount(row.value) ? row.value : null;
     }
   }
   return patch;
@@ -108,8 +122,9 @@ export const hydrateDisplayPreferences = async (): Promise<void> => {
   const next = { ...DEFAULT_DISPLAY_PREFERENCES, ...toPreferences(rows) };
   const current = readDisplayPreferences();
   if (
-    next.currency === current.currency &&
-    next.weekStartsOn === current.weekStartsOn
+    DISPLAY_SETTING_IDS.every(
+      (id) => settingValueFor(next, id) === settingValueFor(current, id),
+    )
   ) {
     return;
   }
@@ -130,7 +145,7 @@ export const writeDisplayPreferences = (
   const next = { ...previous, ...patch };
   snapshot = next;
   emit();
-  const changed = [CURRENCY_SETTING_ID, WEEK_STARTS_ON_SETTING_ID].filter(
+  const changed = DISPLAY_SETTING_IDS.filter(
     (id) => settingValueFor(next, id) !== settingValueFor(previous, id),
   );
   if (changed.length === 0) return;

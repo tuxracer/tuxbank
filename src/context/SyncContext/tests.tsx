@@ -201,7 +201,7 @@ describe("SyncContext month navigation", () => {
       await act(() => new Promise((resolve) => setTimeout(resolve, 2_500)));
       mocks.runSync.mockClear();
 
-      act(() => result.current.calendar.goToNextMonth());
+      act(() => result.current.calendar.goToNext());
 
       await waitFor(() => expect(mocks.runSync).toHaveBeenCalledTimes(1), {
         timeout: 4_000,
@@ -220,7 +220,7 @@ describe("SyncContext month navigation", () => {
       );
       await waitFor(() => expect(result.current.sync.status).toBe("locked"));
 
-      act(() => result.current.calendar.goToNextMonth());
+      act(() => result.current.calendar.goToNext());
 
       await act(() => new Promise((resolve) => setTimeout(resolve, 2_500)));
       expect(mocks.runSync).not.toHaveBeenCalled();

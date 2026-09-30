@@ -7,7 +7,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { addMonths, startOfMonth } from "date-fns";
+import { addMonths, addWeeks, startOfDay, startOfMonth } from "date-fns";
 import { groupBy } from "remeda";
 import type {
   CalendarEvent,
@@ -16,7 +16,7 @@ import type {
   Occurrence,
 } from "@/types";
 import { categoryKey, UNKNOWN_CATEGORY } from "@/types";
-import { buildMonthGrid, toISODate } from "@/lib/dateGrid";
+import { buildMonthGrid, buildWeekGrid, toISODate } from "@/lib/dateGrid";
 import {
   buildFollowingSeries,
   buildMovedFollowing,
@@ -75,9 +75,16 @@ export const CalendarProvider = ({
 }: {
   children: React.ReactNode;
 }) => {
-  const [visibleMonth, setVisibleMonth] = useState<Date>(() =>
-    startOfMonth(new Date()),
+  // The date the view hangs from. The month view shows the month it falls in;
+  // a fixed-week view starts with the week that contains it.
+  const [anchorDate, setAnchorDate] = useState<Date>(() =>
+    startOfDay(new Date()),
   );
+  // Also the month the toolbar's pickers show. In a fixed-week view that is
+  // the anchor's month and not the first visible day's, so picking a month
+  // (which anchors on its 1st) never flips the picker back to the month
+  // before when the 1st falls mid-week.
+  const visibleMonth = useMemo(() => startOfMonth(anchorDate), [anchorDate]);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   // Synchronous mirror of `categories` for duplicate-name checks: two rapid
@@ -233,10 +240,13 @@ export const CalendarProvider = ({
     await reloadData();
   }, [reloadData]);
 
-  const { weekStartsOn } = useDisplayPreferences();
+  const { weekStartsOn, weeksVisible } = useDisplayPreferences();
   const cells = useMemo(
-    () => buildMonthGrid(visibleMonth, weekStartsOn),
-    [visibleMonth, weekStartsOn],
+    () =>
+      weeksVisible === null
+        ? buildMonthGrid(visibleMonth, weekStartsOn)
+        : buildWeekGrid(anchorDate, weeksVisible, weekStartsOn),
+    [visibleMonth, anchorDate, weeksVisible, weekStartsOn],
   );
   const todayISO = toISODate(new Date());
 
@@ -590,20 +600,25 @@ export const CalendarProvider = ({
     [persist, applyCategories],
   );
 
-  const goToPrevMonth = useCallback(
-    () => setVisibleMonth((m) => addMonths(m, -1)),
-    [],
+  // One page in either direction: a month in the month view, the whole window
+  // in a fixed-week view, so nothing on screen is skipped or shown twice.
+  const step = useCallback(
+    (direction: 1 | -1) =>
+      setAnchorDate((anchor) =>
+        weeksVisible === null
+          ? addMonths(startOfMonth(anchor), direction)
+          : addWeeks(anchor, direction * weeksVisible),
+      ),
+    [weeksVisible],
   );
-  const goToNextMonth = useCallback(
-    () => setVisibleMonth((m) => addMonths(m, 1)),
-    [],
-  );
+  const goToPrev = useCallback(() => step(-1), [step]);
+  const goToNext = useCallback(() => step(1), [step]);
   const goToToday = useCallback(
-    () => setVisibleMonth(startOfMonth(new Date())),
+    () => setAnchorDate(startOfDay(new Date())),
     [],
   );
   const goToDate = useCallback(
-    (date: Date) => setVisibleMonth(startOfMonth(date)),
+    (date: Date) => setAnchorDate(startOfDay(date)),
     [],
   );
 
@@ -626,8 +641,8 @@ export const CalendarProvider = ({
       storageAvailable,
       storageResettable,
       loaded,
-      goToPrevMonth,
-      goToNextMonth,
+      goToPrev,
+      goToNext,
       goToToday,
       goToDate,
       toggleCategory,
@@ -659,8 +674,8 @@ export const CalendarProvider = ({
       storageAvailable,
       storageResettable,
       loaded,
-      goToPrevMonth,
-      goToNextMonth,
+      goToPrev,
+      goToNext,
       goToToday,
       goToDate,
       toggleCategory,

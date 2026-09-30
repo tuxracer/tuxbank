@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { openDB } from "idb";
 import type { CalendarEvent } from "@/types";
@@ -7,6 +7,7 @@ import {
   deleteEvent as dbDeleteEvent,
   exportDatabase,
   getAllEvents,
+  getAllSettings,
   putEvent,
   resetDbCache,
   DB_NAME,
@@ -18,6 +19,7 @@ import {
   BACKUP_SCHEMA_VERSION,
 } from "@/lib/storage";
 import { resetChannelForTests, SYNC_CHANNEL_NAME } from "@/lib/tabSync";
+import { writeDisplayPreferences } from "@/lib/displayPreferences";
 import { CalendarProvider, useCalendar } from "./index";
 
 const wrapper = ({ children }: { children: React.ReactNode }) => (
@@ -456,6 +458,35 @@ describe("CalendarContext", () => {
       expect(result.current.visibleMonth.getFullYear()).toBe(pastYear),
     );
     expect(result.current.yearRange.min).toBe(pastYear);
+  });
+
+  it("pages by the visible weeks when a fixed week count is set", async () => {
+    const { result } = renderHook(() => useCalendar(), { wrapper });
+    await waitFor(() => expect(result.current.loaded).toBe(true));
+    act(() => {
+      // The week start is pinned so the window does not depend on the
+      // machine's locale.
+      writeDisplayPreferences({ weeksVisible: 2, weekStartsOn: 0 });
+      result.current.goToDate(new Date(2026, 4, 13)); // Wed May 13
+    });
+    const windowEdges = () => [
+      result.current.cells[0].iso,
+      result.current.cells[result.current.cells.length - 1].iso,
+    ];
+    expect(windowEdges()).toEqual(["2026-05-10", "2026-05-23"]);
+
+    act(() => result.current.goToNext());
+    expect(windowEdges()).toEqual(["2026-05-24", "2026-06-06"]);
+
+    act(() => result.current.goToPrev());
+    act(() => result.current.goToPrev());
+    expect(windowEdges()).toEqual(["2026-04-26", "2026-05-09"]);
+
+    // Let both setting rows commit so neither lands in the next test's
+    // database.
+    await vi.waitFor(async () => {
+      expect(await getAllSettings()).toHaveLength(2);
+    });
   });
 });
 

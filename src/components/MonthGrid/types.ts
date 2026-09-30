@@ -8,14 +8,14 @@ export type MonthGridProps = {
   compact?: boolean;
   /** ISO date highlighted as selected (compact mode only). */
   selectedISO?: string;
-  /** Compact-mode swipe: leftward swipe on the grid (typically next month). */
+  /** Compact-mode swipe: leftward swipe on the grid (typically the next page). */
   onSwipeLeft?: () => void;
-  /** Compact-mode swipe: rightward swipe on the grid (typically previous month). */
+  /** Compact-mode swipe: rightward swipe on the grid (typically the previous page). */
   onSwipeRight?: () => void;
-  /** Wheel scroll up on the grid: go to the previous month. */
-  onPrevMonth?: () => void;
-  /** Wheel scroll down on the grid: go to the next month. */
-  onNextMonth?: () => void;
+  /** Wheel scroll up on the grid: go back a page (a month, or the visible weeks). */
+  onPrev?: () => void;
+  /** Wheel scroll down on the grid: go forward a page. */
+  onNext?: () => void;
   occurrencesByDate: Partial<Record<string, Occurrence[]>>;
   balancesByDate?: Record<string, number>;
   onSelectDate: (iso: string) => void;

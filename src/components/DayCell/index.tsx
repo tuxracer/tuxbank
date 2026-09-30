@@ -5,6 +5,8 @@ import DraggableEventChip from "@/components/DraggableEventChip";
 import DayEventsPopover from "@/components/DayEventsPopover";
 import { formatCurrency, formatCurrencyShort } from "@/utils/formatCurrency";
 import { catColorVar } from "@/utils/categoryColor";
+import { monthDayLabel } from "@/utils/monthDayLabel";
+import { RUNTIME_LOCALE } from "@/utils/runtimeLocale";
 import { useDisplayPreferences } from "@/hooks/useDisplayPreferences";
 
 import { MAX_COMPACT_DOTS } from "./consts";
@@ -74,7 +76,16 @@ const DayCell = ({
         }
       }}
     >
-      <span className="cy-cell-num">{cell.dayOfMonth}</span>
+      {cell.showMonth ? (
+        // Kept to one line: a wrapped label would eat into the chip area the
+        // row height was budgeted for. Compact cells are too narrow for a
+        // month name, so they get the all-numeric form.
+        <span className="cy-cell-num whitespace-nowrap" lang={RUNTIME_LOCALE}>
+          {monthDayLabel(cell.date, compact ? "numeric" : "short")}
+        </span>
+      ) : (
+        <span className="cy-cell-num">{cell.dayOfMonth}</span>
+      )}
       {compact ? (
         <>
           <div className="flex flex-wrap items-center gap-1">

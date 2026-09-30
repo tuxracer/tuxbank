@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   buildMonthGrid,
+  buildWeekGrid,
   inMonthWeekCount,
   resolveWeekStartsOn,
   toISODate,
@@ -39,6 +40,34 @@ describe("buildMonthGrid", () => {
 
   it("formats ISO dates", () => {
     expect(toISODate(new Date(2026, 0, 9))).toBe("2026-01-09");
+  });
+});
+
+describe("buildWeekGrid", () => {
+  it("covers whole weeks, starting with the week that contains the anchor", () => {
+    const cells = buildWeekGrid(new Date(2026, 4, 13), 2, 0); // Wed May 13
+    expect(cells).toHaveLength(14);
+    expect(cells[0].iso).toBe("2026-05-10"); // the Sunday before
+    expect(cells[13].iso).toBe("2026-05-23");
+    expect(buildWeekGrid(new Date(2026, 4, 13), 2, 1)[0].iso).toBe(
+      "2026-05-11", // Monday-based weeks
+    );
+  });
+
+  it("spells out the month on the first cell and on each 1st", () => {
+    const cells = buildWeekGrid(new Date(2026, 4, 28), 2, 0); // May 24 .. Jun 6
+    expect(cells.filter((c) => c.showMonth).map((c) => c.iso)).toEqual([
+      "2026-05-24",
+      "2026-06-01",
+    ]);
+  });
+
+  it("leaves no trailing week for the desktop grid to trim", () => {
+    // MonthGrid sizes its rows with inMonthWeekCount; a window that crosses
+    // into the next month still has to render every week it was asked for.
+    expect(inMonthWeekCount(buildWeekGrid(new Date(2026, 4, 28), 3, 0))).toBe(
+      3,
+    );
   });
 });
 

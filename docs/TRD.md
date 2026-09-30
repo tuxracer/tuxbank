@@ -63,6 +63,7 @@ A single person managing their own schedule of **all-day, date-based events**: m
 ### 4.1 Month view & navigation
 - On load, the calendar shows the **current month** in the viewer's local time zone, filling the viewport (`100dvh`).
 - A **7-column grid** (week start follows the locale via Intl week info, Sunday where unavailable; overridable per device in the Display settings pane) renders a fixed **6-week (6×7) matrix** so layout height is stable; leading/trailing days from adjacent months are shown **dimmed**.
+- **Weeks shown** (Display settings pane, synced like the other display settings): automatic, the default, shows the whole month as described above. A fixed count of 1 to 6 switches the grid to a rolling window of that many whole weeks (`buildWeekGrid`), starting with the week that contains the view's anchor date. ‹ / ›, PageUp/PageDown, the wheel, and the compact swipe then page by the whole window, so no day is skipped or shown twice. **Today** anchors on today, which makes the current week the first row, and the month/year pickers anchor on the 1st of the chosen month. The pickers show the anchor's month rather than the first visible day's, so picking a month never flips the picker back to the month before when the 1st falls mid-week. A fixed-week window has no month of its own, so no day in it is dimmed; the first cell and each 1st spell out their month instead ("Oct 1", or the all-numeric "10/1" in compact cells, via `monthDayLabel`). Compact mode honors the same count.
 - The **today** cell is visually emphasized (a yellow inset left edge).
 - **Toolbar** provides: previous month (‹), next month (›), current **month/year label**, **Today** (jump to current month), a **category filter**, and **+ New Event**.
 - A **HUD status line** shows decorative/real system context (e.g., app name, `LOCAL_DB::INDEXEDDB`, record count).
@@ -237,7 +238,7 @@ This mirrors iCalendar semantics (`EXDATE` / `RECURRENCE-ID` for single override
 - **Event editor (Dialog):** built with shadcn `Form` + **react-hook-form**/zod. Fields: Title, Date (native `<input type="date">`), Category (`CategoryCombobox`: creatable combobox built on shadcn `Command` + `Popover`; backed by `useCategorySearch` for filtering and exact-match detection; pick existing or create a new name + color via `CategoryCreateRow`), Repeat (`NativeSelect`: Does-not-repeat / Daily / Weekly / Monthly / Yearly) with interval + optional end date; footer with **Delete**, **Cancel**, **Save**. The shadcn `calendar`/`Select` primitives remain available for future use.
 - **Recurring scope dialog:** This event / This and following / All events (used for edit, delete, and move); options that cannot apply are hidden, so the last occurrence of a series offers no "This and following" and the first occurrence offers no "All events" (see §7).
 - **Move toast:** a `sonner` toast at the bottom center confirms every move and provides an Undo action. Styled to the floating-panel look via `.cy-toast` / `.cy-toast-action` in `globals.css`.
-- **Responsive / compact mode:** below 640px (Tailwind's `sm` breakpoint) the `useIsCompact()` hook (`src/hooks/useIsCompact/`, matchMedia-driven) switches the calendar to compact rendering. The grid always shows the full 6 week-rows (unlike desktop, which trims to the weeks the month spans). Day cells show up to 4 category-colored dots (plus a `+` marker when there are more) instead of full chips, and tapping a day selects it. They still carry the running balance on their bottom line, abbreviated by the locale's own compact notation ("$1.2K", `formatCurrencyShort`) at 9px (`.cy-balance-sm`), because the full figure does not fit a cell roughly 50px wide; the exact amount stays one tap away in the `DayPanel`. Compact cells also run tighter than desktop ones (`p-1` / `gap-0.5` rather than `p-1.5` / `gap-1`) so all three lines clear a row that is only about 43px tall on a 568px-high phone. Swiping the grid left or right changes months (left for next, right for previous), with a brief 180ms directional slide as feedback. The selected day's events, running balance, and an Add button appear in a `DayPanel` below the grid. The toolbar puts navigation and an icon-only Settings gear on one row (a labeled button does not fit beside the nav at 360px; the gear shows a bare attention dot when a settings pane needs attention). The category legend gets its own horizontally scrolling row below, rendered only while the visible events use at least one category, so a fresh calendar shows a single toolbar row. Drag-and-drop is disabled in compact mode; events move between days by editing the date in the event editor. Dialogs cap their height at `85dvh` and scroll internally.
+- **Responsive / compact mode:** below 640px (Tailwind's `sm` breakpoint) the `useIsCompact()` hook (`src/hooks/useIsCompact/`, matchMedia-driven) switches the calendar to compact rendering. The grid always shows the full 6 week-rows (unlike desktop, which trims to the weeks the month spans), or the fixed count when the weeks-shown setting has one. Day cells show up to 4 category-colored dots (plus a `+` marker when there are more) instead of full chips, and tapping a day selects it. They still carry the running balance on their bottom line, abbreviated by the locale's own compact notation ("$1.2K", `formatCurrencyShort`) at 9px (`.cy-balance-sm`), because the full figure does not fit a cell roughly 50px wide; the exact amount stays one tap away in the `DayPanel`. Compact cells also run tighter than desktop ones (`p-1` / `gap-0.5` rather than `p-1.5` / `gap-1`) so all three lines clear a row that is only about 43px tall on a 568px-high phone. Swiping the grid left or right changes months (left for next, right for previous), with a brief 180ms directional slide as feedback. The selected day's events, running balance, and an Add button appear in a `DayPanel` below the grid. The toolbar puts navigation and an icon-only Settings gear on one row (a labeled button does not fit beside the nav at 360px; the gear shows a bare attention dot when a settings pane needs attention). The category legend gets its own horizontally scrolling row below, rendered only while the visible events use at least one category, so a fresh calendar shows a single toolbar row. Drag-and-drop is disabled in compact mode; events move between days by editing the date in the event editor. Dialogs cap their height at `85dvh` and scroll internally.
 - **Empty state:** a styled prompt to create the first event when the calendar has none.
 - **Landing page (first visit only):** `src/components/LandingPage` renders instead of the calendar until the visitor clicks the **Try Now** CTA. It stacks three bands: a hero (HUD status line, headline, supporting line, `.cy-cta` button), a full-width **preview console**, and a **spec grid** of four cells (Account / Storage / Sync / Price) built with the month grid's own construction (panel fills over a hairline `gap-px` background, 1px `--cy-line` outer border), each holding a mono HUD key, a display-face claim, and one supporting sentence. A footer with the MIT license and a source-repo link closes the page.
 
@@ -365,31 +366,32 @@ src/
     EventDialog/            # create/edit form (shadcn Form + react-hook-form/zod, Dialog/Select/Textarea + date picker)
     RecurrenceScopeDialog/  # This / This & following / All (shadcn Dialog + RadioGroup)
     DataSettings/           # settings pane: JSON backup export/import (validate -> confirm -> swap) + guarded clear-all
-    DisplaySettings/        # settings pane: currency + week-start overrides (automatic = follow the locale); synced
+    DisplaySettings/        # settings pane: currency, week-start, and weeks-shown overrides (automatic = follow the locale / show the whole month); synced
     StorageUnavailableBanner/ # shown when storage fails; offers a reset when the DB is unopenable
     SyncSettings/           # settings pane: optional account sync: create / sign-in / TOTP / recovery-key / change-password
     LandingPage/            # first-visit entry screen; Try Now CTA dismisses it via landingGate
   context/
-    CalendarContext/        # visible month, events, CRUD actions (including moveEvent), filter state
+    CalendarContext/        # anchor date (month view or fixed-week window), events, CRUD actions (including moveEvent), filter state
     SyncContext/            # optional account-sync state machine; consume via useSync()
   hooks/
-    useDisplayPreferences/  # useSyncExternalStore over lib/displayPreferences; resolved currency + weekStartsOn and setters
+    useDisplayPreferences/  # useSyncExternalStore over lib/displayPreferences; resolved currency + weekStartsOn, weeksVisible, and setters
     useIsCompact/           # matchMedia hook; true below 640px (Tailwind sm breakpoint)
-    useSwipeNavigation/     # compact-mode swipe left/right on the grid changes months
-    useWheelNavigation/     # wheel/trackpad scroll on the grid changes months (down = next)
+    useSwipeNavigation/     # compact-mode swipe left/right on the grid pages the view (a month, or the visible weeks)
+    useWheelNavigation/     # wheel/trackpad scroll on the grid pages the view (down = next)
   lib/
     storage/                # IndexedDB (idb); StorageError + guards; JSON backup
     tabSync/                # cross-tab change signal (BroadcastChannel)
     recurrence/             # expand(window) + recurrence override/split/move helpers (pure)
-    dateGrid/               # month -> 6x7 date matrix; inMonthWeekCount() for the weeks a month spans
+    dateGrid/               # month -> 6x7 date matrix; inMonthWeekCount() for the weeks a month spans; buildWeekGrid() for a rolling N-week window
     balance/                # running balance from deposits/withdrawals
-    displayPreferences/     # synced display overrides (currency, week start); null = automatic; IndexedDB-backed
+    displayPreferences/     # synced display overrides (currency, week start, weeks shown); null = automatic; IndexedDB-backed
     landingGate/            # localStorage flag for skipping the landing page on return visits
   types/                    # CalendarEvent, Category, Recurrence + type guards
   utils/
     categoryColor/          # PALETTE, DEFAULT_CATEGORY_COLOR, catColorVar
     formatCurrency/         # Intl.NumberFormat in the viewer's locale; currency param defaults to the local currency (region -> currency lookup, USD fallback)
     weekdayLabel/           # weekday name in the viewer's language (short/long), from a fixed Sunday anchor date
+    monthDayLabel/          # a day with its month in the viewer's locale ("Oct 1", or numeric "10/1")
     base64/                 # base64 encode/decode helpers (used by the sync layer)
     runtimeLocale/          # RUNTIME_LOCALE: the resolved default locale; lang attribute for Intl-generated text (document stays lang="en" until the copy is translated)
   components/
@@ -422,7 +424,7 @@ It branches on four cases driven by `scope` and whether the event recurs:
 
 ## 12. Accessibility & Performance
 
-- Grid uses semantic roles (`grid` / `row` / `gridcell`); **arrow keys** (←/→/↑/↓) move day focus via a **roving tabindex** in `MonthGrid`; **PageUp/PageDown** navigate months, as does a **vertical wheel/trackpad scroll** over the grid (down for next month, up for previous; one navigation per flick, and quick successive flicks chain month-per-flick, with the same 180ms directional slide as compact-mode swipe); **Enter** opens a day; dialogs trap focus (Radix-managed).
+- Grid uses semantic roles (`grid` / `row` / `gridcell`); **arrow keys** (←/→/↑/↓) move day focus via a **roving tabindex** in `MonthGrid`; **PageUp/PageDown** navigate months (or page by the visible weeks when a fixed week count is set), as does a **vertical wheel/trackpad scroll** over the grid (down for next, up for previous; one navigation per flick, and quick successive flicks chain month-per-flick, with the same 180ms directional slide as compact-mode swipe); **Enter** opens a day; dialogs trap focus (Radix-managed).
 - **Color is never the only signal**: chips carry text + ↻; categories have names.
 - **Contrast:** ensure text remains legible over the dark HUD (target WCAG AA for body text).
 - **`prefers-reduced-motion`** honored (see §10).
@@ -760,13 +762,13 @@ a genuinely concurrent edit; acceptable for a single user.
 ### Synced settings (`settings` store, `src/lib/displayPreferences`)
 
 Everything the user chose syncs when signed in: events, categories, and
-settings. Display preferences (currency, week start) were originally
+settings. Display preferences (currency, week start, and later weeks shown) were originally
 device-local in localStorage, which left a signed-in user unable to tell which
 of their choices followed them across devices. They are now ordinary synced
 rows and ride the same machinery as everything else.
 
 **One row per setting**, `{ id, value, updatedAt }`, keyed by a stable name
-(`currency`, `weekStartsOn`) rather than a generated id. A single settings blob
+(`currency`, `weekStartsOn`, `weeksVisible`) rather than a generated id. A single settings blob
 would make two unrelated preferences compete under last-write-wins; per-row
 means a device that changes the currency and a device that changes the week
 start both keep their change. `SettingValue` is deliberately narrow (string,
@@ -1022,8 +1024,8 @@ carry no user content (no titles, amounts, dates, categories, or emails).
 
 `layout` is `compact` or `full`; `synced` says whether the action also rewrote
 the account's data on every device; `method` is `password` or `device-link`;
-`setting` is `currency` or `week-start` and `automatic` says whether the change
-went back to following the locale; `choice` is the answer to the first-sync
+`setting` is `currency`, `week-start`, or `weeks-visible` and `automatic` says
+whether the change went back to automatic; `choice` is the answer to the first-sync
 conflict prompt.
 `settings-opened` is tracked in `src/App.tsx` where the toolbar button opens
 the dialog; pane opens in `SettingsDialog` (the first three panes keep the

@@ -1,8 +1,11 @@
 import type { Day } from "date-fns";
 import { isNumber, isString } from "remeda";
 
+/** How many week rows a fixed-week calendar view shows. */
+export type WeekCount = 1 | 2 | 3 | 4 | 5 | 6;
+
 /**
- * Display overrides, each `null` when the app should follow the locale
+ * Display overrides, each `null` when the app should pick for itself
  * ("automatic"). Part of the synced dataset: a signed-in account carries its
  * settings to every device, because a user who picks a currency on one device
  * and finds another still showing a different one cannot tell what syncs.
@@ -16,6 +19,8 @@ export type DisplayPreferences = {
   currency: string | null;
   /** date-fns day index (0 = Sunday … 6 = Saturday), or null for the locale's. */
   weekStartsOn: Day | null;
+  /** Weeks the calendar shows at once, or null for the whole visible month. */
+  weeksVisible: WeekCount | null;
 };
 
 /** Well-formed ISO 4217 code. Intl formats any such code, known or not. */
@@ -24,3 +29,6 @@ export const isCurrencyCode = (value: unknown): value is string =>
 
 export const isWeekStartDay = (value: unknown): value is Day =>
   isNumber(value) && Number.isInteger(value) && value >= 0 && value <= 6;
+
+export const isWeekCount = (value: unknown): value is WeekCount =>
+  isNumber(value) && Number.isInteger(value) && value >= 1 && value <= 6;

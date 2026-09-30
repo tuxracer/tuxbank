@@ -36,6 +36,9 @@ const initialActiveIndex = (cells: DateCell[], todayISO: string): number => {
   return index >= 0 ? index : 0;
 };
 
+const gridKeyFor = (cells: DateCell[]): string =>
+  `${cells[0]?.iso ?? ""}:${cells.length}`;
+
 const chipsThatFit = (px: number): number =>
   px < CHIP_HEIGHT_PX
     ? 0
@@ -65,8 +68,8 @@ const MonthGrid = ({
   selectedISO,
   onSwipeLeft,
   onSwipeRight,
-  onPrevMonth,
-  onNextMonth,
+  onPrev,
+  onNext,
   occurrencesByDate,
   balancesByDate = {},
   onSelectDate,
@@ -76,9 +79,10 @@ const MonthGrid = ({
   const weekdays = useMemo(() => weekdayLabels(weekStartsOn), [weekStartsOn]);
   // Compact (mobile) always fills the full 6-week grid; desktop renders only
   // the weeks the month spans (4-6) so day cells get more height. cells is the
-  // full 6-week window from buildMonthGrid either way. Memoized (with the
-  // per-cell Intl labels) so DayCell props keep a stable identity across
-  // focus/animation/measurement re-renders.
+  // full 6-week window from buildMonthGrid either way. A fixed-week window
+  // (buildWeekGrid) has no out-of-month weeks to trim, so both layouts render
+  // all of it. Memoized (with the per-cell Intl labels) so DayCell props keep
+  // a stable identity across focus/animation/measurement re-renders.
   const rows = compact ? cells.length / COLS : inMonthWeekCount(cells);
   const visibleCells = useMemo(
     () => (compact ? cells : cells.slice(0, rows * COLS)),
@@ -91,17 +95,19 @@ const MonthGrid = ({
 
   const rootRef = useRef<HTMLDivElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
-  // Track which grid we last computed the active index for (keyed by first cell ISO).
-  // When cells change (month nav), reset activeIndex during the current render —
-  // this is the React-recommended "derived state reset" pattern that avoids effects.
-  const gridKeyRef = useRef<string>(cells[0]?.iso ?? "");
+  // Track which grid we last computed the active index for, keyed by first
+  // cell ISO plus length: changing how many weeks show can keep the first cell
+  // and still leave the old index past the end. When cells change (navigation),
+  // reset activeIndex during the current render — this is the React-recommended
+  // "derived state reset" pattern that avoids effects.
+  const [gridKey, setGridKey] = useState(() => gridKeyFor(cells));
   const [activeIndex, setActiveIndex] = useState(() =>
     initialActiveIndex(visibleCells, todayISO),
   );
 
-  // Gesture month navigation: swipe (compact mode) and vertical wheel scroll
-  // (any layout). Both share a one-shot 180ms directional slide as the
-  // month-change feedback, cleared on animationend.
+  // Gesture navigation: swipe (compact mode) and vertical wheel scroll (any
+  // layout). Both share a one-shot 180ms directional slide as the page-change
+  // feedback, cleared on animationend.
   const [shift, setShift] = useState<"next" | "prev" | null>(null);
   const swipeEnabled = Boolean(onSwipeLeft ?? onSwipeRight);
   const swipeHandlers = useSwipeNavigation({
@@ -116,14 +122,14 @@ const MonthGrid = ({
     },
   });
   const wheelHandlers = useWheelNavigation({
-    enabled: Boolean(onPrevMonth ?? onNextMonth),
+    enabled: Boolean(onPrev ?? onNext),
     onPrev: () => {
       setShift("prev");
-      onPrevMonth?.();
+      onPrev?.();
     },
     onNext: () => {
       setShift("next");
-      onNextMonth?.();
+      onNext?.();
     },
   });
 
@@ -148,9 +154,9 @@ const MonthGrid = ({
 
   // Shared row height for adaptive chip capacity: every row is an equal 1fr
   // track, so one grid-level measurement serves every cell. Re-runs when the
-  // row count changes (month nav, or desktop/compact) since that resizes rows
-  // without a container resize. Stays null in jsdom (the stub never fires),
-  // which leaves cells unlimited.
+  // row count changes (navigation, desktop/compact, or the weeks-shown
+  // setting) since that resizes rows without a container resize. Stays null
+  // in jsdom (the stub never fires), which leaves cells unlimited.
   const [rowHeightPx, setRowHeightPx] = useState<number | null>(null);
   useEffect(() => {
     const el = gridRef.current;
@@ -162,10 +168,10 @@ const MonthGrid = ({
     return () => observer.disconnect();
   }, [rows]);
 
-  const currentGridKey = cells[0]?.iso ?? "";
+  const currentGridKey = gridKeyFor(cells);
   let resolvedActiveIndex = activeIndex;
-  if (currentGridKey !== gridKeyRef.current) {
-    gridKeyRef.current = currentGridKey;
+  if (currentGridKey !== gridKey) {
+    setGridKey(currentGridKey);
     resolvedActiveIndex = initialActiveIndex(visibleCells, todayISO);
     setActiveIndex(resolvedActiveIndex);
   }

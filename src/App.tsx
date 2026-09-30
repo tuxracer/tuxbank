@@ -24,6 +24,7 @@ import { SyncProvider, useSync } from "@/context/SyncContext";
 import { stripUtmParams, trackEvent } from "@/lib/analytics";
 import { defaultFocusISO } from "@/lib/dateGrid";
 import { markLandingDismissed, shouldShowLanding } from "@/lib/landingGate";
+import { monthDayLabel } from "@/utils/monthDayLabel";
 import { prefersReducedMotion } from "@/utils/prefersReducedMotion";
 import LandingPage from "@/components/LandingPage";
 import CalendarToolbar from "@/components/CalendarToolbar";
@@ -41,10 +42,6 @@ const noop = () => {};
 // Pointer travel before a chip press becomes a drag; below this a press is a
 // click that opens the editor instead.
 const DRAG_ACTIVATION_DISTANCE_PX = 5;
-const dropDateFormatter = new Intl.DateTimeFormat(undefined, {
-  month: "short",
-  day: "numeric",
-});
 
 /*
  * Try Now handoff choreography. The landing lifts out (`.cy-exit` in
@@ -207,8 +204,8 @@ const CalendarScreen = ({ entrance = false }: { entrance?: boolean }) => {
       e.target instanceof HTMLSelectElement
     )
       return;
-    if (e.key === "PageUp") cal.goToPrevMonth();
-    if (e.key === "PageDown") cal.goToNextMonth();
+    if (e.key === "PageUp") cal.goToPrev();
+    if (e.key === "PageDown") cal.goToNext();
     if (e.key.toLowerCase() === "n" && !editor && !scope)
       openCreate(cal.todayISO);
   };
@@ -309,7 +306,7 @@ const CalendarScreen = ({ entrance = false }: { entrance?: boolean }) => {
     moveScope: EditScope,
   ) => {
     const undo = await cal.moveEvent(occurrence, toDate, moveScope);
-    toast(`Moved to ${dropDateFormatter.format(parseISO(toDate))}`, {
+    toast(`Moved to ${monthDayLabel(parseISO(toDate))}`, {
       action: { label: "Undo", onClick: () => void undo() },
     });
   };
@@ -405,8 +402,8 @@ const CalendarScreen = ({ entrance = false }: { entrance?: boolean }) => {
           }
           usedCategories={cal.usedCategories}
           activeCategoryIds={cal.activeCategoryIds}
-          onPrev={cal.goToPrevMonth}
-          onNext={cal.goToNextMonth}
+          onPrev={cal.goToPrev}
+          onNext={cal.goToNext}
           onToday={cal.goToToday}
           onToggleCategory={cal.toggleCategory}
           onOpenSettings={openSettings}
@@ -436,10 +433,10 @@ const CalendarScreen = ({ entrance = false }: { entrance?: boolean }) => {
               todayISO={cal.todayISO}
               compact={isCompact}
               selectedISO={isCompact ? resolvedSelectedDate : undefined}
-              onSwipeLeft={isCompact ? cal.goToNextMonth : undefined}
-              onSwipeRight={isCompact ? cal.goToPrevMonth : undefined}
-              onPrevMonth={cal.goToPrevMonth}
-              onNextMonth={cal.goToNextMonth}
+              onSwipeLeft={isCompact ? cal.goToNext : undefined}
+              onSwipeRight={isCompact ? cal.goToPrev : undefined}
+              onPrev={cal.goToPrev}
+              onNext={cal.goToNext}
               occurrencesByDate={cal.occurrencesByDate}
               onSelectDate={isCompact ? setSelectedDate : openCreate}
               onSelectOccurrence={openEdit}

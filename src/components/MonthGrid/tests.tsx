@@ -411,8 +411,8 @@ describe("MonthGrid wheel navigation", () => {
   });
 
   const renderWheelGrid = () => {
-    const onPrevMonth = vi.fn();
-    const onNextMonth = vi.fn();
+    const onPrev = vi.fn();
+    const onNext = vi.fn();
     const utils = render(
       <MonthGrid
         cells={buildMonthGrid(new Date(2026, 4, 1))}
@@ -420,52 +420,52 @@ describe("MonthGrid wheel navigation", () => {
         occurrencesByDate={{}}
         onSelectDate={vi.fn()}
         onSelectOccurrence={vi.fn()}
-        onPrevMonth={onPrevMonth}
-        onNextMonth={onNextMonth}
+        onPrev={onPrev}
+        onNext={onNext}
       />,
     );
-    return { ...utils, onPrevMonth, onNextMonth };
+    return { ...utils, onPrev, onNext };
   };
 
   it("goes to the next month on a scroll down, with the slide feedback", () => {
-    const { container, onPrevMonth, onNextMonth } = renderWheelGrid();
+    const { container, onPrev, onNext } = renderWheelGrid();
     fireEvent.wheel(screen.getByRole("grid"), { deltaY: 100 });
-    expect(onNextMonth).toHaveBeenCalledOnce();
-    expect(onPrevMonth).not.toHaveBeenCalled();
+    expect(onNext).toHaveBeenCalledOnce();
+    expect(onPrev).not.toHaveBeenCalled();
     expect(container.querySelector(".cy-shift-next")).not.toBeNull();
   });
 
   it("goes to the previous month on a scroll up", () => {
-    const { container, onPrevMonth, onNextMonth } = renderWheelGrid();
+    const { container, onPrev, onNext } = renderWheelGrid();
     fireEvent.wheel(screen.getByRole("grid"), { deltaY: -100 });
-    expect(onPrevMonth).toHaveBeenCalledOnce();
-    expect(onNextMonth).not.toHaveBeenCalled();
+    expect(onPrev).toHaveBeenCalledOnce();
+    expect(onNext).not.toHaveBeenCalled();
     expect(container.querySelector(".cy-shift-prev")).not.toBeNull();
   });
 
   it("accumulates small deltas across one gesture before navigating", () => {
-    const { onNextMonth } = renderWheelGrid();
+    const { onNext } = renderWheelGrid();
     const grid = screen.getByRole("grid");
     fireEvent.wheel(grid, { deltaY: 25 });
     fireEvent.wheel(grid, { deltaY: 25 });
-    expect(onNextMonth).not.toHaveBeenCalled();
+    expect(onNext).not.toHaveBeenCalled();
     fireEvent.wheel(grid, { deltaY: 25 });
-    expect(onNextMonth).toHaveBeenCalledOnce();
+    expect(onNext).toHaveBeenCalledOnce();
   });
 
   it("swallows the momentum tail after navigating", () => {
-    const { onNextMonth } = renderWheelGrid();
+    const { onNext } = renderWheelGrid();
     const grid = screen.getByRole("grid");
     fireEvent.wheel(grid, { deltaY: 100 });
     for (let i = 0; i < 10; i += 1) {
       vi.advanceTimersByTime(16);
       fireEvent.wheel(grid, { deltaY: 50 });
     }
-    expect(onNextMonth).toHaveBeenCalledOnce();
+    expect(onNext).toHaveBeenCalledOnce();
   });
 
   it("navigates again on a fresh flick inside the decaying momentum tail", () => {
-    const { onNextMonth } = renderWheelGrid();
+    const { onNext } = renderWheelGrid();
     const grid = screen.getByRole("grid");
     fireEvent.wheel(grid, { deltaY: 100 });
     // Momentum decays after the fingers lift...
@@ -473,15 +473,15 @@ describe("MonthGrid wheel navigation", () => {
       vi.advanceTimersByTime(16);
       fireEvent.wheel(grid, { deltaY });
     }
-    expect(onNextMonth).toHaveBeenCalledOnce();
+    expect(onNext).toHaveBeenCalledOnce();
     // ...then a second flick jumps well past the tail and lands right away.
     vi.advanceTimersByTime(16);
     fireEvent.wheel(grid, { deltaY: 80 });
-    expect(onNextMonth).toHaveBeenCalledTimes(2);
+    expect(onNext).toHaveBeenCalledTimes(2);
   });
 
   it("keeps swallowing the same flick's still-rising finger travel", () => {
-    const { onNextMonth } = renderWheelGrid();
+    const { onNext } = renderWheelGrid();
     const grid = screen.getByRole("grid");
     // One vigorous flick: the threshold trips mid-gesture while the finger
     // deltas are still growing; the rest of the ramp must not fire again.
@@ -489,44 +489,44 @@ describe("MonthGrid wheel navigation", () => {
       fireEvent.wheel(grid, { deltaY });
       vi.advanceTimersByTime(16);
     }
-    expect(onNextMonth).toHaveBeenCalledOnce();
+    expect(onNext).toHaveBeenCalledOnce();
   });
 
   it("navigates the other way on a direction reversal inside the tail", () => {
-    const { onPrevMonth, onNextMonth } = renderWheelGrid();
+    const { onPrev, onNext } = renderWheelGrid();
     const grid = screen.getByRole("grid");
     fireEvent.wheel(grid, { deltaY: 100 });
     vi.advanceTimersByTime(16);
     fireEvent.wheel(grid, { deltaY: 40 });
     vi.advanceTimersByTime(16);
     fireEvent.wheel(grid, { deltaY: -80 });
-    expect(onNextMonth).toHaveBeenCalledOnce();
-    expect(onPrevMonth).toHaveBeenCalledOnce();
+    expect(onNext).toHaveBeenCalledOnce();
+    expect(onPrev).toHaveBeenCalledOnce();
   });
 
   it("ignores horizontally dominated scrolls", () => {
-    const { onPrevMonth, onNextMonth } = renderWheelGrid();
+    const { onPrev, onNext } = renderWheelGrid();
     fireEvent.wheel(screen.getByRole("grid"), { deltaX: 200, deltaY: 30 });
-    expect(onNextMonth).not.toHaveBeenCalled();
-    expect(onPrevMonth).not.toHaveBeenCalled();
+    expect(onNext).not.toHaveBeenCalled();
+    expect(onPrev).not.toHaveBeenCalled();
   });
 
   it("treats a scroll after a quiet gap as a new gesture", () => {
-    const { onNextMonth } = renderWheelGrid();
+    const { onNext } = renderWheelGrid();
     const grid = screen.getByRole("grid");
     fireEvent.wheel(grid, { deltaY: 100 });
     vi.advanceTimersByTime(250);
     fireEvent.wheel(grid, { deltaY: 100 });
-    expect(onNextMonth).toHaveBeenCalledTimes(2);
+    expect(onNext).toHaveBeenCalledTimes(2);
   });
 
   it("navigates on a single line-mode wheel notch", () => {
-    const { onNextMonth } = renderWheelGrid();
+    const { onNext } = renderWheelGrid();
     fireEvent.wheel(screen.getByRole("grid"), {
       deltaY: 3,
       deltaMode: WheelEvent.DOM_DELTA_LINE,
     });
-    expect(onNextMonth).toHaveBeenCalledOnce();
+    expect(onNext).toHaveBeenCalledOnce();
   });
 
   it("does nothing without month callbacks", () => {

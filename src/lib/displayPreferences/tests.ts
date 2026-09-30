@@ -7,6 +7,7 @@ import {
   readDisplayPreferences,
   subscribeToDisplayPreferences,
   WEEK_STARTS_ON_SETTING_ID,
+  WEEKS_VISIBLE_SETTING_ID,
   writeDisplayPreferences,
 } from "./index";
 import { resetDisplayPreferencesForTests } from "./testing";
@@ -24,24 +25,27 @@ describe("displayPreferences", () => {
     resetDisplayPreferencesForTests();
   });
 
-  it("defaults both overrides to automatic", () => {
+  it("defaults every override to automatic", () => {
     expect(readDisplayPreferences()).toEqual({
       currency: null,
       weekStartsOn: null,
+      weeksVisible: null,
     });
   });
 
   it("persists each override as its own synced settings row", async () => {
     writeDisplayPreferences({ currency: "EUR" });
     writeDisplayPreferences({ weekStartsOn: 1 });
+    writeDisplayPreferences({ weeksVisible: 2 });
     // One row per setting is what lets two devices each change a different
     // preference and both survive the last-write-wins merge.
     await vi.waitFor(async () => {
-      expect(await getAllSettings()).toHaveLength(2);
+      expect(await getAllSettings()).toHaveLength(3);
     });
     expect(await reloadFromStorage()).toEqual({
       currency: "EUR",
       weekStartsOn: 1,
+      weeksVisible: 2,
     });
   });
 
@@ -62,9 +66,11 @@ describe("displayPreferences", () => {
   it("falls back to automatic for a synced row it cannot validate", async () => {
     await putSetting(CURRENCY_SETTING_ID, "euros");
     await putSetting(WEEK_STARTS_ON_SETTING_ID, 9);
+    await putSetting(WEEKS_VISIBLE_SETTING_ID, 7);
     expect(await reloadFromStorage()).toEqual({
       currency: null,
       weekStartsOn: null,
+      weeksVisible: null,
     });
   });
 

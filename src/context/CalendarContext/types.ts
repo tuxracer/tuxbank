@@ -17,6 +17,11 @@ export const isEditScope = (value: unknown): value is EditScope =>
   isString(value) && EDIT_SCOPES.includes(value as EditScope);
 
 export type CalendarContextValue = {
+  /**
+   * First day of the month the view is anchored in: the month on screen in the
+   * month view, the month the window's first week belongs to in a fixed-week
+   * view.
+   */
   visibleMonth: Date;
   yearRange: { min: number; max: number };
   monthLabel: string;
@@ -33,8 +38,10 @@ export type CalendarContextValue = {
   /** Storage failed because the database can't be opened; deleting it can recover. */
   storageResettable: boolean;
   loaded: boolean;
-  goToPrevMonth: () => void;
-  goToNextMonth: () => void;
+  /** Back one page: a month, or the visible weeks in a fixed-week view. */
+  goToPrev: () => void;
+  /** Forward one page: a month, or the visible weeks in a fixed-week view. */
+  goToNext: () => void;
   goToToday: () => void;
   goToDate: (date: Date) => void;
   toggleCategory: (id: string) => void;

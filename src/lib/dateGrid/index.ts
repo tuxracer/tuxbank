@@ -84,6 +84,33 @@ export const buildMonthGrid = (
 };
 
 /**
+ * A rolling window of whole weeks, beginning with the week that contains
+ * `anchor`. Unlike the month grid there is no visible month for a day to fall
+ * outside of, so every cell is `inMonth`: nothing is dimmed, and
+ * `inMonthWeekCount` reports the full window (there are no trailing weeks to
+ * trim).
+ */
+export const buildWeekGrid = (
+  anchor: Date,
+  weeks: number,
+  weekStartsOn: Day = WEEK_STARTS_ON,
+): DateCell[] => {
+  const gridStart = startOfWeek(anchor, { weekStartsOn });
+
+  return Array.from({ length: weeks * DAYS_PER_WEEK }, (_, i) => {
+    const date = addDays(gridStart, i);
+    const dayOfMonth = date.getDate();
+    return {
+      date,
+      iso: toISODate(date),
+      dayOfMonth,
+      inMonth: true,
+      showMonth: i === 0 || dayOfMonth === 1,
+    };
+  });
+};
+
+/**
  * The day keyboard focus and the compact selection default to: today when the
  * grid shows it in-month, otherwise the first in-month day. One shared policy
  * so the focused cell and the compact selected day can never disagree.

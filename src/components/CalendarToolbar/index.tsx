@@ -46,7 +46,7 @@ const CalendarToolbar = ({
         type="button"
         size="icon"
         variant="ghost"
-        title="Previous month"
+        title="Previous"
         className="cy-nav"
         onClick={onPrev}
       >
@@ -85,7 +85,7 @@ const CalendarToolbar = ({
         type="button"
         size="icon"
         variant="ghost"
-        title="Next month"
+        title="Next"
         className="cy-nav"
         onClick={onNext}
       >
