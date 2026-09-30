@@ -48,10 +48,6 @@ Sync is optional and off by default. With no account, the app works exactly as d
 
 The backend is a managed Supabase project (Postgres plus Auth) the browser talks to directly; authorization is enforced by Row Level Security, and this project ships no server code of its own. To enable sync, set `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` (see `.env.example`). For step-by-step setup (creating the project, applying the schema, configuring auth), see [docs/sync.md](docs/sync.md).
 
-## Contact
-
-Mastodon: [@tuxracer@fosstodon.org](https://fosstodon.org/@tuxracer)
-
 ## License
 
 [MIT](LICENSE)
