@@ -8,7 +8,6 @@ import {
 import DayCell from "@/components/DayCell";
 import { useDisplayPreferences } from "@/hooks/useDisplayPreferences";
 import { useSwipeNavigation } from "@/hooks/useSwipeNavigation";
-import { fullDateLabel } from "@/utils/fullDateLabel";
 import { RUNTIME_LOCALE } from "@/utils/runtimeLocale";
 import { useWheelNavigation } from "@/hooks/useWheelNavigation";
 
@@ -87,10 +86,6 @@ const MonthGrid = ({
   const visibleCells = useMemo(
     () => (compact ? cells : cells.slice(0, rows * COLS)),
     [cells, compact, rows],
-  );
-  const dateLabels = useMemo(
-    () => visibleCells.map((cell) => fullDateLabel(cell.date)),
-    [visibleCells],
   );
 
   const rootRef = useRef<HTMLDivElement>(null);
@@ -238,7 +233,6 @@ const MonthGrid = ({
               tabIndex={index === resolvedActiveIndex ? 0 : -1}
               occurrences={occurrences}
               balance={balancesByDate[cell.iso] ?? 0}
-              dateLabel={dateLabels[index]}
               maxVisibleChips={
                 rowHeightPx === null
                   ? undefined

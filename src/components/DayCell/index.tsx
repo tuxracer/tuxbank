@@ -23,7 +23,6 @@ const DayCell = ({
   tabIndex,
   occurrences,
   balance,
-  dateLabel,
   onSelectDate,
   onSelectOccurrence,
   maxVisibleChips,
@@ -125,7 +124,6 @@ const DayCell = ({
             {overflow.length > 0 && (
               <DayEventsPopover
                 label={overflowLabel}
-                dateLabel={dateLabel}
                 occurrences={overflow}
                 onSelect={onSelectOccurrence}
               />

@@ -11,7 +11,6 @@ export type DayCellProps = {
   tabIndex: number;
   occurrences: Occurrence[];
   balance: number;
-  dateLabel: string;
   onSelectDate: (iso: string) => void;
   onSelectOccurrence: (occurrence: Occurrence) => void;
   /**

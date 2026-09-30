@@ -45,7 +45,6 @@ const OverflowChips = ({
 
 const DayEventsPopover = ({
   label,
-  dateLabel,
   occurrences,
   onSelect,
 }: DayEventsPopoverProps) => {
@@ -86,7 +85,6 @@ const DayEventsPopover = ({
           draggedOut && "pointer-events-none opacity-0",
         )}
       >
-        <p className="cy-label mb-2 text-[color:var(--cy-cyan)]">{dateLabel}</p>
         <OverflowChips
           occurrences={occurrences}
           onSelect={onSelect}
