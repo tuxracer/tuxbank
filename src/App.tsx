@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { parseISO } from "date-fns";
 import {
   DndContext,
@@ -8,7 +8,6 @@ import {
   useSensor,
   useSensors,
   type DragEndEvent,
-  type DragOverEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
 import { toast } from "sonner";
@@ -28,10 +27,7 @@ import { markLandingDismissed, shouldShowLanding } from "@/lib/landingGate";
 import { monthDayLabel } from "@/utils/monthDayLabel";
 import { prefersReducedMotion } from "@/utils/prefersReducedMotion";
 import LandingPage from "@/components/LandingPage";
-import CalendarToolbar, {
-  DRAG_PAGE_NEXT_ID,
-  DRAG_PAGE_PREV_ID,
-} from "@/components/CalendarToolbar";
+import CalendarToolbar from "@/components/CalendarToolbar";
 import DayPanel from "@/components/DayPanel";
 import MonthGrid from "@/components/MonthGrid";
 import { useIsCompact } from "@/hooks/useIsCompact";
@@ -46,17 +42,28 @@ const noop = () => {};
 // Pointer travel before a chip press becomes a drag; below this a press is a
 // click that opens the editor instead.
 const DRAG_ACTIVATION_DISTANCE_PX = 5;
-// How long a dragged chip rests on ‹ or › before the page turns, and how often
-// it keeps turning while the chip stays there. Long enough that crossing a
-// button on the way somewhere else turns nothing.
-const DRAG_PAGE_INTERVAL_MS = 600;
+// A chip dragged past the calendar's edge turns the page, after resting there
+// for the dwell (so a jittery crossing turns nothing) and then again on every
+// repeat while it stays out.
+const DRAG_PAGE_DWELL_MS = 250;
+const DRAG_PAGE_REPEAT_MS = 700;
 
-const dragPagingFor = (overId: unknown): "prev" | "next" | null =>
-  overId === DRAG_PAGE_PREV_ID
-    ? "prev"
-    : overId === DRAG_PAGE_NEXT_ID
-      ? "next"
-      : null;
+type PagingDirection = "prev" | "next";
+
+// Past the bottom or right edge pages forward, past the top or left edge pages
+// back. Off a corner, the vertical side decides, matching the wheel, which
+// also pages vertically.
+const pagingZoneFor = (
+  frame: DOMRect,
+  x: number,
+  y: number,
+): PagingDirection | null => {
+  if (y > frame.bottom) return "next";
+  if (y < frame.top) return "prev";
+  if (x > frame.right) return "next";
+  if (x < frame.left) return "prev";
+  return null;
+};
 
 /*
  * Try Now handoff choreography. The landing lifts out (`.cy-exit` in
@@ -159,15 +166,36 @@ const CalendarScreen = ({ entrance = false }: { entrance?: boolean }) => {
   const [activeOccurrence, setActiveOccurrence] = useState<Occurrence | null>(
     null,
   );
-  // Which toolbar arrow the dragged chip is resting on, if any. While set, the
-  // page turns that way on an interval so the chip can reach a day that is
-  // not on screen.
-  const [dragPaging, setDragPaging] = useState<"prev" | "next" | null>(null);
+  // Which way the dragged chip has left the calendar frame, if it has. While
+  // set, the page turns that way so the chip can reach a day that is not on
+  // screen. Tracked from the pointer itself rather than dnd-kit's collisions,
+  // since outside the frame there is nothing to collide with.
+  const frameRef = useRef<HTMLElement>(null);
+  const [dragPaging, setDragPaging] = useState<PagingDirection | null>(null);
+  useEffect(() => {
+    if (activeOccurrence === null) return;
+    const onPointerMove = (e: PointerEvent) => {
+      const frame = frameRef.current;
+      if (!frame) return;
+      setDragPaging(
+        pagingZoneFor(frame.getBoundingClientRect(), e.clientX, e.clientY),
+      );
+    };
+    document.addEventListener("pointermove", onPointerMove);
+    return () => document.removeEventListener("pointermove", onPointerMove);
+  }, [activeOccurrence]);
   useEffect(() => {
     if (dragPaging === null) return;
     const turn = dragPaging === "prev" ? cal.goToPrev : cal.goToNext;
-    const id = setInterval(turn, DRAG_PAGE_INTERVAL_MS);
-    return () => clearInterval(id);
+    let repeat: number | undefined;
+    const dwell = window.setTimeout(() => {
+      turn();
+      repeat = window.setInterval(turn, DRAG_PAGE_REPEAT_MS);
+    }, DRAG_PAGE_DWELL_MS);
+    return () => {
+      window.clearTimeout(dwell);
+      if (repeat !== undefined) window.clearInterval(repeat);
+    };
   }, [dragPaging, cal.goToPrev, cal.goToNext]);
   const isCompact = useIsCompact();
   const [slowLoad, setSlowLoad] = useState(false);
@@ -341,9 +369,6 @@ const CalendarScreen = ({ entrance = false }: { entrance?: boolean }) => {
     if (isOccurrence(occurrence)) setActiveOccurrence(occurrence);
   };
 
-  const handleDragOver = (e: DragOverEvent) =>
-    setDragPaging(dragPagingFor(e.over?.id));
-
   const resetDrag = () => {
     setActiveOccurrence(null);
     setDragPaging(null);
@@ -357,8 +382,6 @@ const CalendarScreen = ({ entrance = false }: { entrance?: boolean }) => {
     resetDrag();
     const { over } = e;
     if (!over || !occurrence) return;
-    // Released on an arrow: the chip was paging, not choosing a day.
-    if (dragPagingFor(over.id) !== null) return;
     const toDate = String(over.id);
     if (toDate === occurrence.date) return;
     const event = cal.events.find((ev) => ev.id === occurrence.eventId);
@@ -425,46 +448,44 @@ const CalendarScreen = ({ entrance = false }: { entrance?: boolean }) => {
         />
       )}
 
-      {/* The DndContext spans the toolbar as well as the grid so that the ‹ / ›
-          buttons can be drop targets: a chip held over one turns the page. */}
-      <DndContext
-        sensors={sensors}
-        collisionDetection={pointerWithin}
-        onDragStart={handleDragStart}
-        onDragOver={handleDragOver}
-        onDragEnd={handleDragEnd}
-        onDragCancel={resetDrag}
-      >
-        <div className={landClass} style={landStyle(APP_ENTRANCE_MS.toolbar)}>
-          <CalendarToolbar
-            selectedYear={selectedYear}
-            selectedMonth={selectedMonth}
-            minYear={cal.yearRange.min}
-            maxYear={cal.yearRange.max}
-            onSelectMonth={(monthIndex) =>
-              cal.goToDate(new Date(selectedYear, monthIndex, 1))
-            }
-            onSelectYear={(year) =>
-              cal.goToDate(new Date(year, selectedMonth, 1))
-            }
-            usedCategories={cal.usedCategories}
-            activeCategoryIds={cal.activeCategoryIds}
-            onPrev={cal.goToPrev}
-            onNext={cal.goToNext}
-            onToday={cal.goToToday}
-            onToggleCategory={cal.toggleCategory}
-            onOpenSettings={openSettings}
-            onNewEvent={() => openNewEvent(cal.todayISO)}
-            compact={isCompact}
-          />
-        </div>
+      <div className={landClass} style={landStyle(APP_ENTRANCE_MS.toolbar)}>
+        <CalendarToolbar
+          selectedYear={selectedYear}
+          selectedMonth={selectedMonth}
+          minYear={cal.yearRange.min}
+          maxYear={cal.yearRange.max}
+          onSelectMonth={(monthIndex) =>
+            cal.goToDate(new Date(selectedYear, monthIndex, 1))
+          }
+          onSelectYear={(year) =>
+            cal.goToDate(new Date(year, selectedMonth, 1))
+          }
+          usedCategories={cal.usedCategories}
+          activeCategoryIds={cal.activeCategoryIds}
+          onPrev={cal.goToPrev}
+          onNext={cal.goToNext}
+          onToday={cal.goToToday}
+          onToggleCategory={cal.toggleCategory}
+          onOpenSettings={openSettings}
+          onNewEvent={() => openNewEvent(cal.todayISO)}
+          compact={isCompact}
+        />
+      </div>
 
-        {/* The calendar sits on the same ground plate as the landing
+      {/* The calendar sits on the same ground plate as the landing
           preview's console, but follows the active theme rather than pinning
           the landing's dark ink. */}
-        <section
-          className={`cy-frame flex min-h-0 flex-1 flex-col ${landClass}`}
-          style={landStyle(APP_ENTRANCE_MS.console)}
+      <section
+        ref={frameRef}
+        className={`cy-frame flex min-h-0 flex-1 flex-col ${landClass}${dragPaging ? ` paging-${dragPaging}` : ""}`}
+        style={landStyle(APP_ENTRANCE_MS.console)}
+      >
+        <DndContext
+          sensors={sensors}
+          collisionDetection={pointerWithin}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+          onDragCancel={resetDrag}
         >
           <div
             className={`flex min-h-0 flex-1 flex-col ${isCompact ? "p-1.5" : "p-2 lg:p-3"}`}
@@ -489,8 +510,8 @@ const CalendarScreen = ({ entrance = false }: { entrance?: boolean }) => {
               <EventChip occurrence={activeOccurrence} onSelect={noop} />
             ) : null}
           </DragOverlay>
-        </section>
-      </DndContext>
+        </DndContext>
+      </section>
 
       {isCompact && (
         <div className={landClass} style={landStyle(APP_ENTRANCE_MS.panel)}>

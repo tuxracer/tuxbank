@@ -322,18 +322,26 @@ body {
   border: 1px solid transparent;
   border-radius: var(--radius-xl);
 }
+/* A chip dragged past the calendar's edge turns the page: past the bottom or
+   right edge forward, past the top or left edge back. The two edges that page
+   in the active direction light up in the cell's cyan drop colour while the
+   chip is out there. */
+.cy-frame.paging-next {
+  box-shadow:
+    inset 0 -2px 0 0 var(--cy-cyan),
+    inset -2px 0 0 0 var(--cy-cyan);
+}
+.cy-frame.paging-prev {
+  box-shadow:
+    inset 0 2px 0 0 var(--cy-cyan),
+    inset 2px 0 0 0 var(--cy-cyan);
+}
 
 .cy-nav {
   color: var(--cy-cyan);
   background: var(--cy-panel-2);
   border: 1px solid transparent;
   font-weight: 800;
-}
-/* A chip held over ‹ or › mid-drag turns the page; the button says so with
-   the same cyan drop ring a day cell shows (see .cy-cell.drop). */
-.cy-nav.drop {
-  background: color-mix(in oklab, var(--cy-cyan) 8%, var(--cy-panel-2));
-  box-shadow: inset 0 0 0 2px var(--cy-cyan);
 }
 /* `.cy-btn`, `.cy-legend` and `.cy-cta` are applied to shadcn's <Button>. This
    block is unlayered so it wins over that component's utilities, but only for
