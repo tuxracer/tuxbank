@@ -3,6 +3,11 @@ import type { ImportPreview } from "@/lib/storage";
 import { isStorageError } from "@/lib/storage";
 import { trackEvent } from "@/lib/analytics";
 import { errorCode } from "@/utils/errorCode";
+import {
+  BACKUP_FILE_EXTENSION,
+  defaultBackupFilename,
+  resolveBackupFilename,
+} from "@/utils/backupFilename";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -15,6 +20,7 @@ const RESET_WORD = "reset";
 
 type Stage =
   | { kind: "idle" }
+  | { kind: "exportName" }
   | { kind: "validating" }
   | { kind: "confirm"; file: File; preview: ImportPreview }
   | { kind: "importing" }
@@ -50,6 +56,7 @@ const DataSettings = ({
 }: DataSettingsProps) => {
   const [stage, setStage] = useState<Stage>({ kind: "idle" });
   const [resetText, setResetText] = useState("");
+  const [exportName, setExportName] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
   // A flow is in progress whenever we are not idle and not showing an error
@@ -69,10 +76,16 @@ const DataSettings = ({
     setStage({ kind: "error", message: friendlyError(error) });
   };
 
+  const startExport = () => {
+    setExportName(defaultBackupFilename());
+    setStage({ kind: "exportName" });
+  };
+
   const handleExport = async () => {
     try {
-      await onExport();
+      await onExport(resolveBackupFilename(exportName));
       trackEvent("data-exported");
+      reset();
     } catch (error) {
       fail("export", error);
     }
@@ -134,11 +147,43 @@ const DataSettings = ({
         <Button
           type="button"
           className="cy-btn justify-start"
-          disabled={!storageAvailable}
-          onClick={handleExport}
+          disabled={!storageAvailable || flowBusy}
+          onClick={startExport}
         >
           Export database
         </Button>
+        {stage.kind === "exportName" && (
+          <div className="flex flex-col gap-2 text-xs">
+            <span>Name the backup file.</span>
+            <div className="flex items-center gap-2">
+              <Input
+                data-testid="export-filename"
+                type="text"
+                autoFocus
+                autoComplete="off"
+                autoCapitalize="off"
+                spellCheck={false}
+                placeholder={defaultBackupFilename()}
+                value={exportName}
+                onChange={(e) => setExportName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") void handleExport();
+                }}
+              />
+              <span className="text-[color:var(--cy-muted)]">
+                {BACKUP_FILE_EXTENSION}
+              </span>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="ghost" onClick={reset}>
+                Cancel
+              </Button>
+              <Button type="button" onClick={() => void handleExport()}>
+                Download
+              </Button>
+            </div>
+          </div>
+        )}
       </section>
 
       <section className="flex flex-col gap-2 border-t border-[color:var(--cy-line)] pt-3">

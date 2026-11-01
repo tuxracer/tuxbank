@@ -532,8 +532,12 @@ a separate, encrypted layer (see Optional account sync).
 
 ### Backup / restore (JSON)
 
-- **Export** (`exportDatabase`): downloads a pretty-printed JSON snapshot named
-  `tuxbank-backup-YYYY-MM-DD.json`:
+- **Export** (`exportDatabase`): downloads a pretty-printed JSON snapshot.
+  Clicking Export database opens an inline naming step prefilled with
+  `tuxbank-backup-YYYY-MM-DD`; Enter or Download accepts it as is, or the user
+  types their own name. `resolveBackupFilename` (`src/utils/backupFilename`)
+  trims it, strips path separators and control characters, falls back to the
+  default when nothing is left, and adds `.json` unless already present:
 
   ```json
   {

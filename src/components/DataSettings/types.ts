@@ -6,7 +6,8 @@ export type DataSettingsProps = {
   storageAvailable: boolean;
   /** Whether import and reset also rewrite the signed-in account's cloud data. */
   includesCloud: boolean;
-  onExport: () => Promise<void>;
+  /** Download a backup under the resolved filename (extension included). */
+  onExport: (filename: string) => Promise<void>;
   onPreviewImport: (file: File) => Promise<ImportPreview>;
   onCommitImport: (file: File) => Promise<void>;
   onClearAllData: () => Promise<void>;

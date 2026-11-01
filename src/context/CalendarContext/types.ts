@@ -68,7 +68,8 @@ export type CalendarContextValue = {
     patch: { name?: string; color?: CategoryColor },
   ) => Promise<void>;
   deleteCategory: (id: string) => Promise<void>;
-  exportData: () => Promise<void>;
+  /** Download a JSON backup under `filename` (already resolved, extension included). */
+  exportData: (filename: string) => Promise<void>;
   previewImport: (file: File) => Promise<ImportPreview>;
   /** Delete every event and category (tombstoned, so it also clears the cloud). */
   clearAllData: () => Promise<void>;

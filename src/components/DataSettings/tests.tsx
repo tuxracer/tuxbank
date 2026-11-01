@@ -24,13 +24,41 @@ const confirmField = (): HTMLElement =>
 const fileInput = (): HTMLElement => screen.getByTestId("import-database-file");
 
 describe("DataSettings", () => {
-  it("triggers export when the export button is clicked", async () => {
+  const startExport = async () =>
+    userEvent.click(screen.getByRole("button", { name: /export database/i }));
+
+  it("exports under the suggested dated name when the user accepts it as is", async () => {
     const onExport = vi.fn().mockResolvedValue(undefined);
     render(<DataSettings {...base} onExport={onExport} />);
-    await userEvent.click(
-      screen.getByRole("button", { name: /export database/i }),
-    );
+    await startExport();
+    await userEvent.click(screen.getByRole("button", { name: /download/i }));
     expect(onExport).toHaveBeenCalledTimes(1);
+    expect(onExport.mock.calls[0][0]).toMatch(
+      /^tuxbank-backup-\d{4}-\d{2}-\d{2}\.json$/,
+    );
+  });
+
+  it("exports under the typed name with the extension added, on Enter", async () => {
+    const onExport = vi.fn().mockResolvedValue(undefined);
+    render(<DataSettings {...base} onExport={onExport} />);
+    await startExport();
+    const field = screen.getByTestId("export-filename");
+    await userEvent.clear(field);
+    await userEvent.type(field, "household 2026{enter}");
+    expect(onExport).toHaveBeenCalledWith("household 2026.json");
+    // The naming step closes once the download has been handed off.
+    await vi.waitFor(() =>
+      expect(screen.queryByTestId("export-filename")).not.toBeInTheDocument(),
+    );
+  });
+
+  it("cancelling the naming step exports nothing", async () => {
+    const onExport = vi.fn().mockResolvedValue(undefined);
+    render(<DataSettings {...base} onExport={onExport} />);
+    await startExport();
+    await userEvent.click(screen.getByRole("button", { name: /cancel/i }));
+    expect(onExport).not.toHaveBeenCalled();
+    expect(screen.queryByTestId("export-filename")).not.toBeInTheDocument();
   });
 
   it("validates a chosen file and shows the confirmation with counts", async () => {
@@ -87,9 +115,8 @@ describe("DataSettings", () => {
       .fn()
       .mockRejectedValue(new StorageError("EXPORT_FAILED"));
     render(<DataSettings {...base} onExport={onExport} />);
-    await userEvent.click(
-      screen.getByRole("button", { name: /export database/i }),
-    );
+    await startExport();
+    await userEvent.click(screen.getByRole("button", { name: /download/i }));
     expect(
       await screen.findByText(/something went wrong\. please try again\./i),
     ).toBeInTheDocument();

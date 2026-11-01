@@ -223,12 +223,9 @@ export const CalendarProvider = ({
     });
   }, [refreshFromStorage]);
 
-  const exportData = useCallback(async () => {
+  const exportData = useCallback(async (filename: string) => {
     const json = await exportDatabase();
-    downloadBlob(
-      new Blob([json], { type: "application/json" }),
-      `tuxbank-backup-${toISODate(new Date())}.json`,
-    );
+    downloadBlob(new Blob([json], { type: "application/json" }), filename);
   }, []);
 
   const previewImport = useCallback(async (file: File) => {
