@@ -8,7 +8,8 @@ import globals from "globals";
 
 // No jsx-a11y: accessibility lint is intentionally off for this project.
 const eslintConfig = defineConfig([
-  globalIgnores(["dist/**"]),
+  // .remember/ holds the Remember plugin's untracked session notes.
+  globalIgnores(["dist/**", ".remember/**"]),
   js.configs.recommended,
   tseslint.configs.recommended,
   react.configs.flat.recommended,

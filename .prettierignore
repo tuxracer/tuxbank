@@ -6,6 +6,9 @@ coverage
 pnpm-lock.yaml
 *.tsbuildinfo
 
+# Session notes written by the Remember plugin (untracked)
+.remember/
+
 # Hand-maintained prose (not subject to Prettier prose-wrap)
 CLAUDE.md
 README.md
