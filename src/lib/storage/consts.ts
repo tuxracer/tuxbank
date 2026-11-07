@@ -35,6 +35,14 @@ export const SYNC_SERVER_CURSOR_KEY = "serverCursor";
 export const DEK_KEY = "dek";
 
 /**
+ * Key for the email of the account this device last signed in to, held in the
+ * syncMeta store. Written when a session is established and cleared only by a
+ * deliberate sign-out, so a boot that finds it with no session knows the
+ * session ended without the user asking.
+ */
+export const ACCOUNT_EMAIL_KEY = "accountEmail";
+
+/**
  * How long deleteDatabase waits for other tabs to release their connections
  * before giving up with BLOCKED instead of hanging on a pending deleteDB.
  */

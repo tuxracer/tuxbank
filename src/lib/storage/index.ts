@@ -3,6 +3,7 @@ import { isString } from "remeda";
 import type { CalendarEvent, Category } from "@/types";
 import { isCalendarEvent, isCategory } from "@/types";
 import {
+  ACCOUNT_EMAIL_KEY,
   BACKUP_APP,
   BACKUP_SCHEMA_VERSION,
   CATEGORY_STORE,
@@ -412,6 +413,41 @@ export const clearStoredDek = async (): Promise<void> => {
   try {
     const db = await getDb();
     await db.delete(SYNC_META_STORE, DEK_KEY);
+  } catch (error) {
+    throw toWriteError(error);
+  }
+};
+
+/**
+ * The email of the account this device last signed in to, if the user never
+ * signed out of it. Outlives the Supabase session on purpose: a boot that finds
+ * this but no session is a session that ended behind the user's back.
+ */
+export const getStoredAccountEmail = async (): Promise<string | undefined> => {
+  try {
+    const db = await getDb();
+    const value: unknown = await db.get(SYNC_META_STORE, ACCOUNT_EMAIL_KEY);
+    return isString(value) ? value : undefined;
+  } catch (error) {
+    throw toStorageError(error, "READ_FAILED");
+  }
+};
+
+/** Remember which account this device is signed in to. */
+export const setStoredAccountEmail = async (email: string): Promise<void> => {
+  try {
+    const db = await getDb();
+    await db.put(SYNC_META_STORE, email, ACCOUNT_EMAIL_KEY);
+  } catch (error) {
+    throw toWriteError(error);
+  }
+};
+
+/** Forget the signed-in account (a deliberate sign-out). */
+export const clearStoredAccountEmail = async (): Promise<void> => {
+  try {
+    const db = await getDb();
+    await db.delete(SYNC_META_STORE, ACCOUNT_EMAIL_KEY);
   } catch (error) {
     throw toWriteError(error);
   }

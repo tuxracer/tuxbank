@@ -11,7 +11,7 @@ vi.mock("@/context/SyncContext", () => ({
 
 // Which statuses warrant a visible warning is the only logic here; the wording
 // of the label is copy and deliberately not asserted.
-const ATTENTION: SyncStatus[] = ["offline", "locked", "error"];
+const ATTENTION: SyncStatus[] = ["offline", "expired", "locked", "error"];
 const QUIET: SyncStatus[] = ["off", "syncing", "synced"];
 
 describe.each([

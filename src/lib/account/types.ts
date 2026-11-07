@@ -60,7 +60,8 @@ export type AccountErrorCode =
   | "PASSWORD_CHANGE_FAILED"
   | "REAUTH_REQUIRED"
   | "WRONG_PASSWORD"
-  | "ACCOUNT_DELETE_FAILED";
+  | "ACCOUNT_DELETE_FAILED"
+  | "SESSION_UNAVAILABLE";
 
 export class AccountError extends Error {
   readonly code: AccountErrorCode;

@@ -93,8 +93,14 @@ const syncStatusLine = (sync: SyncContextValue): string => {
  */
 export const SyncSettings = () => {
   const sync = useSync();
-  const [mode, setMode] = useState<Mode>("choose");
-  const [email, setEmail] = useState("");
+  // A session that ended behind the user's back opens straight on the sign-in
+  // form with the account filled in: signing back in is the expected answer.
+  const [mode, setMode] = useState<Mode>(
+    sync.status === "expired" ? "signin" : "choose",
+  );
+  const [email, setEmail] = useState(
+    sync.status === "expired" ? (sync.email ?? "") : "",
+  );
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [code, setCode] = useState("");
@@ -862,107 +868,124 @@ export const SyncSettings = () => {
         </section>
       )}
 
-      {/* OFF: choose, then a form */}
-      {sync.status === "off" && sync.step === "idle" && (
-        <section className="flex flex-col gap-3">
-          {mode === "choose" && (
-            <>
-              <p className="text-xs text-[color:var(--cy-muted)]">
-                Optionally sync your encrypted data across devices. Your data is
-                end-to-end encrypted; we cannot read it.
+      {/* OFF or EXPIRED: choose, then a form */}
+      {(sync.status === "off" || sync.status === "expired") &&
+        sync.step === "idle" && (
+          <section className="flex flex-col gap-3">
+            {sync.status === "expired" && (
+              <p className="text-xs">
+                This device was signed out of{" "}
+                <span className="cy-hud on">{sync.email}</span>. Your calendar
+                here is unchanged, but changes are no longer syncing. Sign in
+                again to resume.
               </p>
-              <Button
-                className="cy-btn justify-start"
-                disabled={!sync.configured}
-                onClick={() => setMode("create")}
-              >
-                Create account
-              </Button>
-              <Button
-                className="cy-btn justify-start"
-                disabled={!sync.configured}
-                onClick={() => setMode("signin")}
-              >
-                Sign in
-              </Button>
-            </>
-          )}
+            )}
+            {mode === "choose" && (
+              <>
+                <p className="text-xs text-[color:var(--cy-muted)]">
+                  Optionally sync your encrypted data across devices. Your data
+                  is end-to-end encrypted; we cannot read it.
+                </p>
+                <Button
+                  className="cy-btn justify-start"
+                  disabled={!sync.configured}
+                  onClick={() => setMode("create")}
+                >
+                  Create account
+                </Button>
+                <Button
+                  className="cy-btn justify-start"
+                  disabled={!sync.configured}
+                  onClick={() => setMode("signin")}
+                >
+                  Sign in
+                </Button>
+              </>
+            )}
 
-          {(mode === "create" || mode === "signin") && (
-            <>
-              <Label htmlFor="sync-email">Email</Label>
-              <Input
-                id="sync-email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
-              {mode === "create" &&
-                email.length > 0 &&
-                !isPlausibleEmail(email) && (
-                  <p className="text-[10px] text-[color:var(--cy-magenta)]">
-                    Enter a valid email address.
+            {(mode === "create" || mode === "signin") && (
+              <>
+                <Label htmlFor="sync-email">Email</Label>
+                <Input
+                  id="sync-email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
+                {mode === "create" &&
+                  email.length > 0 &&
+                  !isPlausibleEmail(email) && (
+                    <p className="text-[10px] text-[color:var(--cy-magenta)]">
+                      Enter a valid email address.
+                    </p>
+                  )}
+                <Label htmlFor="sync-pw">Password</Label>
+                <Input
+                  id="sync-pw"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+                {mode === "create" && (
+                  <p className="text-[10px] text-[color:var(--cy-muted)]">
+                    This password protects your encryption key; choose a strong
+                    one.
                   </p>
                 )}
-              <Label htmlFor="sync-pw">Password</Label>
-              <Input
-                id="sync-pw"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-              {mode === "create" && (
-                <p className="text-[10px] text-[color:var(--cy-muted)]">
-                  This password protects your encryption key; choose a strong
-                  one.
-                </p>
-              )}
-              {mode === "create" && (
-                <>
-                  <Label htmlFor="sync-pw2">Confirm password</Label>
-                  <Input
-                    id="sync-pw2"
-                    type="password"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                  />
-                  {confirmPassword.length > 0 &&
-                    password !== confirmPassword && (
-                      <p className="text-[10px] text-[color:var(--cy-magenta)]">
-                        Passwords do not match.
-                      </p>
-                    )}
-                </>
-              )}
+                {mode === "create" && (
+                  <>
+                    <Label htmlFor="sync-pw2">Confirm password</Label>
+                    <Input
+                      id="sync-pw2"
+                      type="password"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                    />
+                    {confirmPassword.length > 0 &&
+                      password !== confirmPassword && (
+                        <p className="text-[10px] text-[color:var(--cy-magenta)]">
+                          Passwords do not match.
+                        </p>
+                      )}
+                  </>
+                )}
+                <Button
+                  className="cy-btn justify-start"
+                  disabled={
+                    busy ||
+                    (mode === "create" ? !isPlausibleEmail(email) : !email) ||
+                    !password ||
+                    (mode === "create" && password !== confirmPassword)
+                  }
+                  onClick={() =>
+                    void run(() =>
+                      mode === "create"
+                        ? sync.createAccount(email, password)
+                        : sync.signIn(email, password),
+                    )
+                  }
+                >
+                  {busy
+                    ? "Working…"
+                    : mode === "create"
+                      ? "Create account"
+                      : "Sign in"}
+                </Button>
+                <Button variant="ghost" onClick={() => setMode("choose")}>
+                  Back
+                </Button>
+              </>
+            )}
+            {sync.status === "expired" && (
               <Button
-                className="cy-btn justify-start"
-                disabled={
-                  busy ||
-                  (mode === "create" ? !isPlausibleEmail(email) : !email) ||
-                  !password ||
-                  (mode === "create" && password !== confirmPassword)
-                }
-                onClick={() =>
-                  void run(() =>
-                    mode === "create"
-                      ? sync.createAccount(email, password)
-                      : sync.signIn(email, password),
-                  )
-                }
+                variant="ghost"
+                onClick={() => void sync.dismissSignOut()}
               >
-                {busy
-                  ? "Working…"
-                  : mode === "create"
-                    ? "Create account"
-                    : "Sign in"}
+                Stay signed out
               </Button>
-              <Button variant="ghost" onClick={() => setMode("choose")}>
-                Back
-              </Button>
-            </>
-          )}
-        </section>
-      )}
+            )}
+          </section>
+        )}
     </div>
   );
 };

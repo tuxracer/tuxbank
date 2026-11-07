@@ -4,6 +4,9 @@ import { resetDbForTests } from "@/lib/storage/testing";
 import {
   setStoredDek,
   getStoredDek,
+  setStoredAccountEmail,
+  getStoredAccountEmail,
+  clearStoredAccountEmail,
   putEvent,
   deleteEvent,
   getAllEvents,
@@ -21,6 +24,7 @@ import {
   DEVICE_LINK_TTL_MS,
 } from "@/lib/deviceLink";
 import { toBase64 } from "@/utils/base64";
+import { AccountError } from "@/lib/account";
 import { SyncProvider, useSync } from "./index";
 
 // Replace the network-facing account + sync layers; the storage layer stays
@@ -28,6 +32,7 @@ import { SyncProvider, useSync } from "./index";
 const mocks = vi.hoisted(() => ({
   getActiveSession: vi.fn(),
   signOut: vi.fn(),
+  onSessionLost: vi.fn(),
   runSync: vi.fn(),
   count: vi.fn(),
   signIn: vi.fn(),
@@ -42,33 +47,37 @@ const mocks = vi.hoisted(() => ({
   deleteAuthUser: vi.fn(),
 }));
 
-vi.mock("@/lib/account", async (importOriginal) => ({
-  // AccountError is a real class the provider throws; only the network-facing
-  // functions are replaced.
-  AccountError: (await importOriginal<typeof import("@/lib/account")>())
-    .AccountError,
-  getActiveSession: mocks.getActiveSession,
-  signOut: mocks.signOut,
-  isAccountError: () => false,
-  deleteKeyMaterial: mocks.deleteKeyMaterial,
-  deleteAuthUser: mocks.deleteAuthUser,
-  enrollTotp: vi.fn(),
-  fetchKeyMaterial: mocks.fetchKeyMaterial,
-  getTotpFactorId: mocks.getTotpFactorId,
-  provisionAccountKeys: vi.fn(),
-  requestReauthentication: vi.fn(),
-  rewrapForNewPassword: vi.fn(),
-  signIn: mocks.signIn,
-  signUp: vi.fn(),
-  unlockWithKek: mocks.unlockWithKek,
-  unlockWithPassword: vi.fn(),
-  unlockWithRecoveryKey: vi.fn(),
-  updateAuthPassword: vi.fn(),
-  stagePasswordRewrap: vi.fn(),
-  clearPreviousPasswordWrap: vi.fn(),
-  uploadKeyMaterial: vi.fn(),
-  verifyTotp: mocks.verifyTotp,
-}));
+vi.mock("@/lib/account", async (importOriginal) => {
+  // AccountError (and its guard) are real: the provider throws and branches
+  // on them. Only the network-facing functions are replaced.
+  const { AccountError, isAccountError } =
+    await importOriginal<typeof import("@/lib/account")>();
+  return {
+    AccountError,
+    isAccountError,
+    getActiveSession: mocks.getActiveSession,
+    signOut: mocks.signOut,
+    onSessionLost: mocks.onSessionLost,
+    deleteKeyMaterial: mocks.deleteKeyMaterial,
+    deleteAuthUser: mocks.deleteAuthUser,
+    enrollTotp: vi.fn(),
+    fetchKeyMaterial: mocks.fetchKeyMaterial,
+    getTotpFactorId: mocks.getTotpFactorId,
+    provisionAccountKeys: vi.fn(),
+    requestReauthentication: vi.fn(),
+    rewrapForNewPassword: vi.fn(),
+    signIn: mocks.signIn,
+    signUp: vi.fn(),
+    unlockWithKek: mocks.unlockWithKek,
+    unlockWithPassword: vi.fn(),
+    unlockWithRecoveryKey: vi.fn(),
+    updateAuthPassword: vi.fn(),
+    stagePasswordRewrap: vi.fn(),
+    clearPreviousPasswordWrap: vi.fn(),
+    uploadKeyMaterial: vi.fn(),
+    verifyTotp: mocks.verifyTotp,
+  };
+});
 
 vi.mock("@/lib/sync", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/sync")>();
@@ -169,6 +178,118 @@ describe("SyncContext session resume", () => {
 
     await waitFor(() => expect(result.current.status).toBe("off"));
     expect(await getStoredDek()).toBeUndefined();
+    // Forgotten on purpose, so the next boot reads "no session" as a choice
+    // rather than a loss.
+    expect(await getStoredAccountEmail()).toBeUndefined();
+  });
+});
+
+describe("SyncContext lost session", () => {
+  const DEK = new Uint8Array([1, 2, 3, 4, 5]);
+  const EMAIL = "user@example.com";
+  // The auth client's SIGNED_OUT, as the provider subscribed to it.
+  let sessionLost: () => void = () => undefined;
+
+  beforeEach(async () => {
+    await resetDbForTests();
+    mocks.toastError.mockClear();
+    mocks.signOut.mockResolvedValue(undefined);
+    mocks.runSync.mockResolvedValue({ pushed: 0, pulled: 0 });
+    mocks.onSessionLost.mockImplementation((onLost: () => void) => {
+      sessionLost = onLost;
+      return () => undefined;
+    });
+    await setStoredAccountEmail(EMAIL);
+    await setStoredDek(DEK);
+  });
+
+  it("reports a session that ended while the app was closed", async () => {
+    mocks.getActiveSession.mockResolvedValue(null);
+
+    const { result } = renderHook(() => useSync(), { wrapper });
+
+    await waitFor(() => expect(result.current.status).toBe("expired"));
+    expect(result.current.email).toBe(EMAIL);
+    expect(result.current.unlocked).toBe(false);
+    expect(await getStoredDek()).toBeUndefined();
+    // Still remembered, so a reload shows the notice again.
+    expect(await getStoredAccountEmail()).toBe(EMAIL);
+  });
+
+  it("stays quiet on a device that never signed in", async () => {
+    await clearStoredAccountEmail();
+    mocks.getActiveSession.mockResolvedValue(null);
+
+    const { result } = renderHook(() => useSync(), { wrapper });
+
+    await waitFor(() => expect(mocks.getActiveSession).toHaveBeenCalled());
+    await waitFor(() => expect(getStoredDek()).resolves.toBeUndefined());
+    expect(result.current.status).toBe("off");
+  });
+
+  it("resumes from the cache when the auth server cannot be reached", async () => {
+    mocks.getActiveSession.mockRejectedValue(
+      new AccountError("SESSION_UNAVAILABLE"),
+    );
+
+    const { result } = renderHook(() => useSync(), { wrapper });
+
+    await waitFor(() => expect(result.current.status).toBe("synced"));
+    expect(result.current.email).toBe(EMAIL);
+    // The session is still stored; a flaky network must not cost the key.
+    expect(await getStoredDek()).toEqual(DEK);
+  });
+
+  it("flips to expired when the client drops the session mid-session", async () => {
+    mocks.getActiveSession.mockResolvedValue({ email: EMAIL, aal2: true });
+    const { result } = renderHook(() => useSync(), { wrapper });
+    await waitFor(() => expect(result.current.status).toBe("synced"));
+
+    act(() => sessionLost());
+
+    await waitFor(() => expect(result.current.status).toBe("expired"));
+    expect(result.current.email).toBe(EMAIL);
+    expect(mocks.toastError).toHaveBeenCalledTimes(1);
+    expect(await getStoredDek()).toBeUndefined();
+  });
+
+  it("mirrors another tab's deliberate sign-out without a warning", async () => {
+    mocks.getActiveSession.mockResolvedValue({ email: EMAIL, aal2: true });
+    const { result } = renderHook(() => useSync(), { wrapper });
+    await waitFor(() => expect(result.current.status).toBe("synced"));
+
+    // The other tab forgets the account before its client broadcasts.
+    await clearStoredAccountEmail();
+    act(() => sessionLost());
+
+    await waitFor(() => expect(result.current.status).toBe("off"));
+    expect(result.current.email).toBeNull();
+    expect(mocks.toastError).not.toHaveBeenCalled();
+  });
+
+  it("does not mistake its own sign-out for a lost session", async () => {
+    mocks.getActiveSession.mockResolvedValue({ email: EMAIL, aal2: true });
+    // The real client emits SIGNED_OUT from inside signOut().
+    mocks.signOut.mockImplementation(async () => sessionLost());
+    const { result } = renderHook(() => useSync(), { wrapper });
+    await waitFor(() => expect(result.current.status).toBe("synced"));
+
+    await act(() => result.current.signOut());
+
+    await waitFor(() => expect(result.current.status).toBe("off"));
+    expect(mocks.toastError).not.toHaveBeenCalled();
+  });
+
+  it("dismissing the notice returns to local-only and forgets the account", async () => {
+    mocks.getActiveSession.mockResolvedValue(null);
+    const { result } = renderHook(() => useSync(), { wrapper });
+    await waitFor(() => expect(result.current.status).toBe("expired"));
+
+    await act(() => result.current.dismissSignOut());
+
+    await waitFor(() => expect(result.current.status).toBe("off"));
+    expect(result.current.email).toBeNull();
+    expect(await getStoredAccountEmail()).toBeUndefined();
   });
 });
 

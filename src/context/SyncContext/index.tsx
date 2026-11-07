@@ -21,6 +21,7 @@ import {
   getActiveSession,
   getTotpFactorId,
   isAccountError,
+  onSessionLost,
   provisionAccountKeys,
   requestReauthentication,
   rewrapForNewPassword,
@@ -35,6 +36,7 @@ import {
   updateAuthPassword,
   uploadKeyMaterial,
   verifyTotp,
+  type ActiveSession,
   type KeyMaterial,
 } from "@/lib/account";
 import {
@@ -46,13 +48,16 @@ import {
 } from "@/lib/deviceLink";
 import {
   clearLocalData,
+  clearStoredAccountEmail,
   clearStoredDek,
   clearSyncState,
   commitImportLocal,
   commitImportSynced,
   exportDatabase,
+  getStoredAccountEmail,
   getStoredDek,
   getSyncCursor,
+  setStoredAccountEmail,
   setStoredDek,
 } from "@/lib/storage";
 import {
@@ -91,6 +96,12 @@ const LINK_SIGNIN_FAILED_MESSAGE =
 const LINK_EXPIRED_MESSAGE =
   "This sign-in code has expired. Generate a new one on your signed-in device.";
 
+// Shown the moment a live session ends without a sign-out from this device.
+// The toolbar badge carries the state from then on; this is the one-time cue
+// for a user who is not looking at it.
+const SESSION_LOST_MESSAGE =
+  "You've been signed out of sync. Sign in again in Settings to resume syncing.";
+
 const describeError = (error: unknown): string =>
   isAccountError(error)
     ? error.code
@@ -116,13 +127,16 @@ const trackAccountError = (action: AccountAction, error: unknown): void => {
 };
 
 /**
- * Statuses where the provider must not touch the account: signed out, locked,
- * or holding a live key but waiting on the first-sync conflict prompt. In all
- * three the device has not reconciled with the account, so destructive actions
- * stay local.
+ * Statuses where the provider must not touch the account: signed out (by the
+ * user, or behind their back), locked, or holding a live key but waiting on
+ * the first-sync conflict prompt. In all of them the device has not reconciled
+ * with the account, so destructive actions stay local.
  */
 const isPreSync = (status: SyncStatus): boolean =>
-  status === "off" || status === "locked" || status === "choice";
+  status === "off" ||
+  status === "expired" ||
+  status === "locked" ||
+  status === "choice";
 
 // Apply the new auth secret, handling Secure-password-change reauthentication:
 // without a nonce a REAUTH_REQUIRED error emails a code and returns "reauth".
@@ -193,6 +207,17 @@ export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
   // edit, focus, and reconnect, so a code is sent once until it clears or
   // changes: one broken session is one event, not one per retry.
   const reportedSyncErrorRef = useRef<string | null>(null);
+  // Set for the duration of this provider's own signOut, so the auth client's
+  // SIGNED_OUT event for it is not mistaken for a lost session.
+  const signingOutRef = useRef(false);
+  // Mirrors of state the session-loss listener reads. It subscribes once, so
+  // it cannot close over the live values.
+  const statusRef = useRef<SyncStatus>("off");
+  const emailRef = useRef<string | null>(null);
+  useEffect(() => {
+    statusRef.current = status;
+    emailRef.current = email;
+  }, [status, email]);
 
   // Whether the first-sync conflict question has been settled for this session.
   // "unknown" means it has not been asked yet, "pending" means the user is
@@ -226,15 +251,81 @@ export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
     return linkPayloadRef.current;
   }, []);
 
-  // Set the in-memory data key and cache it on the device so a reload or
-  // restart resumes unlocked instead of re-prompting for the password. The ref
-  // is set synchronously (callers fire doSync right after); persistence runs in
-  // the background and is non-fatal — a failed write only costs the next load
-  // an unlock, never this session.
-  const storeDek = useCallback((dek: Uint8Array): void => {
-    dekRef.current = dek;
-    void setStoredDek(dek).catch(() => undefined);
-  }, []);
+  // Set the in-memory data key and cache it on the device, together with the
+  // account it belongs to, so a reload or restart resumes unlocked instead of
+  // re-prompting for the password. The ref is set synchronously (callers fire
+  // doSync right after); persistence runs in the background and is non-fatal —
+  // a failed write only costs the next load an unlock, never this session.
+  // The account email outlives the Supabase session on purpose: a later boot
+  // that finds it with no session knows the session ended without a sign-out.
+  const storeDek = useCallback(
+    (dek: Uint8Array, accountEmail: string): void => {
+      dekRef.current = dek;
+      void setStoredDek(dek).catch(() => undefined);
+      void setStoredAccountEmail(accountEmail).catch(() => undefined);
+    },
+    [],
+  );
+
+  // Forget the session on this side only: refs and state. Shared by a
+  // deliberate sign-out and a session lost behind the user's back; the two
+  // differ in where they land ("off" versus "expired") and in whether the
+  // account email is kept for the notice and the sign-in form.
+  const dropSession = useCallback(
+    (next: "off" | "expired", keepEmail: string | null): void => {
+      dekRef.current = null;
+      pendingRef.current = null;
+      choiceRef.current = "unknown";
+      setEmail(keepEmail);
+      setEnrollment(null);
+      setRecoveryKey(null);
+      setSignInChoice(null);
+      setStep("idle");
+      setStatus(next);
+      setLastSyncedAt(null);
+      setError(null);
+    },
+    [],
+  );
+
+  // The session ended without a sign-out from this device: a token refresh
+  // the server rejected, a sign-out in another tab, or a session that was
+  // already gone when the app booted. The cached key goes (it is useless
+  // without a session) but the device's record of the account stays, so the
+  // notice survives a reload until the user signs in again or dismisses it.
+  const markSessionLost = useCallback(
+    (lostEmail: string, at: "boot" | "live"): void => {
+      trackEvent("session-lost", { at });
+      void clearStoredDek().catch(() => undefined);
+      dropSession("expired", lostEmail);
+      if (at === "live") toast.error(SESSION_LOST_MESSAGE);
+    },
+    [dropSession],
+  );
+
+  // Watch the auth client for a dropped session while the app is open. Its
+  // SIGNED_OUT fires for our own signOut too (guarded by signingOutRef), and
+  // for sign-outs this provider never held a session for (the boot cleanup of
+  // a half-set-up session, a failed device link), which carry no key and no
+  // locked state and so are ignored. Another tab's deliberate sign-out clears
+  // the account marker before the client broadcasts, so a missing marker
+  // means "mirror it quietly" and a present one means the session was lost.
+  useEffect(() => {
+    if (!remote) return;
+    return onSessionLost(() => {
+      if (signingOutRef.current) return;
+      if (!dekRef.current && statusRef.current !== "locked") return;
+      void getStoredAccountEmail()
+        .catch(() => emailRef.current ?? undefined)
+        .then((remembered) => {
+          if (remembered === undefined) {
+            dropSession("off", null);
+            return;
+          }
+          markSessionLost(remembered, "live");
+        });
+    });
+  }, [remote, dropSession, markSessionLost]);
 
   // Best effort: a failed storage read keeps the previous count rather than
   // surfacing an error for a purely informational number. Skipped entirely
@@ -460,7 +551,7 @@ export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
     async (password: string, emailInput: string) => {
       const provisioned = await provisionAccountKeys(password, emailInput);
       await uploadKeyMaterial(provisioned.keyMaterial);
-      storeDek(provisioned.dek);
+      storeDek(provisioned.dek, emailInput);
       setRecoveryKey(provisioned.recoveryKey);
       setStep("create-recovery");
       setError(null);
@@ -489,6 +580,7 @@ export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
                   material,
                 )
               : await unlockWithKek(pending.kek, material),
+            pending.email,
           );
           pendingRef.current = null;
           setEnrollment(null);
@@ -535,7 +627,7 @@ export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
         const material = await fetchMaterialIfAny();
         if (material) {
           // Existing data: unlock the data key with the password.
-          storeDek(await unlockWithPassword(password, email, material));
+          storeDek(await unlockWithPassword(password, email, material), email);
           setStatus("synced");
           setError(null);
           void doSync();
@@ -609,42 +701,72 @@ export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
     const linkPayload = expired ? null : scanned;
     if (!remote) return;
     let active = true;
-    void getActiveSession()
-      .then(async (session) => {
+    // Resume unlocked from the cached key, or fall back to "locked" for a
+    // password when there is none.
+    const resumeFromCache = async (accountEmail: string) => {
+      setEmail(accountEmail);
+      const storedDek = await getStoredDek().catch(() => undefined);
+      if (!active) return;
+      if (storedDek) {
+        dekRef.current = storedDek;
+        setStatus("synced");
+        void doSync();
+      } else {
+        setStatus("locked");
+      }
+    };
+    const resume = async () => {
+      // The account this device was signed in to, if it never signed out.
+      const remembered = await getStoredAccountEmail().catch(() => undefined);
+      let session: ActiveSession | null;
+      try {
+        session = await getActiveSession();
+      } catch (caught) {
         if (!active) return;
-        if (session?.aal2) {
-          if (linkPayload) toast("Already signed in on this device.");
-          // Fully set-up session. If the DEK was cached on this device, resume
-          // unlocked and sync; otherwise fall back to "locked" for a password.
-          setEmail(session.email);
-          const storedDek = await getStoredDek().catch(() => undefined);
-          if (!active) return;
-          if (storedDek) {
-            dekRef.current = storedDek;
-            setStatus("synced");
-            void doSync();
-          } else {
-            setStatus("locked");
-          }
-        } else {
-          // No usable session: drop any orphaned cached key. For a half-set-up
-          // aal1 session (email confirmed but setup never finished), also sign
-          // out so the user signs in cleanly, which runs TOTP + setup.
-          void clearStoredDek();
-          if (session) await authSignOut();
-          if (linkPayload && active) await signInWithLink(linkPayload);
-        }
-      })
-      .catch(() => {
-        // authSignOut() above (for a half-set-up session) can itself throw.
-        // Without this, a scanned link would be silently dropped with no
-        // feedback; surface the same generic failure signInWithLink shows.
-        if (linkPayload) toast.error(LINK_SIGNIN_FAILED_MESSAGE);
-      });
+        const unreachable =
+          isAccountError(caught) && caught.code === "SESSION_UNAVAILABLE";
+        if (!unreachable || !remembered) throw caught;
+        // The stored session is still there; only the refresh could not reach
+        // the auth server. Resume as if it had succeeded: the next sync
+        // retries, and flips to offline or error on its own. A flaky network
+        // at boot must never read as a sign-out, nor cost the cached key.
+        await resumeFromCache(remembered);
+        return;
+      }
+      if (!active) return;
+      if (session?.aal2) {
+        if (linkPayload) toast("Already signed in on this device.");
+        // Fully set-up session. Keep the device's record of the account
+        // current (this also back-fills devices that signed in before the
+        // record existed).
+        void setStoredAccountEmail(session.email).catch(() => undefined);
+        await resumeFromCache(session.email);
+        return;
+      }
+      // No usable session: drop any orphaned cached key. For a half-set-up
+      // aal1 session (email confirmed but setup never finished), also sign
+      // out so the user signs in cleanly, which runs TOTP + setup.
+      void clearStoredDek();
+      if (session) await authSignOut();
+      if (!active) return;
+      if (linkPayload) {
+        await signInWithLink(linkPayload);
+        return;
+      }
+      // This device was signed in and nobody signed it out: the session ended
+      // while the app was closed.
+      if (remembered) markSessionLost(remembered, "boot");
+    };
+    void resume().catch(() => {
+      // authSignOut() above (for a half-set-up session) can itself throw.
+      // Without this, a scanned link would be silently dropped with no
+      // feedback; surface the same generic failure signInWithLink shows.
+      if (linkPayload) toast.error(LINK_SIGNIN_FAILED_MESSAGE);
+    });
     return () => {
       active = false;
     };
-  }, [remote, doSync, consumeLinkPayload, signInWithLink]);
+  }, [remote, doSync, consumeLinkPayload, signInWithLink, markSessionLost]);
 
   const createDeviceLink = useCallback(
     async (password: string): Promise<string | null> => {
@@ -726,7 +848,7 @@ export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
           return "reauth";
         }
         await clearPreviousPasswordWrap().catch(() => undefined);
-        storeDek(dek);
+        storeDek(dek, email);
         setStatus("synced");
         setError(null);
         void doSync();
@@ -742,30 +864,26 @@ export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
 
   const signOut = useCallback(
     async (clearLocal?: boolean) => {
+      signingOutRef.current = true;
       try {
-        await authSignOut();
-      } catch {
-        // Local session is cleared regardless; ignore a failed server revoke.
+        // Forget the key and the account on the device before the auth client
+        // broadcasts the sign-out, so another tab's listener reads a cleared
+        // marker and mirrors a deliberate sign-out instead of reporting a lost
+        // session. Awaited so the key is gone before sign-out resolves;
+        // best-effort because the next load cannot resume without a session
+        // anyway (clearLocalData below wipes both too).
+        await Promise.all([clearStoredDek(), clearStoredAccountEmail()]).catch(
+          () => undefined,
+        );
+        try {
+          await authSignOut();
+        } catch {
+          // Local session is cleared regardless; ignore a failed server revoke.
+        }
+      } finally {
+        signingOutRef.current = false;
       }
-      dekRef.current = null;
-      pendingRef.current = null;
-      choiceRef.current = "unknown";
-      setEmail(null);
-      setEnrollment(null);
-      setRecoveryKey(null);
-      setSignInChoice(null);
-      setStep("idle");
-      setStatus("off");
-      setLastSyncedAt(null);
-      setError(null);
-      // Drop the cached key so the next load re-locks. clearLocalData (below)
-      // also wipes it, but a non-clearing sign-out must drop it too; awaited so
-      // the key is gone before sign-out resolves.
-      try {
-        await clearStoredDek();
-      } catch {
-        // Best-effort: the next load can't resume without an active session.
-      }
+      dropSession("off", null);
       if (clearLocal) {
         try {
           await clearLocalData();
@@ -781,7 +899,7 @@ export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
         }
       }
     },
-    [refreshFromStorage],
+    [refreshFromStorage, dropSession],
   );
 
   /**
@@ -906,11 +1024,11 @@ export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
         if (choice === "remote") {
           await clearLocalData();
           // clearLocalData clears the entire syncMeta store, including the
-          // cached DEK. dekRef.current survives in memory so this session
-          // keeps working either way, but without re-persisting it here the
-          // next page load finds no cached key and lands on "locked" instead
-          // of resuming synced.
-          if (dekRef.current) storeDek(dekRef.current);
+          // cached DEK and the account marker. dekRef.current survives in
+          // memory so this session keeps working either way, but without
+          // re-persisting both here the next page load finds no cached key
+          // and lands on "locked" instead of resuming synced.
+          if (dekRef.current && email) storeDek(dekRef.current, email);
           await refreshFromStorage();
           choiceRef.current = "resolved";
           await doSync();
@@ -937,8 +1055,16 @@ export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
         setStatus("error");
       }
     },
-    [doSync, refreshFromStorage, storeDek, reportSyncError],
+    [doSync, refreshFromStorage, storeDek, reportSyncError, email],
   );
+
+  // The user saw the signed-out notice and chose to stay local-only: forget
+  // the account so the notice does not come back on the next boot. A failed
+  // clear is not worth an error (the notice simply returns next time).
+  const dismissSignOut = useCallback(async () => {
+    await clearStoredAccountEmail().catch(() => undefined);
+    dropSession("off", null);
+  }, [dropSession]);
 
   const unlocked = !isPreSync(status);
 
@@ -973,6 +1099,7 @@ export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
       syncNow,
       signInChoice,
       resolveSignInChoice,
+      dismissSignOut,
     }),
     [
       status,
@@ -1001,6 +1128,7 @@ export const SyncProvider = ({ children }: { children: React.ReactNode }) => {
       syncNow,
       signInChoice,
       resolveSignInChoice,
+      dismissSignOut,
     ],
   );
 

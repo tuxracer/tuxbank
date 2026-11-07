@@ -891,14 +891,56 @@ local changes are waiting to push (the outbox; before a first sync, every row
 and tombstone).
 Pull and push requests abort after 30 seconds so a dead connection fails into
 the error state instead of hanging. The toolbar's SYNC button shows a persistent
-badge (OFFLINE, LOCKED, ACTION, or ERROR) whenever sync needs attention, so a
-stopped sync is visible without opening the dialog. The data key is held in a
-ref and also cached on the device (the `dek` key in the `syncMeta` store, via
-`setStoredDek`/`getStoredDek`), so a reload or restart resumes unlocked and
-re-syncs instead of re-prompting. The cache is cleared only on sign-out
-(`clearStoredDek`, and by the `clearLocalData` wipe). When a signed-in (`aal2`)
-session finds no cached key (a new device, or after sign-out), the app falls back
-to a **locked** state until the user re-enters their password.
+badge (OFFLINE, SIGNED OUT, LOCKED, ACTION, or ERROR) whenever sync needs
+attention, so a stopped sync is visible without opening the dialog. The data key
+is held in a ref and also cached on the device (the `dek` key in the `syncMeta`
+store, via `setStoredDek`/`getStoredDek`), so a reload or restart resumes
+unlocked and re-syncs instead of re-prompting. The cache is cleared on sign-out
+(`clearStoredDek`, and by the `clearLocalData` wipe) and when the session is
+lost (below). When a signed-in (`aal2`) session finds no cached key (a new
+device, or after sign-out), the app falls back to a **locked** state until the
+user re-enters their password.
+
+### Lost sessions (`expired`)
+
+A Supabase session can end without the user signing out: the auth client drops
+it when a token refresh is rejected (the refresh token was revoked, rotated by
+another device, or is past the project's session limits), and a sign-out in one
+tab is broadcast to the others. Left undetected, the app would silently fall
+back to local-only and the only sign would be the Sync pane showing a sign-in
+form. Two pieces make the loss visible instead:
+
+- **The device remembers its account.** `storeDek` also writes the signed-in
+  email to the `syncMeta` store (`accountEmail`, via
+  `setStoredAccountEmail`/`getStoredAccountEmail`), and the boot resume keeps it
+  current. Only a deliberate sign-out (`signOut`, and the `clearLocalData` and
+  `clearSyncState` wipes) clears it. A boot that finds the marker but no session
+  is therefore a session that ended behind the user's back, and lands in the
+  **expired** status with the email kept; a boot with neither is plain **off**.
+- **The provider listens to the auth client.** `onSessionLost` (in
+  `lib/account`) relays the client's `SIGNED_OUT` event. The provider ignores
+  the event its own `signOut` emits (a `signingOutRef` guard) and any sign-out
+  it never held a session for (no key and not locked). For the rest it reads
+  the marker: `signOut` clears the marker before calling the client, so a
+  missing marker means another tab signed out on purpose and the tab mirrors it
+  quietly, while a present marker means the session was lost, which flips to
+  **expired**, drops the cached key, and toasts once.
+
+`expired` renders a magenta SIGNED OUT badge in the toolbar, and the Sync pane
+opens on the sign-in form with the account filled in, under a notice that
+changes are no longer syncing. A "Stay signed out" button (`dismissSignOut`)
+clears the marker and returns to **off**. The status counts as pre-sync like
+`off` and `locked`: imports and resets stay local.
+
+`getActiveSession` distinguishes "no session" from "could not check": when the
+stored session's access token has expired and the refresh cannot reach the auth
+server, the client keeps the session and returns a retryable fetch error, which
+surfaces as `SESSION_UNAVAILABLE`. The boot resume treats that as a session to
+resume from the cache (the next sync retries and settles into `offline` or
+`error` on its own) rather than as a sign-out, so a flaky network at boot never
+reports a sign-out or costs the cached key. Before this distinction the app
+cleared the key on that path, which turned an offline cold start into a
+password prompt on the next online one.
 
 ### Auth, onboarding, and recovery flows (`SyncContext`, `SyncSettings`)
 

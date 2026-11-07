@@ -27,6 +27,7 @@ const syncValue: SyncContextValue = {
   changePassword: vi.fn(),
   recoverWithKey: vi.fn(),
   signOut: vi.fn(),
+  dismissSignOut: vi.fn(),
   deleteAccount: mocks.deleteAccount,
   resetAllData: vi.fn(),
   importData: vi.fn(),

@@ -18,6 +18,7 @@ export type AnalyticsEventName =
   | "account-created"
   | "account-deleted"
   | "signed-in"
+  | "session-lost"
   | "sign-in-choice"
   | "sync-error"
   | "sync-rows-skipped"

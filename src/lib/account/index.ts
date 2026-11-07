@@ -9,6 +9,7 @@ import {
 } from "@/lib/crypto";
 import type { SealedBox } from "@/lib/crypto";
 import { toBase64, fromBase64 } from "@/utils/base64";
+import { isAuthRetryableFetchError } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 import {
   AccountError,
@@ -183,10 +184,37 @@ export const signOut = async (): Promise<void> => {
   await client().auth.signOut();
 };
 
+/**
+ * Run `onLost` whenever the client drops its session: a token refresh the
+ * server rejected (revoked, rotated elsewhere, or past the project's session
+ * limits), a sign-out in another tab, or our own signOut. The caller tells
+ * those apart. Returns the unsubscribe.
+ */
+export const onSessionLost = (onLost: () => void): (() => void) => {
+  const {
+    data: { subscription },
+  } = client().auth.onAuthStateChange((event) => {
+    if (event === "SIGNED_OUT") onLost();
+  });
+  return () => subscription.unsubscribe();
+};
+
+/**
+ * The persisted session, or null when this browser holds none. Throws
+ * SESSION_UNAVAILABLE when there is a stored session whose access token has
+ * expired and the refresh could not reach the auth server: the client keeps
+ * the session in that case, so "null" would misreport a flaky network as a
+ * sign-out. Any other refresh failure removes the session (and fires the
+ * SIGNED_OUT event, see onSessionLost), so a null here is a real sign-out.
+ */
 export const getActiveSession = async (): Promise<ActiveSession | null> => {
   const {
     data: { session },
+    error,
   } = await client().auth.getSession();
+  if (error && isAuthRetryableFetchError(error)) {
+    throw new AccountError("SESSION_UNAVAILABLE", error);
+  }
   const email = session?.user.email;
   if (!email) return null;
   const { data } = await client().auth.mfa.getAuthenticatorAssuranceLevel();

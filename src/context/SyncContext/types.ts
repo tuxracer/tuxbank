@@ -1,7 +1,15 @@
 import type { SignInConflict } from "@/lib/sync";
 
+/**
+ * "off" is local-only by choice (never signed in, or signed out). "expired" is
+ * local-only against the user's wishes: this device was signed in and the
+ * session ended without a sign-out (a refresh the server rejected, a sign-out
+ * in another tab, or a session already gone at boot). It shows a notice until
+ * the user signs in again or dismisses it.
+ */
 export type SyncStatus =
   | "off"
+  | "expired"
   | "locked"
   | "choice"
   | "syncing"
@@ -105,4 +113,10 @@ export interface SyncContextValue {
    * on every device.
    */
   resolveSignInChoice: (choice: SignInChoice) => Promise<void>;
+  /**
+   * Leave the "expired" state for plain "off": the user saw that the session
+   * ended and chose to stay local-only, so the device forgets the account and
+   * the notice does not return on the next boot.
+   */
+  dismissSignOut: () => Promise<void>;
 }
